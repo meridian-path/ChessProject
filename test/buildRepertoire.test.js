@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const { buildRepertoireTree } = require('../src/buildRepertoire');
 
@@ -11,6 +12,14 @@ const FIXTURES = path.join(__dirname, 'fixtures');
 const rootFixture = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'explorer-response.json'), 'utf8'));
 const afterE4Fixture = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'explorer-after-e4.json'), 'utf8'));
 const afterD4Fixture = JSON.parse(fs.readFileSync(path.join(FIXTURES, 'explorer-after-d4.json'), 'utf8'));
+
+// buildRepertoireTree() defaults aggregatesDir to the real data/aggregates/
+// (see src/explorerSource.js's fetchMoves()) -- if a developer/agent has run
+// `npm run fetch-local-aggregates` and cached real shard data there, this
+// fixture-driven test would silently stop exercising fetchImpl at all and
+// assert against real numbers instead. Always empty, never written to, so
+// aggregatesAvailable() is guaranteed false below.
+const EMPTY_AGGREGATES_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'buildRepertoire-empty-aggregates-'));
 
 // All tests below use a hand-built fake fetch keyed off the `play` query
 // param, standing in for a small 3-position slice of the live Opening
@@ -49,6 +58,7 @@ test('buildRepertoireTree branches on the user color and follows a single oppone
     breadth: 2,
     maxUserPlies: 1,
     fetchImpl,
+    aggregatesDir: EMPTY_AGGREGATES_DIR,
   });
 
   assert.equal(result.ratingBand, '1600-1800');
