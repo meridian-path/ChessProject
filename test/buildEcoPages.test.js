@@ -28,6 +28,14 @@ function withTempDist(fn) {
     });
 }
 
+// buildEcoPages() defaults aggregatesDir to the real data/aggregates/ (see
+// src/explorerSource.js's fetchMoves()) -- if a developer/agent has run
+// `npm run fetch-local-aggregates` and cached real shard data there, a call
+// asserting the exact fetchImpl call count would silently stop exercising
+// fetchImpl at all. Always empty, never written to, so aggregatesAvailable()
+// is guaranteed false below.
+const EMPTY_AGGREGATES_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'buildEcoPages-empty-aggregates-'));
+
 test('buildEcoPages: writes exactly 64 T1 hub pages, 5 T2 volume pages, and 2 paginated browse-index pages, all with a unique title/description and one H1', () =>
   withTempDist(async (outDir) => {
     const { fetchImpl } = makeSmartExplorerFetch();
@@ -76,7 +84,7 @@ test('buildEcoPages: every T1 hub filename matches ecoFamilies.familyHubFilename
 test('buildEcoPages: issues exactly 4 Explorer requests per T1 family (main line, one per rating band), never more', () =>
   withTempDist(async (outDir) => {
     const { fetchImpl, getCallCount } = makeSmartExplorerFetch();
-    const { t1 } = await buildEcoPages({ fetchImpl, outDir, nav: NAV });
+    const { t1 } = await buildEcoPages({ fetchImpl, outDir, nav: NAV, aggregatesDir: EMPTY_AGGREGATES_DIR });
     assert.equal(getCallCount(), t1.length * 4);
   })
 );

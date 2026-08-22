@@ -33,6 +33,13 @@ function withTempDist(fn) {
     });
 }
 
+// buildContentPages() defaults aggregatesDir to the real data/aggregates/
+// (see src/explorerSource.js's fetchMoves()) -- a call deliberately testing
+// the "no aggregates on disk" fallback wording/behavior needs this to
+// guarantee that fallback, not just an accident of a clean checkout. Always
+// empty, never written to, so aggregatesAvailable() is guaranteed false.
+const EMPTY_AGGREGATES_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'buildContent-empty-aggregates-'));
+
 test('buildContentPages writes one page per configured opening plus the openings hub, every guide, the guides hub, and the FAQ -- all with a unique title/description and one H1', () =>
   withTempDist(async (outDir) => {
     const { fetchImpl } = makeSmartExplorerFetch();
@@ -331,7 +338,7 @@ test('buildContentPages: the FAQ page\'s "are these stats from blitz or classica
     assert.match(faqPage.html, /Bullet, rapid and classical games are not included/, 'the excluded clause must name all three excluded pools, not silently omit one');
     assert.doesNotMatch(faqPage.html, /Blitz and rapid games from the Lichess database/, 'must not claim rapid data this build never drew from');
 
-    const { written: fallbackWritten } = await buildContentPages({ fetchImpl, outDir: fs.mkdtempSync(path.join(os.tmpdir(), 'lichess-content-faq-fallback-')) });
+    const { written: fallbackWritten } = await buildContentPages({ fetchImpl, outDir: fs.mkdtempSync(path.join(os.tmpdir(), 'lichess-content-faq-fallback-')), aggregatesDir: EMPTY_AGGREGATES_DIR });
     const fallbackFaqPage = fallbackWritten.find((p) => p.file === 'chess-opening-faq.html');
     assert.match(fallbackFaqPage.html, /Blitz and rapid games from the Lichess database/, 'no aggregates on disk should give the honest blitz+rapid fallback answer');
     assert.match(fallbackFaqPage.html, /Classical and bullet games are not included/, 'the fallback excluded clause must name bullet too, not just classical');
@@ -384,7 +391,7 @@ test('phase 2: the guides hub links to every guide article, and every guide has 
 test('the repertoire how-to guide computes its worked examples from entries and degrades gracefully with no data', () =>
   withTempDist(async (outDir) => {
     const { fetchImpl } = makeSmartExplorerFetch();
-    const { written } = await buildContentPages({ fetchImpl, outDir });
+    const { written } = await buildContentPages({ fetchImpl, outDir, aggregatesDir: EMPTY_AGGREGATES_DIR });
     const page = written.find((p) => p.file === 'how-to-build-your-opening-repertoire.html');
     assert.ok(page, 'how-to-build-your-opening-repertoire.html should be written');
 

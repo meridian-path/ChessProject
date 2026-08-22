@@ -2,6 +2,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 const {
   RULE_VERSION,
@@ -26,6 +29,14 @@ const { Chess } = require('chess.js');
 function fakeResponse(json) {
   return { ok: true, status: 200, statusText: 'OK', headers: { get: () => null }, json: async () => json };
 }
+
+// buildPackTree() defaults aggregatesDir to the real data/aggregates/ (see
+// src/explorerSource.js's fetchMoves()) -- if a developer/agent has run
+// `npm run fetch-local-aggregates` and cached real shard data there, these
+// fixture-driven tests would silently stop exercising fetchImpl at all and
+// assert against real numbers instead. Always empty, never written to, so
+// aggregatesAvailable() is guaranteed false for every call below.
+const EMPTY_AGGREGATES_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'buildPack-empty-aggregates-'));
 
 // ---------------------------------------------------------------------
 // Pure-helper unit tests
@@ -182,7 +193,7 @@ function mainScenarioFetch() {
 
 test('buildPackTree walks opponent branches by cumulative frequency and picks our move by score lower bound', async () => {
   const { fetchImpl } = mainScenarioFetch();
-  const result = await buildPackTree({ ratingBand: '1400-1600', color: 'white', firstMoveUci: 'e2e4', fetchImpl });
+  const result = await buildPackTree({ ratingBand: '1400-1600', color: 'white', firstMoveUci: 'e2e4', fetchImpl, aggregatesDir: EMPTY_AGGREGATES_DIR });
 
   assert.equal(result.tree.san, 'e4');
   assert.equal(result.tree.side, 'white');
@@ -272,7 +283,7 @@ function tieBreakScenarioFetch() {
 
 test('buildPackTree tie-break prefers the move with fewer opponent branches at the resulting position', async () => {
   const { fetchImpl } = tieBreakScenarioFetch();
-  const result = await buildPackTree({ ratingBand: '1400-1600', color: 'white', firstMoveUci: 'd2d4', fetchImpl });
+  const result = await buildPackTree({ ratingBand: '1400-1600', color: 'white', firstMoveUci: 'd2d4', fetchImpl, aggregatesDir: EMPTY_AGGREGATES_DIR });
 
   const d5Node = result.tree.children[0]; // black's reply, 1...d5
   assert.equal(d5Node.san, 'd5');
@@ -288,7 +299,7 @@ test('buildPackTree tie-break prefers the move with fewer opponent branches at t
 
 test('countPositions / flattenPositions / collectLeafPaths / pruneToTopLines agree on a small tree', async () => {
   const { fetchImpl } = mainScenarioFetch();
-  const result = await buildPackTree({ ratingBand: '1400-1600', color: 'white', firstMoveUci: 'e2e4', fetchImpl });
+  const result = await buildPackTree({ ratingBand: '1400-1600', color: 'white', firstMoveUci: 'e2e4', fetchImpl, aggregatesDir: EMPTY_AGGREGATES_DIR });
 
   // root + 4 opponent replies + 1 our-move (under c5) = 6.
   assert.equal(countPositions(result.tree), 6);
@@ -317,7 +328,7 @@ test('countPositions / flattenPositions / collectLeafPaths / pruneToTopLines agr
 
 test('pgnFromTree renders variations and round-trips through chess.js with zero illegal moves', async () => {
   const { fetchImpl } = mainScenarioFetch();
-  const result = await buildPackTree({ ratingBand: '1400-1600', color: 'white', firstMoveUci: 'e2e4', fetchImpl });
+  const result = await buildPackTree({ ratingBand: '1400-1600', color: 'white', firstMoveUci: 'e2e4', fetchImpl, aggregatesDir: EMPTY_AGGREGATES_DIR });
   const pgn = pgnFromTree(result.tree, { Event: 'Test Pack', Site: 'test', Date: '2026.08.15', White: 'White 1400-1600', Black: '?', Result: '*' });
 
   assert.match(pgn, /^\[Event "Test Pack"\]/);
@@ -350,7 +361,7 @@ test('pgnFromTree on the tie-break tree also round-trips cleanly', async () => {
 
 test('packJsonFromResult builds a schema-shaped, deterministic manifest', async () => {
   const { fetchImpl } = mainScenarioFetch();
-  const result = await buildPackTree({ ratingBand: '1400-1600', color: 'white', firstMoveUci: 'e2e4', fetchImpl });
+  const result = await buildPackTree({ ratingBand: '1400-1600', color: 'white', firstMoveUci: 'e2e4', fetchImpl, aggregatesDir: EMPTY_AGGREGATES_DIR });
   const packJson = packJsonFromResult(result, { id: 'white-1400-1600', title: 'White at 1400-1600', speeds: ['blitz', 'rapid'], retrieved: '2026-08-15' });
 
   assert.equal(packJson.format, 'repertoire-pack/1');
@@ -363,7 +374,7 @@ test('packJsonFromResult builds a schema-shaped, deterministic manifest', async 
 
   // Determinism: same input -> byte-identical JSON.
   const { fetchImpl: fetch2 } = mainScenarioFetch();
-  const result2 = await buildPackTree({ ratingBand: '1400-1600', color: 'white', firstMoveUci: 'e2e4', fetchImpl: fetch2 });
+  const result2 = await buildPackTree({ ratingBand: '1400-1600', color: 'white', firstMoveUci: 'e2e4', fetchImpl: fetch2, aggregatesDir: EMPTY_AGGREGATES_DIR });
   const packJson2 = packJsonFromResult(result2, { id: 'white-1400-1600', title: 'White at 1400-1600', speeds: ['blitz', 'rapid'], retrieved: '2026-08-15' });
   assert.equal(JSON.stringify(packJson), JSON.stringify(packJson2));
 });
