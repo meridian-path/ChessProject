@@ -28,6 +28,7 @@ const {
 const { RATING_BANDS } = require('../src/processRepertoire');
 const { REDIRECT_STUBS } = require('../src/sitemap');
 const { getOpening, OPENINGS } = require('../src/openings');
+const { GUIDES } = require('../src/buildContent');
 const { makeSmartExplorerFetch, fakeResponse } = require('./helpers/fakeExplorer');
 
 const FIXTURES = path.join(__dirname, 'fixtures');
@@ -252,8 +253,8 @@ test('buildStatic also writes one page per configured opening plus the openings 
     const { fetchImpl } = fakeExplorerFetch();
     const { outDir, contentWritten } = await buildStatic({ fetchImpl, useCache: false });
 
-    // openings + openings hub + 8 guides + guides hub + FAQ (phase 2).
-    assert.equal(contentWritten.length, OPENINGS.length + 1 + 8 + 1 + 1);
+    // openings + openings hub + guides + guides hub + FAQ (phase 2).
+    assert.equal(contentWritten.length, OPENINGS.length + 1 + GUIDES.length + 1 + 1);
     for (const { file } of contentWritten) {
       assert.ok(fs.existsSync(path.join(outDir, file)), `expected ${file} to exist on disk`);
     }
@@ -281,7 +282,7 @@ test('buildStatic also writes feed.xml (one <item> per content page) and links i
   })
 );
 
-test('buildStatic also writes the guides hub, all 8 guide articles, and the FAQ page, all reachable from nav', () =>
+test('buildStatic also writes the guides hub, all guide articles, and the FAQ page, all reachable from nav', () =>
   withTempDist(async () => {
     const { fetchImpl } = fakeExplorerFetch();
     const { outDir } = await buildStatic({ fetchImpl, useCache: false });
@@ -297,6 +298,14 @@ test('buildStatic also writes the guides hub, all 8 guide articles, and the FAQ 
       'scandinavian-defense-at-club-level.html',
       'how-to-build-your-opening-repertoire.html',
       'opening-principles-by-win-rate.html',
+      'best-white-openings-1400-1600.html',
+      'best-white-openings-1600-1800.html',
+      'best-white-openings-1800-2000.html',
+      'best-white-openings-2000-plus.html',
+      'best-black-openings-1400-1600.html',
+      'best-black-openings-1600-1800.html',
+      'best-black-openings-1800-2000.html',
+      'best-black-openings-2000-plus.html',
     ]) {
       assert.ok(fs.existsSync(path.join(outDir, file)), `expected ${file} to exist on disk`);
     }
@@ -773,7 +782,7 @@ test('buildStatic also writes sitemap.xml (listing exactly the emitted .html pag
     // drill-reference.html (still WS-1 placeholders) +
     // privacy/about/contact/methodology + 404 +
     // drill.html (the WS-1 hub, drillFile) + repertoire.html = 13 fixed
-    // entries + 8 redirect stubs + one page per configured opening + hub + 8 guides + hub + FAQ
+    // entries + 8 redirect stubs + one page per configured opening + hub + all guides + hub + FAQ
     // + (Phase 7d) 64 T1 family hubs + 5 T2 volume pages + 2 T2
     // browse-index pages + (Phase 7e) 1 ECO explorer page + (M2) 3
     // Repertoire Pack pages.

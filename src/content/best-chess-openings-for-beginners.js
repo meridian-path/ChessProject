@@ -67,7 +67,7 @@ function render(ctx) {
     <p>Score here means the standard chess scoring convention (a win counts 1, a draw counts 0.5) as a percentage, for the side whose opening this is, from real games at this rating band. A high score can partly reflect that a line is comfortable and hard to go wrong in, rather than that it&rsquo;s objectively strongest - which is arguably a better property for a beginner&rsquo;s first opening than raw engine strength would be anyway.</p>
 
     <h2>Go deeper</h2>
-    <p>Every opening in the table above links to its own page with a full rating-band breakdown, common mistakes at this level, and real recent games. See the <a href="openings.html">full openings comparison &rarr;</a> for all four rating bands side by side.</p>
+    <p>Every opening in the table above links to its own page with a full rating-band breakdown, common mistakes at this level, and real recent games. See the <a href="openings.html">full openings comparison &rarr;</a> for all four rating bands side by side, or the side-specific breakdowns once you know which color you&rsquo;re asking about: <a href="best-white-openings-1400-1600.html">best White openings at 1400-1600 &rarr;</a> and <a href="best-black-openings-1400-1600.html">best Black openings at 1400-1600 &rarr;</a>, each with links up through 1600-1800, 1800-2000, and 2000+.</p>
   `;
 }
 
