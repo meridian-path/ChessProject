@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const { buildContentPages, fetchLineWithValidation } = require('../src/buildContent');
+const { buildContentPages, fetchLineWithValidation, GUIDES } = require('../src/buildContent');
 const { buildOpeningModel, rankOpeningsByScore } = require('../src/processOpenings');
 const { renderOpeningPage, renderOpeningsHub, formatGamesAbbrev } = require('../src/renderContent');
 const { escapeHtml, formatPct, wrapTable } = require('../src/render');
@@ -33,12 +33,12 @@ function withTempDist(fn) {
     });
 }
 
-test('buildContentPages writes one page per configured opening plus the openings hub, 8 guides, the guides hub, and the FAQ -- all with a unique title/description and one H1', () =>
+test('buildContentPages writes one page per configured opening plus the openings hub, every guide, the guides hub, and the FAQ -- all with a unique title/description and one H1', () =>
   withTempDist(async (outDir) => {
     const { fetchImpl } = makeSmartExplorerFetch();
     const { written } = await buildContentPages({ fetchImpl, outDir });
 
-    assert.equal(written.length, OPENINGS.length + 1 + 8 + 1 + 1); // openings + hub + 8 guides + guides hub + FAQ
+    assert.equal(written.length, OPENINGS.length + 1 + GUIDES.length + 1 + 1); // openings + hub + guides + guides hub + FAQ
 
     const titles = new Set();
     const descriptions = new Set();
@@ -338,7 +338,7 @@ test('buildContentPages: the FAQ page\'s "are these stats from blitz or classica
   })
 );
 
-test('phase 2: the guides hub links to all 8 guide articles, and every guide has exactly one H1 and real data pulled from entries', () =>
+test('phase 2: the guides hub links to every guide article, and every guide has exactly one H1 and real data pulled from entries', () =>
   withTempDist(async (outDir) => {
     const { fetchImpl } = makeSmartExplorerFetch();
     const { written } = await buildContentPages({ fetchImpl, outDir });
@@ -354,6 +354,14 @@ test('phase 2: the guides hub links to all 8 guide articles, and every guide has
       'scandinavian-defense-at-club-level.html',
       'how-to-build-your-opening-repertoire.html',
       'opening-principles-by-win-rate.html',
+      'best-white-openings-1400-1600.html',
+      'best-white-openings-1600-1800.html',
+      'best-white-openings-1800-2000.html',
+      'best-white-openings-2000-plus.html',
+      'best-black-openings-1400-1600.html',
+      'best-black-openings-1600-1800.html',
+      'best-black-openings-1800-2000.html',
+      'best-black-openings-2000-plus.html',
     ];
     for (const file of guideFiles) {
       assert.match(hub.html, new RegExp(`href="${file}"`), `guides hub should link to ${file}`);

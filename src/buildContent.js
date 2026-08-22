@@ -57,6 +57,8 @@ const { BUILD_DATE } = require('./site');
 // already-fetched opening data) -- no hand-typed statistics. The repertoire
 // how-to guide and the opening-principles-by-win-rate guide were both added
 // later (2026-08) under the same contract.
+const { createBestOpeningsByRatingBandPages } = require('./content/bestOpeningsByRatingBand');
+
 const GUIDES = [
   require('./content/how-to-beat-the-london-system'),
   require('./content/best-chess-openings-for-beginners'),
@@ -66,6 +68,9 @@ const GUIDES = [
   require('./content/scandinavian-defense-at-club-level'),
   require('./content/how-to-build-your-opening-repertoire'),
   require('./content/opening-principles-by-win-rate'),
+  // 8 rating-banded "best White/Black openings" pages, one factory module
+  // producing all 8 -- see that file's own header comment for why.
+  ...createBestOpeningsByRatingBandPages(),
 ];
 
 const DEFAULT_BAND = '1600-1800';
