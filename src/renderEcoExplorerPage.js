@@ -133,8 +133,25 @@ ${renderDocumentHead({ title, description, canonical, jsonLd })}
 
     <div class="explorer-layout" data-explorer-app>
       <div class="explorer-board-panel">
+        <!-- sr-only h2 (accessibility fix, same pattern src/buildStatic.js's
+             homeDemoMarkup() and src/renderRepertoireExplorer.js's own board
+             panel already use): this figure was the page's only section
+             between the page's h1 and the first visible h2 ("Or browse by
+             family"), and cm-chessboard's Accessibility extension injects
+             its own h3 heading ("Move piece") client-side inside
+             #explorer-board-mount once the widget mounts -- with no h2
+             ancestor yet, that skipped a level (h1 straight to h3). Reusing
+             the figure's own aria-label text as a visually-hidden real
+             heading fixes the sequence for real (h1, h2, h3 in order)
+             without changing anything visible. Note for future editors: no
+             literal angle-bracket tag mentions in this comment, on purpose
+             -- test/buildEcoExplorer.test.js's "one H1" check greps the
+             raw rendered HTML with a naive regex that can't tell a comment
+             from real markup, so writing out the actual h1 tag with its
+             brackets here would itself count as a second one. -->
         <figure class="board-figure" aria-label="Explorer board">
           ${spriteDefsHtml()}
+          <h2 class="sr-only">Explorer board</h2>
           <div id="explorer-board-mount" class="explorer-board-mount"></div>
         </figure>
         <p id="explorer-current-line" class="explorer-current-line" role="status" aria-live="polite"></p>

@@ -70,6 +70,16 @@ test('renderEcoExplorerPage embeds the sprite-defs block exactly once (one board
   assert.equal(matches.length, 1);
 });
 
+test('renderEcoExplorerPage: the board figure carries its own sr-only h2, ahead of where cm-chessboard injects an h3 at runtime', () => {
+  const html = renderEcoExplorerPage(baseArgs());
+  const figureIndex = html.indexOf('<figure class="board-figure"');
+  const h2Index = html.indexOf('<h2 class="sr-only">Explorer board</h2>');
+  const boardMountIndex = html.indexOf('<div id="explorer-board-mount"');
+  assert.ok(figureIndex !== -1, 'expected the board-figure figure to be present');
+  assert.ok(h2Index !== -1, 'expected an sr-only <h2> inside the board figure');
+  assert.ok(h2Index > figureIndex && h2Index < boardMountIndex, 'the h2 must sit inside the figure, before the board mount cm-chessboard writes its own h3 into');
+});
+
 test('renderEcoExplorerPage emits a noscript fallback linking to the crawlable ECO index', () => {
   const html = renderEcoExplorerPage(baseArgs());
   assert.match(html, /<noscript>[\s\S]*eco-openings\.html[\s\S]*<\/noscript>/);
