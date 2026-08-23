@@ -712,7 +712,7 @@ test('indexPage does NOT opt into the wide layout container (B3: only the three 
   assert.doesNotMatch(html, /<div class="page page--wide">/);
 });
 
-test('indexPage (G1, R7): the rating-band picker is a single role=group pill control (the primary action); the drill card and opening cards are demoted outline cards, with no link targets added/removed/reordered', () => {
+test('indexPage (G1, R7): the rating-band picker is a single role=group pill control; the drill card and opening cards are demoted outline cards, with no link targets added/removed', () => {
   // No `bands` field -- exercises renderOpeningStatCard's fallback-to-plain-card path (G2).
   const contentEntries = [{ openingConfig: { slug: 'italian-game' }, model: { name: 'Italian Game', eco: 'C50', side: 'white' } }];
   const html = indexPage(contentEntries, 'italian-game-drill.html');
@@ -735,9 +735,41 @@ test('indexPage links to repertoire-packs.html from its own body content (not ju
   // A real content-level CTA to the packs page, not just the header nav link.
   assert.match(html, /<h2>Want it finished and printable\?<\/h2>/);
   assert.match(html, /<div class="card card--outline card--nav"><h3><a href="repertoire-packs\.html">Repertoire packs, \$9 each<\/a><\/h3>/);
-  // Still only one accent-filled action on the page: the band picker.
+  // Still no second accent-filled action -- the page's one is .start-here-cta
+  // (see the dedicated Start Here tests below), never a card or a pack-cta.
   assert.doesNotMatch(html, /class="[^"]*\bcard--primary\b[^"]*"/);
   assert.doesNotMatch(html, /class="pack-cta"/);
+});
+
+// ---------------------------------------------------------------------------
+// Start Here section (growth-audit fix: the homepage previously surfaced 4
+// competing CTAs -- rating-band picker, packs, drill, opening report -- all
+// at equal weight, with nothing telling a first-time visitor which to try.
+// This promotes the site's own real per-visitor tool, opening-report.html,
+// to the page's one clear next step and demotes the rating-band picker.
+// ---------------------------------------------------------------------------
+
+test('indexPage: Start Here is the page\'s one accent-filled action, positioned before the rating-band section', () => {
+  const html = indexPage([]);
+  assert.match(html, /<h2 class="section-lead">Start here<\/h2>/);
+  assert.match(html, /<a class="start-here-cta" href="opening-report\.html">Look up your Lichess username &rarr;<\/a>/);
+  // A secondary way in for a visitor who doesn't play on Lichess, or wants
+  // to browse first -- jumps down to the (now-demoted) band picker rather
+  // than duplicating it.
+  assert.match(html, /href="#rating-band"/);
+  assert.match(html, /<h2 id="rating-band">Or browse by rating band<\/h2>/);
+  assert.ok(html.indexOf('start-here-cta') < html.indexOf('id="rating-band"'), 'Start Here must render before the rating-band section, not after');
+});
+
+test('indexPage: the rating-band picker is wrapped for its homepage-only demotion, and the old duplicate bottom "Opening report" link is gone', () => {
+  const html = indexPage([]);
+  assert.match(html, /<div class="home-band-picker"><div class="band-picker" role="group"/);
+  // opening-report.html should appear exactly once now (Start Here) --
+  // the old second, bottom-of-page "Look up any Lichess username" link
+  // this promoted from is gone, not duplicated.
+  const occurrences = html.match(/href="opening-report\.html"/g) || [];
+  assert.equal(occurrences.length, 1);
+  assert.doesNotMatch(html, /Look up any Lichess username/);
 });
 
 test('indexPage (G2): an opening card with real band data shows the WDL bar + score for 1600-1800 inline, never an approximated number', () => {
