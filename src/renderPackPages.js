@@ -419,12 +419,29 @@ function packFileListHtml(pack) {
  * rel="noopener noreferrer", with the GoatCounter synthetic click path from
  * spec 1.9 as a data attribute (count.js's own documented click-tracking
  * mechanism -- no new script, no new origin).
+ *
+ * @param {boolean} [compact] the packs-index page's own quiet rows (spec
+ *   1.6.4's asymmetric-by-construction rule -- only packs[0] gets the
+ *   full accent-filled button) still need SOME direct buy action once a
+ *   pack has a real store url, or a visitor who already knows which pack
+ *   they want hits an avoidable extra click through the detail page first
+ *   -- a real conversion-funnel gap, not a styling one. `compact` renders
+ *   the same real link as a plain accent-colored text link instead (same
+ *   text-link, never-accent-filled treatment renderLeakReportUpsell()
+ *   already uses for its own secondary CTA, immediately below), so the
+ *   page still has exactly one accent-FILLED action -- spec 1.6.4's rule
+ *   is about that one visual weight, not about withholding a real buy
+ *   link once one exists. A still-placeholder pack renders nothing at all
+ *   in compact mode (there's nothing to buy yet, and repeating "not listed
+ *   for sale yet" on every quiet row would be noise, not signal -- the
+ *   existing "See what's in it" link already covers that case).
  */
-function packCtaHtml(pack) {
+function packCtaHtml(pack, compact = false) {
   if (isPlaceholderStoreUrl(pack.storeUrl)) {
-    return `<p class="pack-cta pack-cta--pending">Not listed for sale yet - check back soon.</p>`;
+    return compact ? '' : `<p class="pack-cta pack-cta--pending">Not listed for sale yet - check back soon.</p>`;
   }
-  return `<a class="pack-cta" href="${escapeHtml(pack.storeUrl)}" rel="noopener noreferrer" data-goatcounter-click="/out/pack-${escapeHtml(pack.id)}">Get the pack - $${PRICE_USD}</a>`;
+  const cls = compact ? 'pack-cta pack-cta--compact' : 'pack-cta';
+  return `<a class="${cls}" href="${escapeHtml(pack.storeUrl)}" rel="noopener noreferrer" data-goatcounter-click="/out/pack-${escapeHtml(pack.id)}">Get the pack - $${PRICE_USD}</a>`;
 }
 
 function packFaqHtml(pack) {
@@ -586,7 +603,10 @@ function renderPacksIndexPage({ packs, nav, legalLinks }) {
   const restHtml = rest
     .map((p) => `<div class="pack-quiet-row">
       <span>${escapeHtml(p.title)} - ${p.lineCount.toLocaleString()} lines</span>
-      <a href="${escapeHtml(siteRelativeHref(packDetailFilename(p.id)))}">See what&rsquo;s in it &rarr;</a>
+      <span class="pack-quiet-actions">
+        <a href="${escapeHtml(siteRelativeHref(packDetailFilename(p.id)))}">See what&rsquo;s in it &rarr;</a>
+        ${packCtaHtml(p, true)}
+      </span>
     </div>`)
     .join('');
 
