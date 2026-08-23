@@ -140,6 +140,7 @@ const OPENING_REPORT_CSS = `
   .thumb-board {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
     width: 88px;
     height: 88px;
     border-radius: var(--radius-sm);

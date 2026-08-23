@@ -81,3 +81,30 @@ test('pieceAttributionHtml names the CC BY-SA 3.0 license and links to the real 
   assert.match(html, /creativecommons\.org\/licenses\/by-sa\/3\.0/);
   assert.match(html, /commons\.wikimedia\.org/);
 });
+
+test('renderBoardDiagram: rank/file coordinate labels appear exactly once per edge square (8 files, 8 ranks), aria-hidden, on both the bottom row and the left column', () => {
+  const html = renderBoardDiagram(START_BOARD, { label: 'Starting position' });
+  const fileLabels = [...html.matchAll(/<span class="board-coord board-coord--file" aria-hidden="true">([a-h])<\/span>/g)].map((m) => m[1]);
+  const rankLabels = [...html.matchAll(/<span class="board-coord board-coord--rank" aria-hidden="true">([1-8])<\/span>/g)].map((m) => m[1]);
+  // Normal orientation: bottom row is rank 1 (files a-h left to right); left
+  // column is file a (ranks top to bottom are 8..1, since the board renders
+  // White's own view with rank 8 first).
+  assert.deepEqual(fileLabels, ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']);
+  assert.deepEqual(rankLabels, ['8', '7', '6', '5', '4', '3', '2', '1']);
+  // No other square carries a coordinate label -- 16 total (8 file + 8
+  // rank), not more. Counts <span> tags, not the "board-coord" substring --
+  // that substring also appears inside the "board-coord--file"/"--rank"
+  // modifier class names, so a naive substring count double-counts.
+  assert.equal((html.match(/<span class="board-coord /g) || []).length, 16);
+});
+
+test('renderBoardDiagram: flip moves the coordinate labels to the opposite edges, in the reversed order that orientation actually shows', () => {
+  const html = renderBoardDiagram(START_BOARD, { flip: true, label: 'Starting position, flipped' });
+  const fileLabels = [...html.matchAll(/<span class="board-coord board-coord--file" aria-hidden="true">([a-h])<\/span>/g)].map((m) => m[1]);
+  const rankLabels = [...html.matchAll(/<span class="board-coord board-coord--rank" aria-hidden="true">([1-8])<\/span>/g)].map((m) => m[1]);
+  // Flipped (Black's own view): bottom row is rank 8 (files h-a left to
+  // right, since flip also mirrors file order); left column is file h
+  // (ranks top to bottom are 1..8).
+  assert.deepEqual(fileLabels, ['h', 'g', 'f', 'e', 'd', 'c', 'b', 'a']);
+  assert.deepEqual(rankLabels, ['1', '2', '3', '4', '5', '6', '7', '8']);
+});

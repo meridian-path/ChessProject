@@ -1411,6 +1411,7 @@ ${designTokensCss(THEME_ROLES.dark)}
   .board {
     display: grid;
     grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
     width: min(100%, 352px);
     aspect-ratio: 1 / 1;
     border: 2px solid var(--color-accent-dark);
@@ -1425,9 +1426,29 @@ ${designTokensCss(THEME_ROLES.dark)}
     font-size: clamp(18px, 5.2vw, 30px);
     line-height: 1;
     font-family: "Segoe UI Symbol", "Apple Symbols", "Noto Sans Symbols 2", "DejaVu Sans", sans-serif;
+    position: relative;
   }
   .board-sq--light { background: var(--color-board-light); }
   .board-sq--dark { background: var(--color-board-dark); }
+  /* Rank/file coordinate labels (src/boardSvg.js's renderBoardDiagram) --
+     Lichess's own corner-label convention (docs/design/REFERENCE_LIBRARY.md
+     entry 3), colored from the OPPOSITE board-color token so the label
+     reads directly on its own square with no background box needed, same
+     technique the interactive board's own cm-chessboard coordinates use
+     (this file's own "Coordinate-overprint fix" comment below, ~line 1470). */
+  .board-coord {
+    position: absolute;
+    font-family: var(--font-sans);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+  }
+  .board-coord--file { left: var(--space-1); bottom: var(--space-1); }
+  .board-coord--rank { left: var(--space-1); top: var(--space-1); }
+  .board-sq--light .board-coord { color: var(--color-board-dark); }
+  .board-sq--dark .board-coord { color: var(--color-board-light); }
   /* Phase 7c: real Cburnett SVG piece artwork (src/boardSvg.js), replacing
      the old .board-pc--w/--b Unicode-glyph technique everywhere -- the
      drill session board (its last consumer) was migrated too, so those
