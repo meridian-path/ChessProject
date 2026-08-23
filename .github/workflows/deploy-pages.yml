@@ -265,3 +265,27 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+      # IndexNow (src/indexNow.js, scripts/indexNowPing.js): instant crawl
+      # ping to Bing/Yandex/Naver/Seznam/Yep, placed after the deploy step
+      # above so the pages being submitted are already live. Needs its own
+      # checkout (for the script + src/indexNow.js) and a fresh download of
+      # the same dist/ the build job already produced (this job doesn't
+      # otherwise have it -- deploy-pages consumes the Pages artifact
+      # directly, not as files on disk here).
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+
+      - name: Download dist for IndexNow ping
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist-for-quality
+          path: dist
+
+      - name: Ping IndexNow
+        run: node scripts/indexNowPing.js dist
