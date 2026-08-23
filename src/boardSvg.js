@@ -112,13 +112,39 @@ function pieceMarkupHtml(piece) {
 }
 
 /**
+ * One square's rank/file coordinate label(s), matching Lichess's own
+ * placement convention (docs/design/REFERENCE_LIBRARY.md entry 3: "conform
+ * to its interaction conventions... board orientation" -- coordinates are
+ * part of that same orientation convention this audience reads daily):
+ * the file letter (a-h) sits in the bottom-left corner of each square in
+ * the board's bottom row, the rank number (1-8) sits in the top-left
+ * corner of each square in the board's left column -- the corner square
+ * gets both. Neither label is added anywhere else, matching Lichess's own
+ * restraint (no repeated labels on every square).
+ *
+ * @param {boolean} isBottomRow this square is in the row nearest the
+ *   viewer (rank 1 in the normal orientation, rank 8 when `flip` is set).
+ * @param {boolean} isLeftColumn this square is in the column nearest the
+ *   viewer's left edge (file a normally, file h when `flip` is set).
+ */
+function coordLabelsHtml(file, rank, isBottomRow, isLeftColumn) {
+  if (!isBottomRow && !isLeftColumn) return '';
+  const fileLabel = isBottomRow ? `<span class="board-coord board-coord--file" aria-hidden="true">${escapeAttr(file)}</span>` : '';
+  const rankLabel = isLeftColumn ? `<span class="board-coord board-coord--rank" aria-hidden="true">${escapeAttr(rank)}</span>` : '';
+  return fileLabel + rankLabel;
+}
+
+/**
  * Static (no-JS) board diagram: the same `.board`/`.board-sq` grid and
  * `--color-board-light`/`--color-board-dark` tokens the site already used
  * for its Unicode diagrams (src/render.js's SITE_CSS, unchanged), with SVG
  * piece artwork instead of glyphs. `label` becomes the whole board's
  * aria-label (role="img") -- there is no per-square interaction here, so a
  * single sentence describing the position is the right amount of
- * assistive-tech detail, same as the diagram this replaces.
+ * assistive-tech detail, same as the diagram this replaces. Rank/file
+ * coordinate labels (a-h, 1-8) are decorative and aria-hidden -- the
+ * board's own aria-label already names the position in words, so a screen
+ * reader gains nothing from also announcing 64 individual square labels.
  *
  * @param {Record<string,string>} board square -> FEN piece letter
  * @param {{flip?: boolean, label?: string}} opts
@@ -126,13 +152,16 @@ function pieceMarkupHtml(piece) {
 function renderBoardDiagram(board, { flip = false, label = '' } = {}) {
   const fileOrder = flip ? [...FILES].reverse() : FILES;
   const rankOrder = flip ? RANKS : [...RANKS].reverse();
+  const bottomRank = rankOrder[rankOrder.length - 1];
+  const leftFile = fileOrder[0];
   const squares = [];
   for (const rank of rankOrder) {
     for (const file of fileOrder) {
       const square = `${file}${rank}`;
       const isDark = (FILES.indexOf(file) + RANKS.indexOf(rank)) % 2 === 0;
+      const coords = coordLabelsHtml(file, rank, rank === bottomRank, file === leftFile);
       squares.push(
-        `<span class="board-sq board-sq--${isDark ? 'dark' : 'light'}">${pieceMarkupHtml(board[square])}</span>`
+        `<span class="board-sq board-sq--${isDark ? 'dark' : 'light'}">${coords}${pieceMarkupHtml(board[square])}</span>`
       );
     }
   }
