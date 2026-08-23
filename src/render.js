@@ -1990,6 +1990,25 @@ ${designTokensCss(THEME_ROLES.dark)}
     padding: var(--space-4) 0;
   }
   .pack-quiet-row a { font-weight: var(--weight-bold); }
+  /* A quiet row's own direct buy link (packCtaHtml(pack, true) in
+     src/renderPackPages.js) -- sits next to "See what's in it", same
+     never-accent-filled text-link treatment renderLeakReportUpsell()
+     already uses for its own secondary CTA, so the page still has exactly
+     one accent-FILLED action (spec 1.6.4) even once more than one pack
+     has a real store url. */
+  .pack-quiet-actions { display: flex; align-items: center; gap: var(--space-4); }
+  .pack-cta--compact {
+    display: inline;
+    width: auto;
+    min-height: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: none;
+    color: var(--color-accent-dark);
+  }
+  .pack-cta--compact:hover { background: none; color: var(--color-accent); }
+  .pack-cta--compact:active { transform: none; }
 
   /* Global honor of the OS-level reduced-motion preference (WCAG 2.2 SC
      2.3.3), site-wide -- this was the one real gap this file's

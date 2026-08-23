@@ -162,6 +162,43 @@ test('renderPacksIndexPage is asymmetric: the first pack is a full-width feature
   assert.ok(html.indexOf('pack-feature') < html.indexOf('pack-quiet-row'));
 });
 
+test('renderPacksIndexPage gives a quiet-row pack its own direct buy link once it has a real store url', () => {
+  // White (packs[0], the feature) also needs a real store url here --
+  // otherwise its own CTA renders the --pending state, and the "exactly
+  // one plain pack-cta" check below would trivially pass for the wrong
+  // reason (zero, not one). Both assertions search only the <body>, not
+  // the whole html string -- SITE_CSS's own .pack-cta--compact selector
+  // text is present in <style> unconditionally, regardless of whether any
+  // pack actually uses that class, so a whole-page substring check would
+  // false-pass every time.
+  const white = makePack({ storeUrl: 'https://repertoirebuilder.gumroad.com/l/blzarx', noindex: false });
+  const black = makePack({ id: 'black-vs-e4-1400-1600', title: 'Black vs 1.e4 at 1400-1600', color: 'black', storeUrl: 'https://repertoirebuilder.gumroad.com/l/lyjgj', noindex: false });
+  const html = renderPacksIndexPage({ packs: [white, black], nav: NAV });
+  const body = html.slice(html.indexOf('<body'));
+  // Both the existing "see what's in it" link AND a real, direct buy link
+  // for the second pack, next to each other -- not a replacement, an
+  // addition (a visitor who already wants this pack shouldn't need the
+  // detail page first; one who wants to see the lines still can).
+  assert.ok(body.includes('See what&rsquo;s in it'));
+  assert.ok(body.includes('href="https://repertoirebuilder.gumroad.com/l/lyjgj"'));
+  assert.ok(body.includes('class="pack-cta pack-cta--compact"'), 'the quiet row\'s own buy link should use the compact, never-accent-filled treatment');
+  // Only packs[0]'s feature block gets the full accent-filled button --
+  // the compact link must never carry that class alone (without the
+  // --compact modifier), which would give the page two accent-filled
+  // actions and break spec 1.6.4's one-hero-CTA rule.
+  const ctaMatches = body.match(/class="pack-cta"/g) || [];
+  assert.equal(ctaMatches.length, 1, 'exactly one plain (non-compact) pack-cta -- the feature block\'s own button');
+});
+
+test('renderPacksIndexPage renders no buy link at all for a quiet-row pack still carrying a PLACEHOLDER url', () => {
+  const white = makePack({});
+  const black = makePack({ id: 'black-vs-e4-1400-1600', title: 'Black vs 1.e4 at 1400-1600', color: 'black' }); // default fixture storeUrl is a PLACEHOLDER
+  const html = renderPacksIndexPage({ packs: [white, black], nav: NAV });
+  const body = html.slice(html.indexOf('<body')); // SITE_CSS's own .pack-cta--compact selector is always in <style>, unconditionally -- must not search the whole page
+  assert.ok(body.includes('See what&rsquo;s in it'));
+  assert.ok(!body.includes('pack-cta--compact'), 'nothing to buy yet -- no compact CTA, and no repeated "not listed for sale" noise on every quiet row');
+});
+
 test('renderPacksIndexPage is noindex only when every pack is still a placeholder', () => {
   const allPlaceholder = renderPacksIndexPage({ packs: [makePack({ noindex: true }), makePack({ id: 'b', noindex: true })], nav: NAV });
   assert.ok(allPlaceholder.includes('<meta name="robots" content="noindex">'));
