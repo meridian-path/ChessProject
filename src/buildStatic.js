@@ -464,6 +464,31 @@ function buildHomeDemoBundle() {
   return bundleBrowserEntry(HOME_DEMO_ENTRY, header);
 }
 
+// The homepage's one clear "what do I click first" step (growth-audit
+// finding: 4 body sections -- rating-band picker, packs, drill, opening
+// report -- all read as equal-weight competing CTAs, with nothing telling
+// a first-time visitor which to try). This site's own real per-visitor
+// tool (opening-report.html, a live Lichess-username lookup already built)
+// is the natural single answer, same direction the audit itself suggested.
+// Becomes the page's one accent-filled action (design-standards.md's
+// per-page hierarchy rule) via .start-here-cta below -- same visual recipe
+// as .pack-cta/.lookup-form button, copied rather than shared across pages
+// per this file's own established convention (see .pack-cta's comment).
+// That means the rating-band picker right after this section can no
+// longer ALSO be accent-filled without giving the page two competing
+// primary actions again -- see the scoped .home-band-picker override in
+// SITE_CSS, which demotes ONLY the homepage's own instance of the shared
+// .band-pill class (repertoire.html's own use of the same pills is
+// untouched). Packs/drill stay as they already were (outline cards, never
+// accent-filled to begin with -- see packsCtaSection()'s own comment).
+function startHereSection() {
+  return `<h2 class="section-lead">Start here</h2>
+    <p class="repertoire-intro">Get a real, personalized read on your own games, or skip straight to the
+       data below if you&rsquo;d rather browse first.</p>
+    <a class="start-here-cta" href="${OPENING_REPORT_FILE}">Look up your Lichess username &rarr;</a>
+    <p class="start-here-alt">Don&rsquo;t play on Lichess, or want to see the data first? <a href="#rating-band">Jump to openings by rating band &darr;</a></p>`;
+}
+
 // Drill CTA card for the home page. Kept as its own additive block (a new
 // section, appended without touching any of indexPage()'s existing copy)
 // since a separate, later pass is expected to rework the rest of this
@@ -749,20 +774,18 @@ ${renderDocumentHead({
 
     ${dataStripHtml(contentEntries)}
 
-    <h2 class="section-lead">Start with your rating band</h2>
+    ${startHereSection()}
+
+    <h2 id="rating-band">Or browse by rating band</h2>
     <p class="repertoire-intro">Openings behave differently at every rating. Pick your band - everything below is
        filtered to real games at that level.</p>
-    ${bandPickerHtml()}
+    <div class="home-band-picker">${bandPickerHtml()}</div>
 
     ${packsCtaSection()}
 
     ${drillCtaSection(drillFile)}
 
     ${openingsSection}
-
-    <h2>Opening report</h2>
-    <p><a href="${OPENING_REPORT_FILE}">Look up any Lichess username &rarr;</a> (fetches live data
-       directly in your browser when you open this page; nothing is pre-baked).</p>
   </main>
   ${renderFooter(footerCredit, LEGAL_LINKS)}
   ${homeDemoDataScriptHtml}

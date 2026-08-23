@@ -1347,6 +1347,31 @@ ${designTokensCss(THEME_ROLES.dark)}
   .card--stat.card--primary .card-score,
   .card--stat.card--outline .card-score { color: inherit; }
 
+  /* Homepage "Start here" section (src/buildStatic.js's startHereSection())
+     -- the page's one accent-filled action (design-standards.md's per-page
+     hierarchy rule), same visual recipe as .pack-cta/.lookup-form button,
+     copied rather than shared across pages per this file's own established
+     convention. Sits inline rather than full-width (unlike .pack-cta) --
+     this is prose-adjacent, not a card. */
+  .start-here-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: var(--space-3) var(--space-6);
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--color-accent-dark);
+    color: var(--color-accent-contrast);
+    font-weight: var(--weight-bold);
+    font-size: var(--text-base);
+    text-decoration: none;
+    transition: background-color var(--motion-duration-fast) var(--motion-ease-standard), transform var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+  .start-here-cta:hover { background: var(--color-accent); }
+  .start-here-cta:active { transform: translateY(1px); }
+  .start-here-alt { color: var(--color-muted); font-size: var(--text-sm); margin: var(--space-3) 0 0; }
+
   /* The four rating-band pickers as one role=group control with 44px
      pill links, replacing four floating cards that carried the same visual
      weight as unrelated nav cards elsewhere on the page. */
@@ -1378,6 +1403,21 @@ ${designTokensCss(THEME_ROLES.dark)}
      aria-current attribute, since it needs no visual distinction from
      itself). Reuses the sitewide focus-ring tokens rather than a new one. */
   .band-pill[aria-current="true"] { outline: var(--focus-ring-width) solid var(--focus-ring-color); outline-offset: var(--focus-ring-offset); background: var(--color-accent); }
+
+  /* Homepage-only demotion of the shared .band-pill above (src/
+     buildStatic.js wraps its own bandPickerHtml() call in this class) --
+     .start-here-cta is now this page's one accent-filled action, so the
+     band picker can't also be accent-filled without recreating the same
+     "which one do I click" problem the Start Here section exists to fix.
+     Scoped to this wrapper only: repertoire.html reuses the identical
+     .band-pill markup for its own band+color switcher and is untouched --
+     that page has no Start Here CTA of its own competing with it. */
+  .home-band-picker .band-pill {
+    background: none;
+    border: 1.5px solid var(--color-border-strong);
+    color: var(--color-text);
+  }
+  .home-band-picker .band-pill:hover { background: var(--color-hover); color: var(--color-text); transform: none; }
 
   /* Eyebrow label above an h1, shared by renderPageHead(). */
   .page-eyebrow {
