@@ -192,9 +192,9 @@ test('designTokens: SITE_CSS honors prefers-reduced-motion with an !important un
 });
 
 // -----------------------------------------------------------------------
-// Regression coverage for the .board-coord contrast fix (copy review on
-// task-mt5khay7-0597bd / PR #67, fixed by task-mt617gma-5b336e): the
-// original OPPOSITE-board-token swap put each coordinate label's color at
+// Regression coverage for the .board-coord contrast fix (PR #67 copy
+// review flagged this, fixed in a follow-up PR): the original
+// OPPOSITE-board-token swap put each coordinate label's color at
 // the SAME low separation as the two board squares themselves (1.71:1 in
 // light theme, 1.90:1 in dark theme -- both far under the 4.5:1 WCAG AA
 // floor). --color-ink-black replaced the swap with one fixed color; this

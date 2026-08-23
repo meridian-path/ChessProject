@@ -1447,12 +1447,11 @@ ${designTokensCss(THEME_ROLES.dark)}
      but this site's board palette has much lower light/dark square
      separation than Lichess's (~1.7-1.9:1, see --color-board-light/-dark
      above), so that swap put the label at the SAME low ratio against its
-     own square -- a real WCAG AA failure (design-standards.md's 4.5:1
-     floor), caught in copy review on task-mt5khay7-0597bd. Fixed with one
-     fixed color (--color-ink-black, defined above) instead of the swap --
-     clears all four board-square/theme combinations with real margin
-     (5.04:1 worst case; see designTokens.test.js's boardCoordContrast
-     assertions). */
+     own square -- a real WCAG AA contrast failure against this site's own
+     4.5:1 text floor. Fixed with one fixed color (--color-ink-black,
+     defined above) instead of the swap -- clears all four
+     board-square/theme combinations with real margin (5.04:1 worst case;
+     see the design-token test coverage). */
   .board-coord {
     position: absolute;
     font-family: var(--font-sans);
