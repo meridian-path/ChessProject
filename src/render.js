@@ -126,6 +126,14 @@ const DESIGN_TOKENS = {
   '--color-paper-white': '#FFFFFF', // one off-ramp value, strictly lighter
   // than ink-0, so every contrast guarantee holds in the safe direction
   // (documented exemption, same as the sibling's --color-bg-white).
+  '--color-ink-black': '#000000', // the paper-white exemption's opposite
+  // number: one off-ramp value, strictly darker than ink-9, for the one
+  // case (.board-coord below) that needs more margin than the ramp floor
+  // gives. ink-9 alone clears every board-square/theme combination except
+  // dark theme's darkest square (#8A7B54, ~4.46:1 -- just under the 4.5:1
+  // floor); pure black clears all four with real margin (5.04:1 worst
+  // case). Not theme-dependent -- like paper-white, emitted once in
+  // DESIGN_TOKENS rather than duplicated per THEME_ROLES entry.
 
   '--color-accent-0': 'oklch(95.6% 0.020 158)', // #E6F5EB
   '--color-accent-1': 'oklch(85.3% 0.045 158)', // #B7D8C3
@@ -1432,23 +1440,31 @@ ${designTokensCss(THEME_ROLES.dark)}
   .board-sq--dark { background: var(--color-board-dark); }
   /* Rank/file coordinate labels (src/boardSvg.js's renderBoardDiagram) --
      Lichess's own corner-label convention (docs/design/REFERENCE_LIBRARY.md
-     entry 3), colored from the OPPOSITE board-color token so the label
-     reads directly on its own square with no background box needed, same
-     technique the interactive board's own cm-chessboard coordinates use
-     (this file's own "Coordinate-overprint fix" comment below, ~line 1470). */
+     entry 3), positioned with no background box needed, same placement the
+     interactive board's own cm-chessboard coordinates use (this file's own
+     "Coordinate-overprint fix" comment below, ~line 1470). Originally
+     colored from the OPPOSITE board-color token (Lichess's own technique),
+     but this site's board palette has much lower light/dark square
+     separation than Lichess's (~1.7-1.9:1, see --color-board-light/-dark
+     above), so that swap put the label at the SAME low ratio against its
+     own square -- a real WCAG AA failure (design-standards.md's 4.5:1
+     floor), caught in copy review on task-mt5khay7-0597bd. Fixed with one
+     fixed color (--color-ink-black, defined above) instead of the swap --
+     clears all four board-square/theme combinations with real margin
+     (5.04:1 worst case; see designTokens.test.js's boardCoordContrast
+     assertions). */
   .board-coord {
     position: absolute;
     font-family: var(--font-sans);
     font-size: var(--text-xs);
     font-weight: var(--weight-bold);
     line-height: 1;
+    color: var(--color-ink-black);
     pointer-events: none;
     user-select: none;
   }
   .board-coord--file { left: var(--space-1); bottom: var(--space-1); }
   .board-coord--rank { left: var(--space-1); top: var(--space-1); }
-  .board-sq--light .board-coord { color: var(--color-board-dark); }
-  .board-sq--dark .board-coord { color: var(--color-board-light); }
   /* Phase 7c: real Cburnett SVG piece artwork (src/boardSvg.js), replacing
      the old .board-pc--w/--b Unicode-glyph technique everywhere -- the
      drill session board (its last consumer) was migrated too, so those

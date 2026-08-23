@@ -190,3 +190,42 @@ test('designTokens: SITE_CSS honors prefers-reduced-motion with an !important un
   assert.match(match[1], /transition-duration:\s*0\.01ms\s*!important/);
   assert.match(match[1], /animation-duration:\s*0\.01ms\s*!important/);
 });
+
+// -----------------------------------------------------------------------
+// Regression coverage for the .board-coord contrast fix (copy review on
+// task-mt5khay7-0597bd / PR #67, fixed by task-mt617gma-5b336e): the
+// original OPPOSITE-board-token swap put each coordinate label's color at
+// the SAME low separation as the two board squares themselves (1.71:1 in
+// light theme, 1.90:1 in dark theme -- both far under the 4.5:1 WCAG AA
+// floor). --color-ink-black replaced the swap with one fixed color; this
+// checks that fixed color against all four real board-square hexes (both
+// themes' light/dark square) by hand-computed relative luminance, so a
+// future board-palette change can't silently regress it back under 4.5:1.
+// --color-board-light/-dark are raw hex, not ramp indices, so this can't
+// reuse resolveY()/RAMP_Y above -- same WCAG relative-luminance formula,
+// applied directly to the hex values themselves.
+// -----------------------------------------------------------------------
+function hexToY(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const channels = [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff].map((c) => {
+    const x = c / 255;
+    return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+test('designTokens: --color-ink-black (.board-coord\'s fixed label color) clears 4.5:1 against every board-square hex in both themes', () => {
+  assert.equal(DESIGN_TOKENS['--color-ink-black'], '#000000');
+  const labelY = hexToY(DESIGN_TOKENS['--color-ink-black']);
+  for (const theme of ['light', 'dark']) {
+    for (const role of ['--color-board-light', '--color-board-dark']) {
+      const squareHex = THEME_ROLES[theme][role];
+      const squareY = hexToY(squareHex);
+      const ratio = contrastRatio(labelY, squareY);
+      assert.ok(
+        ratio >= 4.5 - 0.01,
+        `${theme} ${role} (${squareHex}) vs --color-ink-black: computed ${ratio.toFixed(2)}:1, need >=4.5:1`
+      );
+    }
+  }
+});
