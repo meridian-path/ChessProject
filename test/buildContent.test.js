@@ -406,6 +406,34 @@ test('the aggressive-vs-positional style guide covers every tracked opening, sor
   })
 );
 
+test('the upgrade-your-repertoire guide computes its top-by-band and score-range checks from real entries, links every band/side combination, and degrades gracefully with no data', () =>
+  withTempDist(async (outDir) => {
+    const { fetchImpl } = makeSmartExplorerFetch();
+    const { written } = await buildContentPages({ fetchImpl, outDir });
+    const page = written.find((p) => p.file === 'upgrade-your-repertoire-as-you-improve.html');
+    assert.ok(page, 'upgrade-your-repertoire-as-you-improve.html should be written');
+
+    // Both the top-by-band table and the band/side link table must be
+    // present with real content, not an empty-state fallback, given this
+    // fixture always returns enough band data for every opening.
+    assert.doesNotMatch(page.html, /Band data was not available for this build/);
+    assert.doesNotMatch(page.html, /NaN|undefined/);
+    assert.match(page.html, /best-white-openings-1400-1600\.html/);
+    assert.match(page.html, /best-black-openings-2000-plus\.html/);
+    const transitionMatches = page.html.match(/1400-1600 to 1600-1800|1600-1800 to 1800-2000|1800-2000 to 2000\+/g) || [];
+    assert.ok(transitionMatches.length >= 3, 'all three named transitions should appear');
+
+    // Degenerate direct render (no entries): falls back to honest empty
+    // states rather than crashing.
+    const guide = require('../src/content/upgrade-your-repertoire-as-you-improve');
+    const { escapeHtml, formatPct, wrapTable } = require('../src/render');
+    const { rankOpeningsByScore, scoreRangeAcrossBands } = require('../src/processOpenings');
+    const emptyHtml = guide.render({ entries: [], rankOpeningsByScore, scoreRangeAcrossBands, escapeHtml, formatPct, wrapTable });
+    assert.match(emptyHtml, /empty-note/);
+    assert.doesNotMatch(emptyHtml, /NaN|undefined/);
+  })
+);
+
 test('phase 2: the guides hub links to every guide article, and every guide has exactly one H1 and real data pulled from entries', () =>
   withTempDist(async (outDir) => {
     const { fetchImpl } = makeSmartExplorerFetch();
