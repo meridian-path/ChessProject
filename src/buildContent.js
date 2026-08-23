@@ -17,7 +17,7 @@ const path = require('path');
 const { OPENINGS, assertOpeningsWellFormed } = require('./openings');
 const { RATING_BANDS, DEFAULT_SPEEDS } = require('./processRepertoire');
 const { fetchExplorerMoves } = require('./fetchOpeningExplorer');
-const { fetchMoves, AGGREGATES_DIR, aggregatesAvailable } = require('./explorerSource');
+const { fetchMoves, AGGREGATES_DIR, aggregatesAvailable, actualPoolSpeeds, poolDisclosure } = require('./explorerSource');
 const { loadAggregates } = require('./aggregateSource');
 const { slugifyFamilyName } = require('./ecoFamilies');
 const {
@@ -68,6 +68,7 @@ const GUIDES = [
   require('./content/scandinavian-defense-at-club-level'),
   require('./content/how-to-build-your-opening-repertoire'),
   require('./content/opening-principles-by-win-rate'),
+  require('./content/opening-strategy-by-time-control'),
   // 8 rating-banded "best White/Black openings" pages, one factory module
   // producing all 8 -- see that file's own header comment for why.
   ...createBestOpeningsByRatingBandPages(),
@@ -401,7 +402,7 @@ async function buildContentPages({
   // extra Explorer requests, no hand-typed statistics (spec 1.6's "ground
   // this in actual research, not assumption", applied to the numbers
   // themselves, not just topic selection).
-  const { written: guideWritten, summaries: guideSummaries } = buildGuidePages(entries, { nav, outDir });
+  const { written: guideWritten, summaries: guideSummaries } = buildGuidePages(entries, { nav, outDir, aggregatesDir });
   written.push(...guideWritten);
 
   const guidesHubEntry = buildGuidesHubPage(guideSummaries, { nav, outDir });
@@ -424,7 +425,13 @@ async function buildContentPages({
  * either way, but the ctx-injection keeps the direction one-way and the
  * modules trivially testable with a hand-built ctx).
  */
-function buildGuidePages(entries, { nav, outDir }) {
+function buildGuidePages(entries, { nav, outDir, aggregatesDir = AGGREGATES_DIR }) {
+  // Same real, build-time pool figure src/buildPack.js/renderPackPages.js
+  // already disclose on the Repertoire Packs product -- so a guide that
+  // discusses time controls can state which speed pool(s) this exact
+  // build's own numbers came from, never a hand-typed guess (see
+  // src/explorerSource.js's actualPoolSpeeds()/poolDisclosure() doc).
+  const poolSpeeds = actualPoolSpeeds(aggregatesDir);
   const ctx = {
     entries,
     rankOpeningsByScore,
@@ -437,6 +444,8 @@ function buildGuidePages(entries, { nav, outDir }) {
     escapeHtml,
     formatPct,
     wrapTable,
+    poolSpeeds,
+    poolDisclosure,
   };
 
   const written = [];
