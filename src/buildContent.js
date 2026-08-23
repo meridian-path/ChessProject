@@ -70,6 +70,7 @@ const GUIDES = [
   require('./content/opening-principles-by-win-rate'),
   require('./content/opening-strategy-by-time-control'),
   require('./content/aggressive-vs-positional-openings'),
+  require('./content/upgrade-your-repertoire-as-you-improve'),
   // 8 rating-banded "best White/Black openings" pages, one factory module
   // producing all 8 -- see that file's own header comment for why.
   ...createBestOpeningsByRatingBandPages(),
