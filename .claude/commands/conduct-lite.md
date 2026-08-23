@@ -43,6 +43,27 @@ repo's root - read it in full before anything else if this is the first run this
 5. **Complete/checkpoint through the same shared CLI**, same as any other Orchestra builder
    task - `complete`/`checkpoint-with-full-result`, with the four mandatory `--digest-*`
    fields. `push-branch`/PR conventions for this repo are unchanged by any of this.
+
+   **If your branch's PR conflicts because another branch merged first (or you just want the
+   fetch -> rebase -> test -> push cycle done for you), use TheOrchestra's own merge-queue tool
+   instead of resolving it by hand:**
+   ```
+   node "C:\Users\dylan\Dev\TheOrchestra\orchestrator\lib\cli.js" merge-queue-add --repo <your dedicated worktree path> --branch <your-branch> --base master --test-command "npm test" --agent session-chess
+   node "C:\Users\dylan\Dev\TheOrchestra\orchestrator\lib\cli.js" merge-queue-run --agent session-chess
+   ```
+   Point `--repo` at your OWN dedicated worktree, same rule as step 4 above - never the shared
+   checkout. The queue fetches the latest `master`, rebases your branch onto it, re-runs your
+   `--test-command`, and force-with-lease-pushes the result - it never merges or opens a PR for
+   you (this repo's PRs stay human-merged, unchanged). Check
+   `node "C:\Users\dylan\Dev\TheOrchestra\orchestrator\lib\cli.js" merge-queue-status` afterward
+   for the outcome (`ready_for_human_merge`/`rebase_failed`/`test_failed`/etc. - a failure just
+   means the branch is left rebased-but-unpushed for you to fix and re-run, nothing is lost).
+   Validated end to end against a sibling product repo's own real `npm test` command
+   (task-mt638skf-4558aa, 2026-08-23, tested against lol-practice-system) - no code changes were
+   needed for external-repo adoption; the tool's own external-repo path runs directly against
+   whatever `--repo` you give it, guarded by the same claim-check `push-branch` already uses
+   (blocked if some other agent has a live claim on this repo, keyed by directory basename
+   against the task's own `asset`/`footprint`).
 6. **If you hit anything outside `SESSION_SCOPE.md`'s Permitted list** - money, accounts,
    distribution, another repo, orchestrator state itself, or the canonical-CLI cutover - stop
    that thread, file it per `SESSION_SCOPE.md`'s Duties (`add`/`propose-decision` to the shared
