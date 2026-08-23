@@ -345,6 +345,39 @@ test('buildContentPages: the FAQ page\'s "are these stats from blitz or classica
   })
 );
 
+test('the time-control strategy guide discloses the real pool this build drew from (manifest-aware, matching the Repertoire Packs product\'s own poolDisclosure wording) and never fabricates a cross-pool comparison', () =>
+  withTempDist(async (outDir) => {
+    const { fetchImpl } = makeSmartExplorerFetch();
+    const aggregatesDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lichess-content-timecontrol-aggregates-'));
+    fs.writeFileSync(path.join(aggregatesDir, 'root.json'), JSON.stringify({ positions: {}, pathIndex: {} }), 'utf8');
+    fs.writeFileSync(path.join(aggregatesDir, 'manifest.json'), JSON.stringify({ pipelineVersion: 1, retrievedAt: new Date().toISOString(), dumpMonths: ['2026-07'], gamesUsed: 500000 }), 'utf8');
+
+    const { written } = await buildContentPages({ fetchImpl, outDir, aggregatesDir });
+    const page = written.find((p) => p.file === 'opening-strategy-by-time-control.html');
+    assert.ok(page, 'opening-strategy-by-time-control.html should be written');
+    assert.match(page.html, /blitz games only; bullet, rapid and classical are excluded/, 'with real aggregate data on disk, the disclosure must name the true single-pool figure');
+    assert.doesNotMatch(page.html, /blitz and rapid games only/, 'must not claim the two-pool fallback figure when real aggregate data is actually present');
+
+    const { written: fallbackWritten } = await buildContentPages({ fetchImpl, outDir: fs.mkdtempSync(path.join(os.tmpdir(), 'lichess-content-timecontrol-fallback-')), aggregatesDir: EMPTY_AGGREGATES_DIR });
+    const fallbackPage = fallbackWritten.find((p) => p.file === 'opening-strategy-by-time-control.html');
+    assert.match(fallbackPage.html, /blitz and rapid games only; bullet and classical are excluded/, 'with no aggregates on disk, the disclosure must state the real live-API fallback pool');
+
+    // The sample-size table names real tracked openings, never placeholders.
+    const namedCount = OPENINGS.filter((o) => page.html.includes(o.name)).length;
+    assert.ok(namedCount >= 2, 'the sample-size table should name several real opening names pulled from entries');
+
+    // Degenerate direct render (no entries, ctx missing poolSpeeds/poolDisclosure
+    // entirely): falls back to an honest default rather than crashing.
+    const guide = require('../src/content/opening-strategy-by-time-control');
+    const { escapeHtml, formatPct, wrapTable } = require('../src/render');
+    const { formatGamesAbbrev } = require('../src/renderContent');
+    const { rankOpeningsByScore } = require('../src/processOpenings');
+    const emptyHtml = guide.render({ entries: [], rankOpeningsByScore, escapeHtml, formatPct, formatGamesAbbrev, wrapTable });
+    assert.match(emptyHtml, /empty-note/);
+    assert.doesNotMatch(emptyHtml, /NaN|undefined/);
+  })
+);
+
 test('phase 2: the guides hub links to every guide article, and every guide has exactly one H1 and real data pulled from entries', () =>
   withTempDist(async (outDir) => {
     const { fetchImpl } = makeSmartExplorerFetch();
