@@ -378,6 +378,34 @@ test('the time-control strategy guide discloses the real pool this build drew fr
   })
 );
 
+test('the aggressive-vs-positional style guide covers every tracked opening, sorts real draw-rate data correctly, and degrades gracefully with no data', () =>
+  withTempDist(async (outDir) => {
+    const { fetchImpl } = makeSmartExplorerFetch();
+    const { written } = await buildContentPages({ fetchImpl, outDir });
+    const page = written.find((p) => p.file === 'aggressive-vs-positional-openings.html');
+    assert.ok(page, 'aggressive-vs-positional-openings.html should be written');
+
+    // Every real tracked opening appears, checked by slug (not name -- two
+    // real opening names contain an apostrophe that escapeHtml() renders as
+    // &#39;, so a raw-name substring match would false-positive as missing).
+    // A slug silently missing would mean either the STYLE classification
+    // map fell out of sync with openings.js, or the table dropped a row.
+    const slugCount = OPENINGS.filter((o) => page.html.includes(`href="${o.slug}.html"`)).length;
+    assert.equal(slugCount, OPENINGS.length, 'every tracked opening should appear in the style table');
+    assert.match(page.html, /Aggressive|Positional|Flexible/);
+    assert.doesNotMatch(page.html, /NaN|undefined/);
+
+    // Degenerate direct render (no entries): falls back to honest empty
+    // states rather than crashing.
+    const guide = require('../src/content/aggressive-vs-positional-openings');
+    const { escapeHtml, formatPct, wrapTable } = require('../src/render');
+    const { formatGamesAbbrev } = require('../src/renderContent');
+    const emptyHtml = guide.render({ entries: [], escapeHtml, formatPct, formatGamesAbbrev, wrapTable });
+    assert.match(emptyHtml, /empty-note/);
+    assert.doesNotMatch(emptyHtml, /NaN|undefined/);
+  })
+);
+
 test('phase 2: the guides hub links to every guide article, and every guide has exactly one H1 and real data pulled from entries', () =>
   withTempDist(async (outDir) => {
     const { fetchImpl } = makeSmartExplorerFetch();
