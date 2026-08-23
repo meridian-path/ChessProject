@@ -82,8 +82,27 @@ ${renderDocumentHead({ title, description, canonical })}
            Your color's plies show the top choices actually played at this rating; the opponent's replies show
            only their single most common response, to keep the tree readable. Pick a different rating band or
            color above - the whole tree updates without leaving this page.</p>
+        <!-- sr-only h2 (accessibility fix, same pattern src/buildStatic.js's
+             homeDemoMarkup() already established for the homepage's own hero
+             demo board): this aside was the page's only section between
+             the page's h1 and the first visible h2 (the footer's newsletter
+             heading), and cm-chessboard's Accessibility extension
+             (node_modules/cm-chessboard/src/extensions/accessibility/
+             Accessibility.js, hardcoded, not configurable) injects its own
+             h3 heading ("Move piece") client-side inside
+             #repertoire-board-mount once the widget mounts -- with no h2
+             ancestor yet, that skipped a level (h1 straight to h3). Reusing
+             the aside's own aria-label text as a visually-hidden real
+             heading fixes the sequence for real (h1, h2, h3 in order)
+             without changing anything visible. Note for future editors: no
+             literal angle-bracket tag mentions in this comment, on purpose
+             -- a heading-count test elsewhere greps the raw rendered HTML
+             with a naive regex that can't tell a comment from real markup,
+             so writing out the actual h1 tag with its brackets here would
+             itself count as a second one. -->
         <aside class="repertoire-board-panel" aria-label="Board for the selected line">
           ${spriteDefsHtml()}
+          <h2 class="sr-only">Board for the selected line</h2>
           <div id="repertoire-board-mount" class="repertoire-board-mount"></div>
           <p id="repertoire-board-hint" class="repertoire-board-hint">Pick a move to see the position.</p>
           <p id="repertoire-board-status" class="sr-only" role="status" aria-live="polite"></p>

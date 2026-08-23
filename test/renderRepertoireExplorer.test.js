@@ -90,6 +90,22 @@ test('renderRepertoireExplorerPage: renders the synced board panel exactly once,
   assert.equal(spriteMatches.length, 1);
 });
 
+test('renderRepertoireExplorerPage: the board panel carries its own sr-only h2, ahead of where cm-chessboard injects an h3 at runtime', () => {
+  const html = renderRepertoireExplorerPage({
+    combos: sampleCombos(),
+    defaultBand: '1600-1800',
+    defaultColor: 'white',
+    bandPickerHtml: '',
+    canonical: 'https://repertoire-builder.com/repertoire.html',
+  });
+  const asideIndex = html.indexOf('<aside class="repertoire-board-panel"');
+  const h2Index = html.indexOf('<h2 class="sr-only">Board for the selected line</h2>');
+  const boardMountIndex = html.indexOf('<div id="repertoire-board-mount"');
+  assert.ok(asideIndex !== -1, 'expected the repertoire-board-panel aside to be present');
+  assert.ok(h2Index !== -1, 'expected an sr-only <h2> inside the board-panel aside');
+  assert.ok(h2Index > asideIndex && h2Index < boardMountIndex, 'the h2 must sit inside the aside, before the board mount cm-chessboard writes its own h3 into');
+});
+
 test('renderRepertoireExplorerPage: the move tree is still fully server-rendered inside #repertoire-tree (progressive enhancement, not a JS prerequisite)', () => {
   const html = renderRepertoireExplorerPage({
     combos: sampleCombos(),
