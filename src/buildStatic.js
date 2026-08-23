@@ -75,6 +75,7 @@ const { buildEcoExplorerPage, ECO_EXPLORER_FILE, REVERSE_LOOKUP_FILE } = require
 const { withExplorerCache } = require('./explorerCache');
 const { renderPrivacyPage, renderAboutPage, renderContactPage, render404Page, adsTxtContent, cloudflareHeadersContent } = require('./renderCompliance');
 const { renderSitemapXml, robotsTxtContent } = require('./sitemap');
+const { indexNowKeyFileName, indexNowKeyFileContent } = require('./indexNow');
 const { renderRssXml } = require('./rss');
 const { homeJsonLd } = require('./structuredData');
 const { SITE_NAME, SITE_TAGLINE, absoluteUrl, pageTitle } = require('./site');
@@ -1304,6 +1305,10 @@ async function buildStatic({ fetchImpl = politeFetch, useCache = true } = {}) {
   // (which just serves it as an inert static file at /_headers) until the
   // Cloudflare Pages migration is DNS-live.
   fs.writeFileSync(path.join(OUT_DIR, '_headers'), cloudflareHeadersContent(), 'utf8');
+  // IndexNow key-file proof of ownership (src/indexNow.js's own header
+  // comment) -- same "written on every build or it gets silently wiped"
+  // reasoning as CNAME/.nojekyll/_headers above.
+  fs.writeFileSync(path.join(OUT_DIR, indexNowKeyFileName()), indexNowKeyFileContent(), 'utf8');
 
   // dist/data/ (spec WS-3.2 section 2.4): copies data/aggregates/ verbatim
   // when it exists (see copyAggregateShardsToDist()'s own header comment
@@ -1357,6 +1362,7 @@ async function buildStatic({ fetchImpl = politeFetch, useCache = true } = {}) {
     '_headers',
     'ads.txt',
     'feed.xml',
+    indexNowKeyFileName(),
     ...IDENTITY_ASSET_FILES,
     ...packOgAssetFiles,
     ...packSampleFiles,
@@ -1445,6 +1451,7 @@ async function main() {
       console.log(`  - ${file}${noindex ? ' (noindex)' : ''}`);
     }
     console.log('  - sitemap.xml, robots.txt (generated from the pages actually written above, noindex pack pages excluded)');
+    console.log(`  - ${indexNowKeyFileName()} (IndexNow key-file proof of ownership, src/indexNow.js)`);
     console.log('Verified: no Lichess API token string appears in any generated file.');
     console.log('Verified: no literal "PLACEHOLDER" string appears in any generated file.');
     console.log('Verified: no filename collisions across the static build.');
