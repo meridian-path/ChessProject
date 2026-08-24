@@ -6,7 +6,7 @@ A chess stats site built end-to-end (fetch a live public API -> process/aggregat
 stats page). Uses the [Lichess public API](https://lichess.org/api), which needs no API key.
 
 **Status:** live at [Repertoire-Builder.com](https://Repertoire-Builder.com), also reachable
-at [dylangerloski.github.io/ChessProject](https://dylangerloski.github.io/ChessProject/).
+at [meridian-path.github.io/ChessProject](https://meridian-path.github.io/ChessProject/).
 Both a local dev server and a static build are supported -- see below to run either
 yourself.
 

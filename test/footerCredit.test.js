@@ -8,7 +8,7 @@ const { renderFooter } = require('../src/render.js');
 test('renderFooter carries the portfolio-wide credit line naming the operator and the other two properties', () => {
   const footer = renderFooter('Data source: test.');
   assert.match(footer, /Built by Dylan/);
-  assert.match(footer, /also makes <a href="https:\/\/dylangerloski\.github\.io\/filetools\/"[^>]*>filetools<\/a>/);
+  assert.match(footer, /also makes <a href="https:\/\/usefiletools\.com"[^>]*>filetools<\/a>/);
   assert.match(footer, /<a href="https:\/\/lol-practice-system\.com"[^>]*>Solo Queue Practice<\/a>/);
 });
 
