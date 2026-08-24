@@ -14,7 +14,7 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const REPO = 'DylanGerloski/ChessProject';
+const REPO = 'meridian-path/ChessProject';
 const OUT_DIR = path.join(__dirname, '..', 'data', 'aggregates');
 
 function latestReleaseTag() {

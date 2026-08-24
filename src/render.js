@@ -2507,7 +2507,7 @@ const SOCIAL_ICON_SVG = '<svg width="18" height="18" viewBox="0 0 100 100" xmlns
  * docs/DESIGN_PLAYBOOK.md's "What stays shared across the portfolio".
  */
 function renderFooterCredit() {
-  return `<p class="footer-credit">Built by Dylan, who also makes <a href="https://dylangerloski.github.io/filetools/" rel="noopener noreferrer">filetools</a> and <a href="https://lol-practice-system.com" rel="noopener noreferrer">Solo Queue Practice</a>. <a class="footer-social" href="https://x.com/builtittheycome" rel="noopener noreferrer">${SOCIAL_ICON_SVG}Follow @builtittheycome</a></p>`;
+  return `<p class="footer-credit">Built by Dylan, who also makes <a href="https://usefiletools.com" rel="noopener noreferrer">filetools</a> and <a href="https://lol-practice-system.com" rel="noopener noreferrer">Solo Queue Practice</a>. <a class="footer-social" href="https://x.com/builtittheycome" rel="noopener noreferrer">${SOCIAL_ICON_SVG}Follow @builtittheycome</a></p>`;
 }
 
 // Newsletter signup: wired to the project's Substack publication
