@@ -45,7 +45,7 @@ function render(ctx) {
     <p>&ldquo;Scores only X%&rdquo; uses standard chess scoring (a win counts 1, a draw counts 0.5) as a percentage. A move sitting at 40% isn&rsquo;t losing by force. It&rsquo;s simply performing below break-even in practice at this rating band, in this exact position, in the sample of games this site&rsquo;s build actually saw. That&rsquo;s a statement about a rating band&rsquo;s habits, not a claim about the objective evaluation of the move.</p>
 
     <h2>Go deeper</h2>
-    <p>Each opening's own page has the full breakdown by rating band, top replies, and real recent club games. See the <a href="openings.html">full openings comparison &rarr;</a>, or see how these same mistakes look at other rating bands: <a href="${mistakesPageSlug('1400-1600')}.html">Mistakes at 1400-1600</a> &middot; <a href="${mistakesPageSlug('1800-2000')}.html">Mistakes at 1800-2000</a> &middot; <a href="${mistakesPageSlug('2000+')}.html">Mistakes at 2000+</a>.</p>
+    <p>Each opening&rsquo;s own page has the full breakdown by rating band, top replies, and real recent club games. See the <a href="openings.html">full openings comparison &rarr;</a>, or see how these same mistakes look at other rating bands: <a href="${mistakesPageSlug('1400-1600')}.html">Mistakes at 1400-1600</a> &middot; <a href="${mistakesPageSlug('1800-2000')}.html">Mistakes at 1800-2000</a> &middot; <a href="${mistakesPageSlug('2000+')}.html">Mistakes at 2000+</a>.</p>
   `;
 }
 
