@@ -182,7 +182,58 @@ test('buildOpeningModel attaches a punishing reply to the worst mistake when a f
   }
 });
 
-function fakeEntry({ slug, name, side, band, games, scoreForSide, scoreForSideCI = 0, scoreForSideBalanced = null, scoreForSideBalancedCI = 0, mistakes = [] }) {
+test('buildOpeningModel: mistakesByBand runs findCommonMistakes() against every already-fetched band, not just defaultBand -- the fix for candidate 5 (opening mistakes at other rating bands)', () => {
+  const openingConfig = {
+    slug: 'italian-game', name: 'Italian Game', ecoHint: 'C50', side: 'white',
+    line: [{ uci: 'e2e4', san: 'e4' }, { uci: 'e7e5', san: 'e5' }],
+  };
+  // Same shape findCommonMistakes' own dedicated test uses (parent balanced +
+  // one move whose balanced-subset score sits below the parent's CI lower
+  // bound, plus its resultingBalanced also below it) -- but filed under
+  // '1400-1600', a NON-default band, to prove this isn't default-band-only.
+  const parentBalanced = { white: 550, draws: 50, black: 400 };
+  const nonDefaultResponse = {
+    white: 590 + 4 + 400, draws: 20 + 1 + 150, black: 390 + 1 + 450,
+    balanced: parentBalanced,
+    moves: [
+      {
+        uci: 'g8f6', san: 'Nf6', white: 590, draws: 20, black: 390, averageRating: 1500,
+        balanced: { white: 220, draws: 10, black: 80 },
+        resultingBalanced: { white: 250, draws: 10, black: 100 },
+      },
+      { uci: 'a7a6', san: 'a6', white: 4, draws: 1, black: 1, averageRating: 1480 },
+      { uci: 'g1f3', san: 'Nf3', white: 400, draws: 150, black: 450, averageRating: 1690, balanced: { white: 150, draws: 80, black: 170 } },
+    ],
+  };
+  const bandResponses = {
+    '1600-1800': { white: 0, draws: 0, black: 0, moves: [] }, // defaultBand: deliberately empty, no mistakes here
+    '1400-1600': nonDefaultResponse,
+  };
+  const model = buildOpeningModel({ openingConfig, bandResponses, minGamesForPct: 1000 });
+
+  assert.deepEqual(Object.keys(model.mistakesByBand).sort(), ['1400-1600', '1600-1800']);
+  assert.equal(model.mistakesByBand['1600-1800'].length, 0); // defaultBand's own response had no data
+  assert.equal(model.mistakes.length, 0); // unchanged existing field, still defaultBand-only
+  assert.equal(model.mistakesByBand['1400-1600'].length, 1);
+  assert.equal(model.mistakesByBand['1400-1600'][0].san, 'Nf6');
+});
+
+test('buildOpeningModel: mistakesByBand[defaultBand] is always the same array as the existing mistakes field', () => {
+  const openingConfig = {
+    slug: 'sicilian-defense', name: 'Sicilian Defense', ecoHint: 'B20', side: 'black',
+    line: [{ uci: 'e2e4', san: 'e4' }, { uci: 'c7c5', san: 'c5' }],
+  };
+  const bandResponses = {
+    '1600-1800': {
+      white: 5900000 + 400000, draws: 200000, black: 5000000,
+      moves: [{ uci: 'g1f3', san: 'Nf3', white: 5900000, draws: 200000, black: 4000000, averageRating: 1700 }],
+    },
+  };
+  const model = buildOpeningModel({ openingConfig, bandResponses, minGamesForPct: 1000 });
+  assert.equal(model.mistakesByBand['1600-1800'], model.mistakes);
+});
+
+function fakeEntry({ slug, name, side, band, games, scoreForSide, scoreForSideCI = 0, scoreForSideBalanced = null, scoreForSideBalancedCI = 0, mistakes = [], mistakesByBand = null }) {
   return {
     openingConfig: { slug, name, side },
     model: {
@@ -192,6 +243,7 @@ function fakeEntry({ slug, name, side, band, games, scoreForSide, scoreForSideCI
       defaultBand: band,
       bands: [{ band, games, scoreForSide, scoreForSideCI, scoreForSideBalanced, scoreForSideBalancedCI, enoughData: games >= 1000 }],
       mistakes,
+      mistakesByBand: mistakesByBand || { [band]: mistakes },
     },
   };
 }
@@ -288,6 +340,43 @@ test('aggregateMistakesAcrossOpenings flattens and sorts every opening\'s mistak
   assert.equal(all[0].san, 'd5'); // worst score (35) first
   assert.equal(all[0].name, 'Opening B');
   assert.equal(all[1].san, 'Nf6');
+});
+
+test('aggregateMistakesAcrossOpenings: an explicit band reads from mistakesByBand instead of the default-band mistakes field, and stamps that band onto each row', () => {
+  const entries = [
+    fakeEntry({
+      slug: 'a', name: 'Opening A', side: 'white', band: '1600-1800', games: 5000, scoreForSide: 48,
+      mistakes: [{ san: 'Nf6', playedPct: 5, score: 41 }], // defaultBand's own mistake -- must be ignored when a different band is requested
+      mistakesByBand: {
+        '1600-1800': [{ san: 'Nf6', playedPct: 5, score: 41 }],
+        '1400-1600': [{ san: 'e5', playedPct: 12, score: 30 }],
+      },
+    }),
+    fakeEntry({
+      slug: 'b', name: 'Opening B', side: 'black', band: '1600-1800', games: 5000, scoreForSide: 52,
+      mistakes: [{ san: 'd5', playedPct: 8, score: 35 }],
+      mistakesByBand: { '1600-1800': [{ san: 'd5', playedPct: 8, score: 35 }] }, // no 1400-1600 entry at all
+    }),
+  ];
+  const all = aggregateMistakesAcrossOpenings(entries, '1400-1600');
+  assert.equal(all.length, 1); // opening 'b' contributes nothing -- missing band, not a crash
+  assert.equal(all[0].slug, 'a');
+  assert.equal(all[0].san, 'e5');
+  assert.equal(all[0].band, '1400-1600');
+});
+
+test('aggregateMistakesAcrossOpenings: omitting band still reads today\'s default-band mistakes field unchanged', () => {
+  const entries = [
+    fakeEntry({
+      slug: 'a', name: 'Opening A', side: 'white', band: '1600-1800', games: 5000, scoreForSide: 48,
+      mistakes: [{ san: 'Nf6', playedPct: 5, score: 41 }],
+      mistakesByBand: { '1600-1800': [{ san: 'Nf6', playedPct: 5, score: 41 }], '1400-1600': [{ san: 'e5', playedPct: 12, score: 30 }] },
+    }),
+  ];
+  const all = aggregateMistakesAcrossOpenings(entries);
+  assert.equal(all.length, 1);
+  assert.equal(all[0].san, 'Nf6'); // the 1400-1600 entry must NOT leak in when no band is requested
+  assert.equal(all[0].band, '1600-1800');
 });
 
 test('scoreRangeAcrossBands finds the min/max scoring bands and returns null with fewer than 2 usable bands', () => {

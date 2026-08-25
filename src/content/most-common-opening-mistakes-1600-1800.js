@@ -1,13 +1,14 @@
 'use strict';
 
-// NOTE: named/slugged for the 1600-1800 band deliberately, not 1400-1600 --
-// findCommonMistakes() (src/processOpenings.js) only runs against
-// model.defaultBand (1600-1800, see src/buildContent.js's DEFAULT_BAND),
-// since that's the only band phase 1 fetches per-move reply data for. A
-// slug/title claiming "1400-1600" would misstate which band this data
-// actually comes from -- see this project's public-repo-hygiene and honesty
-// conventions (don't publish a page whose own title is inaccurate).
+// This page predates ./mostCommonOpeningMistakesByBand.js's 3-sibling
+// factory (1400-1600/1800-2000/2000+) and stays its own file rather than
+// folding into that factory -- it was the original, is still this site's
+// DEFAULT_BAND, and its own targetQuery/description wording differs slightly
+// from the generated siblings'. See that factory's own header comment for
+// why the siblings only became buildable once findCommonMistakes() was
+// generalized to run against every already-fetched band, not just this one.
 const SLUG = 'most-common-opening-mistakes-1600-1800';
+const { mistakesPageSlug } = require('./mostCommonOpeningMistakesByBand');
 
 const meta = {
   slug: SLUG,
@@ -44,7 +45,7 @@ function render(ctx) {
     <p>&ldquo;Scores only X%&rdquo; uses standard chess scoring (a win counts 1, a draw counts 0.5) as a percentage. A move sitting at 40% isn&rsquo;t losing by force. It&rsquo;s simply performing below break-even in practice at this rating band, in this exact position, in the sample of games this site&rsquo;s build actually saw. That&rsquo;s a statement about a rating band&rsquo;s habits, not a claim about the objective evaluation of the move.</p>
 
     <h2>Go deeper</h2>
-    <p>Each opening's own page has the full breakdown by rating band, top replies, and real recent club games. See the <a href="openings.html">full openings comparison &rarr;</a>.</p>
+    <p>Each opening's own page has the full breakdown by rating band, top replies, and real recent club games. See the <a href="openings.html">full openings comparison &rarr;</a>, or see how these same mistakes look at other rating bands: <a href="${mistakesPageSlug('1400-1600')}.html">Mistakes at 1400-1600</a> &middot; <a href="${mistakesPageSlug('1800-2000')}.html">Mistakes at 1800-2000</a> &middot; <a href="${mistakesPageSlug('2000+')}.html">Mistakes at 2000+</a>.</p>
   `;
 }
 
