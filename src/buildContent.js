@@ -530,7 +530,7 @@ function buildFaqEntries(entries, { manifest = null } = {}) {
     },
     {
       question: 'How many openings should I learn?',
-      answerHtml: `<p>Most improvement advice suggests one solid response to 1.e4, one to 1.d4, and a small number of systems as White - not a large repertoire. This site deliberately tracks a curated set of ${entries.length} openings rather than trying to cover everything, for the same reason.</p>`,
+      answerHtml: `<p>Most improvement advice suggests one solid response to 1.e4, one to 1.d4, and a small number of systems as White - not a large repertoire. This site deliberately tracks a curated set of ${entries.length} openings rather than trying to cover everything, for the same reason. See <a href="how-many-chess-openings-should-you-learn.html">how many chess openings should you learn? &rarr;</a> for the fuller case.</p>`,
     },
     {
       question: "What's the difference between the Lichess database and the masters database?",
