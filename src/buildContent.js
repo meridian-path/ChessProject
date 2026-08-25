@@ -58,6 +58,7 @@ const { BUILD_DATE } = require('./site');
 // how-to guide and the opening-principles-by-win-rate guide were both added
 // later (2026-08) under the same contract.
 const { createBestOpeningsByRatingBandPages } = require('./content/bestOpeningsByRatingBand');
+const { createOpeningMistakesByBandPages } = require('./content/mostCommonOpeningMistakesByBand');
 
 const GUIDES = [
   require('./content/how-to-beat-the-london-system'),
@@ -76,6 +77,10 @@ const GUIDES = [
   // 8 rating-banded "best White/Black openings" pages, one factory module
   // producing all 8 -- see that file's own header comment for why.
   ...createBestOpeningsByRatingBandPages(),
+  // 3 rating-banded "most common opening mistakes" pages parallel to the
+  // original 1600-1800 page above -- see that factory's own header comment
+  // for why this only became buildable now.
+  ...createOpeningMistakesByBandPages(),
 ];
 
 const DEFAULT_BAND = '1600-1800';

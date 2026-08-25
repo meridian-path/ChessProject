@@ -790,6 +790,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd: breadcrumbJsonLd(b
     ${renderBreadcrumb(breadcrumbItems)}
     <h1 class="page-title">Chess opening guides</h1>
     <p class="subtitle">${articles.length} articles, each grounded in this site&rsquo;s own Lichess Opening Explorer data.</p>
+    <h2>Every guide</h2>
     <div class="card-grid">${cards}</div>
   </main>
   ${renderFooter(`Aggregate data from the <a href="https://lichess.org/api#tag/Opening-Explorer" rel="noopener noreferrer">Lichess Opening Explorer</a>, retrieved ${BUILD_DATE}.`, CONTENT_LEGAL_LINKS)}

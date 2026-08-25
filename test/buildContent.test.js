@@ -8,7 +8,7 @@ const os = require('os');
 
 const { buildContentPages, fetchLineWithValidation, GUIDES } = require('../src/buildContent');
 const { buildOpeningModel, rankOpeningsByScore } = require('../src/processOpenings');
-const { renderOpeningPage, renderOpeningsHub, formatGamesAbbrev } = require('../src/renderContent');
+const { renderOpeningPage, renderOpeningsHub, renderGuidesHub, formatGamesAbbrev } = require('../src/renderContent');
 const { escapeHtml, formatPct, wrapTable } = require('../src/render');
 const { OPENINGS } = require('../src/openings');
 const { makeSmartExplorerFetch, fakeResponse } = require('./helpers/fakeExplorer');
@@ -458,6 +458,9 @@ test('phase 2: the guides hub links to every guide article, and every guide has 
       'best-black-openings-1600-1800.html',
       'best-black-openings-1800-2000.html',
       'best-black-openings-2000-plus.html',
+      'most-common-opening-mistakes-1400-1600.html',
+      'most-common-opening-mistakes-1800-2000.html',
+      'most-common-opening-mistakes-2000-plus.html',
       'how-many-chess-openings-should-you-learn.html',
     ];
     for (const file of guideFiles) {
@@ -477,6 +480,28 @@ test('phase 2: the guides hub links to every guide article, and every guide has 
     assert.ok(namedCount >= 5, 'the beginner-ranking guide should reference several real opening names pulled from entries');
   })
 );
+
+// Accessibility regression (live Lighthouse spot-check, 2026-08-25): guides.html
+// scored accessibility=98, heading-order the only failing audit -- its card
+// grid's <h3> cards sat directly under the page's own <h1>, with no <h2> in
+// between (every other card-grid page in this codebase wraps its own grid in
+// a <section><h2>...</h2>, see renderRelated()/renderOpeningsHub()'s "Browse
+// by opening" section/drillCtaSection()/packsCtaSection() -- renderGuidesHub
+// was the one outlier that never got one). Same defect CLASS as the
+// cm-chessboard-injected h3 bug indexPage()'s own regression test guards
+// above, but this one was in the static markup from day one, not injected at
+// runtime.
+test('renderGuidesHub: an <h2> sits between the page <h1> and the first guide card\'s <h3>', () => {
+  const html = renderGuidesHub(
+    [{ slug: 'a', title: 'Guide A', description: 'First guide.' }, { slug: 'b', title: 'Guide B', description: 'Second guide.' }],
+    { nav: { home: '/', repertoire: 'repertoire.html', openings: 'openings.html', guides: 'guides.html', faq: 'chess-opening-faq.html', player: 'player.html' } }
+  );
+  const h1Index = html.indexOf('<h1');
+  const h2Index = html.indexOf('<h2');
+  const h3Index = html.indexOf('<h3');
+  assert.ok(h1Index !== -1 && h2Index !== -1 && h3Index !== -1, 'expected an h1, h2, and h3 all present');
+  assert.ok(h1Index < h2Index && h2Index < h3Index, 'heading order must be h1 -> h2 -> h3, not h1 -> h3');
+});
 
 test('the repertoire how-to guide computes its worked examples from entries and degrades gracefully with no data', () =>
   withTempDist(async (outDir) => {
