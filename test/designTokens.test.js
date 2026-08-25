@@ -229,3 +229,38 @@ test('designTokens: --color-ink-black (.board-coord\'s fixed label color) clears
     }
   }
 });
+
+// -----------------------------------------------------------------------
+// Regression coverage for the .band-pill hover/aria-current contrast fix
+// (live Lighthouse audit, 2026-08-25): --color-accent-contrast is only
+// >=4.5:1 by construction against a fill exactly 5 ramp indices darker
+// (the same guarantee CONTRAST_PAIRS above already relies on for OTHER
+// role pairs) -- CONTRAST_PAIRS itself only checks accent-contrast's
+// sibling --color-accent-dark (6 indices darker, 6.47:1, plenty of
+// headroom) against --color-bg, never --color-accent (5 indices darker,
+// a thinner 4.74:1) at all, which is the fill .band-pill actually uses on
+// :hover and [aria-current="true"]. .band-pill-color's opacity:0.85
+// quietly ate that thinner margin (measured live: 3.9:1). This checks the
+// ramp math itself (so a future ramp change can't silently regress the
+// 4.74:1 margin below 4.5 again) AND that the opacity:1 override rule is
+// actually present in the rendered CSS (so the override can't be
+// silently deleted without a test noticing).
+// -----------------------------------------------------------------------
+test('designTokens: --color-accent-contrast clears 4.5:1 against --color-accent itself (not just --color-accent-dark), in both themes', () => {
+  for (const theme of ['light', 'dark']) {
+    const roles = THEME_ROLES[theme];
+    const contrastY = resolveY(roles['--color-accent-contrast']);
+    const accentY = resolveY(roles['--color-accent']);
+    assert.ok(contrastY !== null, `${theme} --color-accent-contrast did not resolve to a plain ramp index`);
+    assert.ok(accentY !== null, `${theme} --color-accent did not resolve to a plain ramp index`);
+    const ratio = contrastRatio(contrastY, accentY);
+    assert.ok(ratio >= 4.5 - 0.01, `${theme} --color-accent-contrast vs --color-accent: computed ${ratio.toFixed(2)}:1, need >=4.5:1`);
+  }
+});
+
+test('designTokens: .band-pill-color is restored to full opacity on :hover and [aria-current="true"], the two states whose fill is the thinner-margin --color-accent', () => {
+  assert.match(
+    SITE_CSS,
+    /\.band-pill:hover \.band-pill-color,\s*\n?\s*\.band-pill\[aria-current="true"\] \.band-pill-color \{\s*opacity:\s*1;\s*\}/
+  );
+});
