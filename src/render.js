@@ -1403,6 +1403,21 @@ ${designTokensCss(THEME_ROLES.dark)}
      aria-current attribute, since it needs no visual distinction from
      itself). Reuses the sitewide focus-ring tokens rather than a new one. */
   .band-pill[aria-current="true"] { outline: var(--focus-ring-width) solid var(--focus-ring-color); outline-offset: var(--focus-ring-offset); background: var(--color-accent); }
+  /* Accessibility fix (live Lighthouse audit, 2026-08-25): --color-accent-contrast
+     is only guaranteed >=4.5:1 against a fill 5 ramp indices darker (the
+     --color-accent-dark fill .band-pill uses by default, 6.47:1, plenty of
+     headroom) or against --color-accent itself at FULL opacity (still
+     5-apart, 4.74:1 -- see test/designTokens.test.js's own contrast-ladder
+     math). .band-pill-color's opacity:0.85 above quietly erodes that
+     already-thin 4.74:1 margin below the 4.5 floor specifically on the two
+     states whose background is the lighter --color-accent, not
+     --color-accent-dark: hover and aria-current (measured live: 3.9:1 on
+     the aria-current pill's "as White"/"as Black" label). Restoring full
+     opacity on just these two states is the fix -- the de-emphasis effect
+     opacity:0.85 provides is cosmetic and unnecessary to preserve on a
+     state that's already visually distinct via its own background/outline. */
+  .band-pill:hover .band-pill-color,
+  .band-pill[aria-current="true"] .band-pill-color { opacity: 1; }
 
   /* Homepage-only demotion of the shared .band-pill above (src/
      buildStatic.js wraps its own bandPickerHtml() call in this class) --
