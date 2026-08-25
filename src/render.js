@@ -1349,27 +1349,11 @@ ${designTokensCss(THEME_ROLES.dark)}
 
   /* Homepage "Start here" section (src/buildStatic.js's startHereSection())
      -- the page's one accent-filled action (design-standards.md's per-page
-     hierarchy rule), same visual recipe as .pack-cta/.lookup-form button,
-     copied rather than shared across pages per this file's own established
-     convention. Sits inline rather than full-width (unlike .pack-cta) --
-     this is prose-adjacent, not a card. */
-  .start-here-cta {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px;
-    padding: var(--space-3) var(--space-6);
-    border: none;
-    border-radius: var(--radius-md);
-    background: var(--color-accent-dark);
-    color: var(--color-accent-contrast);
-    font-weight: var(--weight-bold);
-    font-size: var(--text-base);
-    text-decoration: none;
-    transition: background-color var(--motion-duration-fast) var(--motion-ease-standard), transform var(--motion-duration-fast) var(--motion-ease-standard);
-  }
-  .start-here-cta:hover { background: var(--color-accent); }
-  .start-here-cta:active { transform: translateY(1px); }
+     hierarchy rule). Site-audit item 2 (2026-08-25) replaced the old plain
+     link (.start-here-cta, now removed -- grepped clean, nothing else
+     referenced it) with a real lookup form reusing .lookup-form/.lookup-row
+     verbatim (renderOpeningReport.js's own already-styled, already-shipped
+     pattern -- same accent-filled button treatment, zero new CSS needed). */
   .start-here-alt { color: var(--color-muted); font-size: var(--text-sm); margin: var(--space-3) 0 0; }
 
   /* The four rating-band pickers as one role=group control with 44px
