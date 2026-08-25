@@ -60,6 +60,25 @@ function disclosedLimitations(speeds) {
   ];
 }
 
+/**
+ * Before/after pitch framing (site-audit item 4, task-mt9464mx-caf384):
+ * contrasts what the free site already gives a visitor against what a pack
+ * adds, in concrete practice-session terms rather than restating
+ * FREE_GUARANTEE_HTML's trust angle ("we're not paywalling anything") below
+ * -- that block explains the site won't take free tools away; this one
+ * explains what a visitor is actually deciding to buy. Placed before the
+ * pack list itself (see renderPacksIndexPage()) so a visitor reads the pitch
+ * before the price, and far enough from the two .pack-statement sections
+ * after the pack list that no more than two consecutive sections ever share
+ * that layout archetype (design-standards.md).
+ */
+const BEFORE_AFTER_HTML = `<p>The repertoire explorer and leak report already tell you the highest-scoring move at
+    every point in your band, for free, from real Lichess data. A pack takes that same answer
+    and turns it into something to actually sit down with: one PGN pruned to the lines worth
+    memorizing, a printable study guide, and a file that loads straight into this site&rsquo;s own
+    drill trainer. Nothing new gets measured for a pack - the difference is what you&rsquo;re
+    holding once you&rsquo;ve bought one.</p>`;
+
 const FREE_GUARANTEE_HTML = `<p>Everything this site computes about your games is free. The leak report, the drill
     engine, the repertoire builder and PGN export have no paid tier. What&rsquo;s for sale is our
     work, not yours: a finished repertoire built from the same public data, pruned to a size
@@ -676,6 +695,11 @@ ${renderDocumentHead({ title: pageTitle('Repertoire packs'), description, canoni
       title: 'Repertoire packs',
       subtitle: 'A finished, pruned opening repertoire, built from real Lichess games in your band. The site&rsquo;s own leak report, drill engine, and repertoire builder stay free either way.',
     })}
+
+    <section class="pack-statement pack-statement--pitch">
+      <h2>Free tells you what to play. The pack is what you study.</h2>
+      ${BEFORE_AFTER_HTML}
+    </section>
 
     ${featureHtml}
     ${restHtml}
