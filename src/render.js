@@ -1557,6 +1557,20 @@ ${designTokensCss(THEME_ROLES.dark)}
   .cm-chessboard.repertoire-theme .coordinates .coordinate { font-size: 7px; cursor: default; fill: var(--color-muted); }
   .cm-chessboard .board.input-enabled .square { cursor: pointer; }
   .cm-chessboard .coordinates, .cm-chessboard .markers-layer, .cm-chessboard .pieces-layer, .cm-chessboard .markers-top-layer { pointer-events: none; }
+  /* Mobile drag-vs-scroll fix (2026-08-25 site-audit pass): neither
+     cm-chessboard's own VisualMoveInput (node_modules/cm-chessboard/src/
+     view/VisualMoveInput.js, real touchstart/touchmove/touchend handlers)
+     nor its shipped stylesheet sets touch-action anywhere, so a touch-drag
+     starting on the board can be intercepted by the browser's native
+     touch-scroll on any page the board sits on that also scrolls (every
+     page it appears on does). touch-action:none on the SVG root this class
+     lives on (ChessboardView.js's createSvgAndGroups()) disables that
+     native gesture recognition inside the board's own bounding box only --
+     it cannot affect scrolling anywhere else on the page. Applied
+     preventively (this session's tooling has no real touch-device access
+     to confirm the drag conflict actually reproduces) since the fix itself
+     carries zero downside either way. */
+  .cm-chessboard { touch-action: none; }
   /* Shared focus-ring language (:focus-visible above), not cm-chessboard's
      own hardcoded #0066cc default. These two rects (drawn by the
      Accessibility extension's keyboardMoveInput -- see
