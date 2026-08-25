@@ -41,7 +41,7 @@ function render(ctx) {
     <p>This measures whether the SAME position scores differently by rating band - it does not measure whether studying openings improves your results faster than studying anything else, which would need a completely different kind of study (tracking individual players&rsquo; progress over time), not a snapshot of aggregate game data.</p>
 
     <h2>Go deeper</h2>
-    <p>See any opening's own page for its full band-by-band breakdown, or the <a href="openings.html">full openings comparison &rarr;</a> for all 10 at once.</p>
+    <p>See any opening&rsquo;s own page for its full band-by-band breakdown, or the <a href="openings.html">full openings comparison &rarr;</a> for all ${entries.length} at once.</p>
   `;
 }
 

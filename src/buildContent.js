@@ -73,6 +73,7 @@ const GUIDES = [
   require('./content/aggressive-vs-positional-openings'),
   require('./content/upgrade-your-repertoire-as-you-improve'),
   require('./content/rapid-chess-opening-prep'),
+  require('./content/how-many-chess-openings-should-you-learn'),
   // 8 rating-banded "best White/Black openings" pages, one factory module
   // producing all 8 -- see that file's own header comment for why.
   ...createBestOpeningsByRatingBandPages(),
@@ -534,7 +535,7 @@ function buildFaqEntries(entries, { manifest = null } = {}) {
     },
     {
       question: 'How many openings should I learn?',
-      answerHtml: `<p>Most improvement advice suggests one solid response to 1.e4, one to 1.d4, and a small number of systems as White - not a large repertoire. This site deliberately tracks a curated set of ${entries.length} openings rather than trying to cover everything, for the same reason.</p>`,
+      answerHtml: `<p>Most improvement advice suggests one solid response to 1.e4, one to 1.d4, and a small number of systems as White - not a large repertoire. This site deliberately tracks a curated set of ${entries.length} openings rather than trying to cover everything, for the same reason. See <a href="how-many-chess-openings-should-you-learn.html">how many chess openings should you learn? &rarr;</a> for the fuller case.</p>`,
     },
     {
       question: "What's the difference between the Lichess database and the masters database?",
