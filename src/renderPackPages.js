@@ -406,11 +406,20 @@ function previewRowHtml(row) {
   const scoreText = row.ourScore != null ? `${formatPct(row.ourScore * 100)}%` : null;
   const opponentSide = sideAtPly(row.ply);
   const ourSide = opponentSide === 'white' ? 'black' : 'white';
+  // Built as a standalone string and appended with no space/newline before
+  // it (never left alone on its own indented template line) -- when
+  // row.ourSan is null (the pack ends here), the naive version of this left
+  // a whitespace-only line in the rendered output (html-validate's
+  // no-trailing-whitespace rule, caught in CI on dist/repertoire-packs.html
+  // -- see this repo's own incident notes on the PR that introduced this).
+  const ourMoveHtml = row.ourSan
+    ? `
+      <span class="pack-row-arrow" aria-hidden="true">&rarr;</span>
+      <span class="move-chip move-chip--${ourSide}">${escapeHtml(row.ourSan)}</span>${scoreText ? `
+      <span class="pack-row-score">${scoreText} score (n=${row.ourN.toLocaleString()})</span>` : ''}`
+    : '';
   return `<li class="pack-preview-row">
-      <span class="move-chip move-chip--${opponentSide}">${escapeHtml(row.opponentSan)}</span>
-      ${row.ourSan ? `<span class="pack-row-arrow" aria-hidden="true">&rarr;</span>
-      <span class="move-chip move-chip--${ourSide}">${escapeHtml(row.ourSan)}</span>
-      ${scoreText ? `<span class="pack-row-score">${scoreText} score (n=${row.ourN.toLocaleString()})</span>` : ''}` : ''}
+      <span class="move-chip move-chip--${opponentSide}">${escapeHtml(row.opponentSan)}</span>${ourMoveHtml}
     </li>`;
 }
 
@@ -604,8 +613,7 @@ ${renderDocumentHead({ title: pageTitle(`${pack.title} repertoire pack`), descri
 
     ${generationRuleHtml(pack)}
     ${disclosedLimitationsHtml(pack)}
-    ${packFaqHtml(pack)}
-    ${relatedLink}
+    ${packFaqHtml(pack)}${relatedLink}
 
     <p class="source-list">Data: <a href="https://database.lichess.org" rel="noopener noreferrer">Lichess</a>, released under CC0. This pack is a derived work; it is not affiliated with or endorsed by Lichess. ${pieceAttributionHtml()}</p>
   </main>
@@ -637,8 +645,7 @@ function renderPacksIndexPage({ packs, nav, legalLinks }) {
       </figure>
       <div>
         <h2><a href="${escapeHtml(siteRelativeHref(packDetailFilename(feature.id)))}">${escapeHtml(feature.title)}</a></h2>
-        <p>${feature.lineCount.toLocaleString()} lines, retrieved ${feature.retrieved}. Every move picked by one published rule from real games in this band.</p>
-        ${packPreviewHtml(feature)}
+        <p>${feature.lineCount.toLocaleString()} lines, retrieved ${feature.retrieved}. Every move picked by one published rule from real games in this band.</p>${packPreviewHtml(feature)}
         <p class="pack-price">$${PRICE_USD} one-time</p>
         ${packCtaHtml(feature)}
         <a class="pack-sample-link" href="${escapeHtml(siteRelativeHref(packSampleFilename(feature.id)))}" download>Download a free sample (first ${feature.sampleLineCount} lines) &rarr;</a>
@@ -647,13 +654,11 @@ function renderPacksIndexPage({ packs, nav, legalLinks }) {
 
   const restHtml = rest
     .map((p) => `<div class="pack-quiet-row">
-      <span class="pack-quiet-main">
-        <span class="pack-quiet-title">${escapeHtml(p.title)} - ${p.lineCount.toLocaleString()} lines</span>
-        ${packPreviewHtml(p, 1)}
-      </span>
+      <div class="pack-quiet-main">
+        <span class="pack-quiet-title">${escapeHtml(p.title)} - ${p.lineCount.toLocaleString()} lines</span>${packPreviewHtml(p, 1)}
+      </div>
       <span class="pack-quiet-actions">
-        <a href="${escapeHtml(siteRelativeHref(packDetailFilename(p.id)))}">See what&rsquo;s in it &rarr;</a>
-        ${packCtaHtml(p, true)}
+        <a href="${escapeHtml(siteRelativeHref(packDetailFilename(p.id)))}">See what&rsquo;s in it &rarr;</a>${packCtaHtml(p, true)}
         <a class="pack-sample-link pack-sample-link--compact" href="${escapeHtml(siteRelativeHref(packSampleFilename(p.id)))}" download>Free sample &rarr;</a>
       </span>
     </div>`)
