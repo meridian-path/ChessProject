@@ -458,6 +458,9 @@ test('phase 2: the guides hub links to every guide article, and every guide has 
       'best-black-openings-1600-1800.html',
       'best-black-openings-1800-2000.html',
       'best-black-openings-2000-plus.html',
+      'most-common-opening-mistakes-1400-1600.html',
+      'most-common-opening-mistakes-1800-2000.html',
+      'most-common-opening-mistakes-2000-plus.html',
     ];
     for (const file of guideFiles) {
       assert.match(hub.html, new RegExp(`href="${file}"`), `guides hub should link to ${file}`);

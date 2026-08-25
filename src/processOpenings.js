@@ -277,6 +277,22 @@ function buildOpeningModel({
     mistakes[0] = { ...mistakes[0], punishingReply: punishingReplies[0] || null };
   }
 
+  // Same findCommonMistakes() call as `mistakes` above, run against every
+  // OTHER already-fetched band too -- the .balanced/resultingBalanced data
+  // it needs is a property of the position lookup itself (band+pool+posKey,
+  // see aggregateSource.js's explorerShapedResponse), not something only the
+  // default-band fetch produces, so this costs zero extra Explorer calls:
+  // bandResponses already holds all 4 bands (fetchOpeningData fetches them
+  // for the existing per-band comparison table). No punishingReply here --
+  // that needs one more conditional fetch per band, left as a disclosed
+  // future enhancement rather than built now (see the mistakes-by-band guide
+  // factory's own header comment).
+  const mistakesByBand = {};
+  for (const band of Object.keys(bandResponses || {})) {
+    mistakesByBand[band] = bandResponses[band] ? findCommonMistakes(bandResponses[band], opponentColor) : [];
+  }
+  mistakesByBand[defaultBand] = mistakes;
+
   const masterGames = mastersResponse && Array.isArray(mastersResponse.topGames) ? mastersResponse.topGames : [];
   const recentGames = defaultResp && Array.isArray(defaultResp.recentGames) ? defaultResp.recentGames : [];
 
@@ -291,6 +307,7 @@ function buildOpeningModel({
     bands,
     topReplies,
     mistakes,
+    mistakesByBand,
     masterGames,
     recentGames,
   };
@@ -399,24 +416,33 @@ function rankOpeningsByScore(entries, band) {
 }
 
 /**
- * Flattens every opening's already-computed `mistakes` (findCommonMistakes
+ * Flattens every opening's already-computed mistakes (findCommonMistakes
  * output, see buildOpeningModel) into one list tagged with which opening and
  * side it came from, worst-scoring first -- the data source for the
- * "most common opening mistakes" article (phase 2), which is unique to this
- * site precisely because nobody else aggregates this across openings.
+ * "most common opening mistakes" articles (phase 2/candidate 5), which are
+ * unique to this site precisely because nobody else aggregates this across
+ * openings.
  *
  * @param {Array<{openingConfig:object, model:object}>} entries
- * @returns {Array<{slug,name,opponentColor,defaultBand,san,playedPct,score,punishingReply}>}
+ * @param {string} [band] which band's mistakes to read, via
+ *   model.mistakesByBand[band]. Defaults to model.defaultBand's own
+ *   `mistakes` field (unchanged behavior for the original 1600-1800 page) --
+ *   passing the default band explicitly is equivalent, since
+ *   mistakesByBand[defaultBand] is always set to the same array.
+ * @returns {Array<{slug,name,opponentColor,defaultBand,band,san,playedPct,score,punishingReply}>}
  */
-function aggregateMistakesAcrossOpenings(entries) {
+function aggregateMistakesAcrossOpenings(entries, band = null) {
   const out = [];
   for (const { openingConfig, model } of entries) {
-    for (const m of model.mistakes || []) {
+    const usedBand = band || model.defaultBand;
+    const mistakes = band ? (model.mistakesByBand && model.mistakesByBand[band]) || [] : model.mistakes || [];
+    for (const m of mistakes) {
       out.push({
         slug: openingConfig.slug,
         name: model.name,
         opponentColor: model.opponentColor,
         defaultBand: model.defaultBand,
+        band: usedBand,
         san: m.san,
         playedPct: m.playedPct,
         score: m.score,
