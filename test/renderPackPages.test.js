@@ -190,6 +190,22 @@ test('renderPacksIndexPage gives a quiet-row pack its own direct buy link once i
   assert.equal(ctaMatches.length, 1, 'exactly one plain (non-compact) pack-cta -- the feature block\'s own button');
 });
 
+test('renderPacksIndexPage: both the feature block\'s buy button and every quiet row\'s compact buy link carry GoatCounter\'s click-tracking attribute', () => {
+  // Page-view analytics alone can't tell whether a visitor actually clicks
+  // through to the merchant -- packCtaHtml() (shared by the detail page and
+  // both index-page CTA shapes) already emits GoatCounter's own documented
+  // data-goatcounter-click attribute (count.js, already loaded sitewide,
+  // binds a click handler to any element carrying it -- no new script or
+  // origin), so this only needed a regression test locking the index page's
+  // own two buy buttons to that same behavior, not a new build.
+  const white = makePack({ storeUrl: 'https://repertoirebuilder.gumroad.com/l/blzarx', noindex: false });
+  const black = makePack({ id: 'black-vs-e4-1400-1600', title: 'Black vs 1.e4 at 1400-1600', color: 'black', storeUrl: 'https://repertoirebuilder.gumroad.com/l/lyjgj', noindex: false });
+  const html = renderPacksIndexPage({ packs: [white, black], nav: NAV });
+  const body = html.slice(html.indexOf('<body'));
+  assert.match(body, /class="pack-cta" href="https:\/\/repertoirebuilder\.gumroad\.com\/l\/blzarx" rel="noopener noreferrer" data-goatcounter-click="\/out\/pack-white-1400-1600"/, 'the feature block\'s own accent-filled buy button must carry the click-tracking attribute');
+  assert.match(body, /class="pack-cta pack-cta--compact" href="https:\/\/repertoirebuilder\.gumroad\.com\/l\/lyjgj" rel="noopener noreferrer" data-goatcounter-click="\/out\/pack-black-vs-e4-1400-1600"/, 'the quiet row\'s own compact buy link must carry the click-tracking attribute too');
+});
+
 test('renderPacksIndexPage renders no buy link at all for a quiet-row pack still carrying a PLACEHOLDER url', () => {
   const white = makePack({});
   const black = makePack({ id: 'black-vs-e4-1400-1600', title: 'Black vs 1.e4 at 1400-1600', color: 'black' }); // default fixture storeUrl is a PLACEHOLDER
