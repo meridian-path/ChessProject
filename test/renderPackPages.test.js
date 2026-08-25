@@ -237,6 +237,37 @@ test('renderPacksIndexPage renders no buy link at all for a quiet-row pack still
   assert.ok(!body.includes('pack-cta--compact'), 'nothing to buy yet -- no compact CTA, and no repeated "not listed for sale" noise on every quiet row');
 });
 
+// Regression (CI incident, dist/repertoire-packs.html failed html-validate's
+// no-trailing-whitespace rule on the PR that introduced packPreviewHtml()):
+// a template placeholder that CAN resolve to '' (packPreviewHtml() with an
+// empty/short tree, packCtaHtml() in compact mode with a still-placeholder
+// url, renderPackDetailPage()'s relatedLink with zero otherPacks) must never
+// sit alone on its own indented template line -- when it does, the line's
+// own leading whitespace survives as a whitespace-only line in the real
+// rendered output, exactly the html-validate failure this test file's own
+// header comment on renderFooter() already documents once before (see
+// test/render.test.js). Same regex convention as that existing regression.
+const NO_BLANK_LINE = /^[\t ]+\r?\n[\t ]*$/m;
+
+test('renderPacksIndexPage: a quiet-row pack with a placeholder store url (empty packCtaHtml) and a same-day-thin tree (empty packPreviewHtml) leaves no whitespace-only line', () => {
+  const white = makePack({});
+  const thinBlack = makePack({
+    id: 'black-vs-e4-1400-1600',
+    title: 'Black vs 1.e4 at 1400-1600',
+    color: 'black',
+    // default fixture storeUrl is a PLACEHOLDER -- packCtaHtml(pack, true) returns ''
+    tree: { fen: 'x', ply: 0, side: 'white', san: 'e4', uci: 'e2e4', n: null, score: null, wilson: null, reach: 1, isOurMove: true, children: [] },
+  });
+  const html = renderPacksIndexPage({ packs: [white, thinBlack], nav: NAV });
+  assert.doesNotMatch(html, NO_BLANK_LINE);
+});
+
+test('renderPackDetailPage: zero otherPacks (empty relatedLink) leaves no whitespace-only line', () => {
+  const pack = makePack({});
+  const html = renderPackDetailPage({ pack, otherPacks: [], nav: NAV });
+  assert.doesNotMatch(html, NO_BLANK_LINE);
+});
+
 test('renderPacksIndexPage is noindex only when every pack is still a placeholder', () => {
   const allPlaceholder = renderPacksIndexPage({ packs: [makePack({ noindex: true }), makePack({ id: 'b', noindex: true })], nav: NAV });
   assert.ok(allPlaceholder.includes('<meta name="robots" content="noindex">'));
