@@ -2,7 +2,7 @@
   "name": "lichess-stats-poc",
   "version": "0.1.0",
   "private": true,
-  "description": "Local-only proof-of-concept: fetch a Lichess player's rating history and recent games, aggregate them, and render a simple stats page. Built to validate Orchestra's engineering pipeline end-to-end (fetch -> process -> render), independent of any final product decision.",
+  "description": "Repertoire Builder (repertoire-builder.com): a static site built from real Lichess Opening Explorer data, with opening pages by rating band, strategy guides, and downloadable repertoire packs.",
   "type": "commonjs",
   "main": "src/build.js",
   "scripts": {
