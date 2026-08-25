@@ -16,8 +16,8 @@
  * already established by opening-strategy-by-time-control.js vs.
  * rapid-chess-opening-prep.js (see that file's own header comment).
  *
- * Query-demand evidence (per evidence-sourcing.md, cited by real URL, not
- * just "multiple sites"): chess.com/blog/paulchuxin/crafting-your-ultimate-
+ * Query-demand evidence (cited by real URL, not just "multiple sites"):
+ * chess.com/blog/paulchuxin/crafting-your-ultimate-
  * opening-repertoire-a-guide-for-club-players, chess.com/blog/matbobula/
  * how-to-build-an-opening-repertoire-that-works, chessatlas.net/blog/
  * opening-repertoire-building/how-to-build-a-chess-opening-repertoire-that-
@@ -35,17 +35,18 @@
  * build itself tracks (ctx.entries.length, split by side) -- not a ranking,
  * not a score, just an honest number, and NOT presented as evidence for the
  * 2-4 recommendation above (this site's own 12-opening build is bigger than
- * that number, not a confirmation of it -- see the render() comment below
- * on the sentence a review caught making that exact mistake).
+ * that number, not a confirmation of it -- an earlier draft of the
+ * paragraph below made exactly that mistake, caught in review).
  *
  * `related: []` deliberately, not the two guide slugs this page actually
  * cross-links inline in its own "Go deeper" section -- buildContentPages()
  * (src/buildContent.js) only ever resolves meta.related against OPENING
- * slugs (entries.find on openingConfig.slug), never guide slugs; every
- * sibling guide in this directory that names other GUIDES as `related`
- * would hit the same silent no-op (caught in review on this page, worth
- * checking on other guides' `related` arrays going forward rather than
- * assuming they're wired to something real).
+ * slugs (entries.find on openingConfig.slug), never guide slugs, so a
+ * `related` array naming another guide silently no-ops (caught in review on
+ * this page). Checked every other guide's `related` array against the real
+ * opening-slug set when this was found: none of them make the same
+ * mistake -- this was an isolated error on this one new page, not a
+ * systemic gap in the resolver's callers.
  */
 
 const SLUG = 'how-many-chess-openings-should-you-learn';
