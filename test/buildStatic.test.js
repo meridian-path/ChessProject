@@ -817,7 +817,7 @@ test('buildStatic also writes sitemap.xml (listing exactly the emitted .html pag
     // entries + 8 redirect stubs + one page per configured opening + hub + all guides + hub + FAQ
     // + (Phase 7d) 64 T1 family hubs + 5 T2 volume pages + 2 T2
     // browse-index pages + (Phase 7e) 1 ECO explorer page + (M2) 3
-    // Repertoire Pack pages.
+    // Repertoire Pack pages + (site-audit item 11) 1 Compare Openings page.
     // pageFilenames includes 404.html, the 8 repertoire redirect stubs,
     // player.html/italian-game-drill.html (also now redirect stubs), and
     // the 3 pack pages (for the filename-uniqueness check). The sitemap
@@ -829,7 +829,7 @@ test('buildStatic also writes sitemap.xml (listing exactly the emitted .html pag
     // see the separate assertion below, and src/sitemap.js's
     // buildSitemapEntries/REDIRECT_STUBS plus src/buildStatic.js's own
     // noindexPackFiles/noindexPlaceholderFiles filters.
-    const expectedPageCount = 13 + 1 + repertoireStubs.length + contentWritten.length + ecoWritten.length + packWritten.length;
+    const expectedPageCount = 13 + 1 + 1 + repertoireStubs.length + contentWritten.length + ecoWritten.length + packWritten.length;
     assert.equal(pageFilenames.length, expectedPageCount);
     assert.ok(pageFilenames.includes('404.html'));
     assert.ok(pageFilenames.includes('eco-explorer.html'));

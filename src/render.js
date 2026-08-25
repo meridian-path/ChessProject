@@ -858,6 +858,41 @@ ${designTokensCss(THEME_ROLES.dark)}
     outline: none;
   }
 
+  /* Compare Openings tool (site-audit item 11) -- same field shape as
+     .lookup-form above (shared select-styling tokens), a 2-up layout since
+     this is always exactly two pickers, never a variable-length form. */
+  .compare-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin: var(--space-4) 0 var(--space-6);
+  }
+  .compare-picker-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+    flex: 1 1 260px;
+  }
+  .compare-picker-field select {
+    min-height: 44px;
+    font: inherit;
+    font-size: var(--text-base);
+    padding: var(--space-3) var(--space-4);
+    border: var(--border-control) solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text);
+    transition: border-color var(--motion-duration-fast) var(--motion-ease-standard), box-shadow var(--motion-duration-fast) var(--motion-ease-standard);
+  }
+  .compare-picker-field select:hover { border-color: var(--color-accent); }
+  .compare-picker-field select:focus-visible {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
+    outline: none;
+  }
+
   .lookup-form button {
     min-height: 44px;
     font: inherit;
@@ -2363,7 +2398,7 @@ const HEADER_BAND_DEFAULT = '1600-1800';
 // additional, smaller, always-visible affordance, not a replacement; both
 // read/write the same src/browser/bandState.client.js state and stay in
 // sync via its onBandStateChange() subscription.
-const BAND_CONTROL_PAGES = new Set(['builder', 'player', 'drill', 'repertoire']);
+const BAND_CONTROL_PAGES = new Set(['builder', 'player', 'drill', 'repertoire', 'compare']);
 
 /**
  * The <select> markup for the site-wide band-persistence control (WS-1
@@ -2434,8 +2469,11 @@ function siteRelativeHref(href) {
  *   dev-server routes (server.js's default, 2 keys) or flat static
  *   filenames (buildStatic.js, up to 9 keys). Only keys present in this
  *   object are rendered.
- * @param {'builder'|'player'|'repertoire'|'packs'|'openings'|'eco'|'drill'|'guides'|'faq'|null} [active]
- *   which nav link, if any, represents the current page.
+ * @param {'builder'|'player'|'repertoire'|'packs'|'openings'|'eco'|'drill'|'guides'|'faq'|'compare'|null} [active]
+ *   which nav link, if any, represents the current page. 'compare' has no
+ *   `nav` key yet (site-audit item 11's page isn't in the top nav -- see
+ *   src/renderCompareOpenings.js's own header comment), so it only ever
+ *   controls BAND_CONTROL_PAGES below, never a highlighted nav link.
  * @returns {string} the shared header/nav markup used on every page.
  */
 function renderHeader(nav, active = null) {

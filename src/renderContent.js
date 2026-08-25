@@ -675,7 +675,8 @@ ${renderDocumentHead({ title, description, canonical, jsonLd: breadcrumbJsonLd(b
     ${renderBreadcrumb(breadcrumbItems)}
     <h1 class="page-title">Chess openings by real win rate</h1>
     <p class="subtitle">Ranked by the score each opening actually gets for its own side in real Lichess games at
-      1600-1800. Sample size is shown for every row: a rate over a small sample is not a signal.</p>
+      1600-1800. Sample size is shown for every row: a rate over a small sample is not a signal. Want just two side
+      by side? Try the <a href="compare-openings.html">Compare Openings tool &rarr;</a>.</p>
 
     <h2>Compare all ${entries.length} openings</h2>
     ${confoundNote}
