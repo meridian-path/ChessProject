@@ -162,6 +162,28 @@ test('renderPacksIndexPage is asymmetric: the first pack is a full-width feature
   assert.ok(html.indexOf('pack-feature') < html.indexOf('pack-quiet-row'));
 });
 
+test('renderPacksIndexPage: the before/after pitch statement renders before the pack list, not stacked with the other two pack-statement sections (site-audit item 4)', () => {
+  const white = makePack({});
+  const black = makePack({ id: 'black-vs-e4-1400-1600', title: 'Black vs 1.e4 at 1400-1600', color: 'black' });
+  const html = renderPacksIndexPage({ packs: [white, black], nav: NAV });
+  // Body only, not the whole page -- SITE_CSS's own selector text (e.g.
+  // ".pack-feature-board" contains "pack-feature" as a substring) is present
+  // in <style> unconditionally, so a whole-page substring/order check would
+  // false-pass or false-fail on stylesheet rule order rather than real body
+  // content order (same gotcha this file's other index-page tests already
+  // guard against).
+  const body = html.slice(html.indexOf('<body'));
+  assert.ok(body.includes('pack-statement--pitch'));
+  assert.ok(body.includes('what you study'));
+  // Reads before the pack list (the pitch, then the price), and the pack
+  // list itself sits between it and the free-guarantee/non-influence
+  // statements -- never three consecutive same-archetype sections.
+  const pitchIndex = body.indexOf('pack-statement--pitch');
+  const featureIndex = body.indexOf('pack-feature');
+  const gatedIndex = body.indexOf('Nothing here is gated');
+  assert.ok(pitchIndex < featureIndex && featureIndex < gatedIndex);
+});
+
 test('renderPacksIndexPage gives a quiet-row pack its own direct buy link once it has a real store url', () => {
   // White (packs[0], the feature) also needs a real store url here --
   // otherwise its own CTA renders the --pending state, and the "exactly

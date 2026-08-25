@@ -2058,6 +2058,11 @@ ${designTokensCss(THEME_ROLES.dark)}
   .pack-statement p { max-width: var(--measure); }
   .pack-statement a { color: var(--color-accent-dark); font-weight: var(--weight-bold); }
 
+  /* The before/after pitch statement sits directly under the page subtitle,
+     not after a pack list like the other two -- no hairline needed there,
+     it would just double up against the subtitle's own visual break. */
+  .pack-statement--pitch { border-top: none; padding-top: 0; margin-top: 0; }
+
   /* Leak-report upsell block (spec 1.6.1) -- shares the .pack-statement
      hairline treatment; the CTA here is a plain accent-colored text link,
      never accent-filled (the page's one accent-filled action stays the
