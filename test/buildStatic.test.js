@@ -652,15 +652,16 @@ test('bundleBrowserEntry throws loudly on a syntax error in the entry point, sam
 
 test('indexPage links to opening-report.html and the collapsed repertoire.html (band+color in the fragment), with no server-only routes', () => {
   const html = indexPage([]);
-  // The body-content "look up any username" link and the band-picker pills
-  // (bandPickerHtml()) stay bare page-relative filenames -- neither call
-  // site goes through renderHeader()/renderFooter(), and indexPage() itself
-  // always lives at the site root, so a bare filename is correct as-is;
-  // this was never part of the broken-nav-link fix. The NAV link for
-  // "repertoire" (the "Repertoire explorer" item in the header), by
-  // contrast, goes through renderHeader() and is root-relative per
-  // src/render.js's siteRelativeHref() -- checked below.
-  assert.match(html, /href="opening-report\.html"/);
+  // The Start Here lookup form (site-audit item 2: a real form now, not a
+  // plain link) and the band-picker pills (bandPickerHtml()) stay bare
+  // page-relative filenames -- neither call site goes through
+  // renderHeader()/renderFooter(), and indexPage() itself always lives at
+  // the site root, so a bare filename is correct as-is; this was never
+  // part of the broken-nav-link fix. The NAV link for "repertoire" (the
+  // "Repertoire explorer" item in the header), by contrast, goes through
+  // renderHeader() and is root-relative per src/render.js's
+  // siteRelativeHref() -- checked below.
+  assert.match(html, /action="opening-report\.html"/);
   assert.match(html, /href="repertoire\.html#band=1400-1600&amp;color=white"/);
   assert.match(html, /href="repertoire\.html#band=1400-1600&amp;color=black"/);
   assert.match(html, /href="\/repertoire\.html">Repertoire explorer<\/a>/, 'the nav link must be the real, root-relative static filename');
@@ -749,27 +750,42 @@ test('indexPage links to repertoire-packs.html from its own body content (not ju
 // to the page's one clear next step and demotes the rating-band picker.
 // ---------------------------------------------------------------------------
 
-test('indexPage: Start Here is the page\'s one accent-filled action, positioned before the rating-band section', () => {
+test('indexPage: Start Here is a real lookup form (site-audit item 2), the page\'s one accent-filled action, positioned before the rating-band section AND before the demo board/data strip', () => {
   const html = indexPage([]);
-  assert.match(html, /<h2 class="section-lead">Start here<\/h2>/);
-  assert.match(html, /<a class="start-here-cta" href="opening-report\.html">Look up your Lichess username &rarr;<\/a>/);
+  assert.match(html, /<h2 class="section-lead sr-only">Start here<\/h2>/);
+  assert.match(html, /<form class="lookup-form" action="opening-report\.html" method="get">/);
+  assert.match(html, /<input type="text" id="home-username" name="username"[^>]*required>/);
+  assert.match(html, /<button type="submit">Get my report &rarr;<\/button>/);
   // A secondary way in for a visitor who doesn't play on Lichess, or wants
   // to browse first -- jumps down to the (now-demoted) band picker rather
   // than duplicating it.
   assert.match(html, /href="#rating-band"/);
   assert.match(html, /<h2 id="rating-band">Or browse by rating band<\/h2>/);
-  assert.ok(html.indexOf('start-here-cta') < html.indexOf('id="rating-band"'), 'Start Here must render before the rating-band section, not after');
+  assert.ok(html.indexOf('<form class="lookup-form"') < html.indexOf('id="rating-band"'), 'Start Here must render before the rating-band section, not after');
 });
 
 test('indexPage: the rating-band picker is wrapped for its homepage-only demotion, and the old duplicate bottom "Opening report" link is gone', () => {
   const html = indexPage([]);
   assert.match(html, /<div class="home-band-picker"><div class="band-picker" role="group"/);
-  // opening-report.html should appear exactly once now (Start Here) --
+  // The form's own action= should appear exactly once now (Start Here) --
   // the old second, bottom-of-page "Look up any Lichess username" link
-  // this promoted from is gone, not duplicated.
-  const occurrences = html.match(/href="opening-report\.html"/g) || [];
+  // this promoted from is gone, not duplicated. (The nav's own root-relative
+  // /opening-report.html link is a separate, expected, unrelated href --
+  // not counted here.)
+  const occurrences = html.match(/action="opening-report\.html"/g) || [];
   assert.equal(occurrences.length, 1);
   assert.doesNotMatch(html, /Look up any Lichess username/);
+});
+
+test('indexPage: the Start Here form renders before the hero demo board too, not just before the rating-band section (site-audit item 2\'s "top of the homepage" requirement)', () => {
+  const heroDemo = buildHomeDemoData(HOME_DEMO_FIXTURE_COMBOS);
+  const html = indexPage([], null, heroDemo);
+  assert.ok(html.indexOf('id="home-demo-board"') !== -1, 'expected the hero demo board to render when heroDemo is supplied');
+  assert.ok(html.indexOf('<form class="lookup-form"') < html.indexOf('id="home-demo-board"'), 'Start Here must render before the demo board, not after');
+  // indexOf('home-hero-text') alone would match SITE_CSS's own selector
+  // text inside the inline <style> block in <head>, long before the real
+  // element in <body> -- anchor on the actual opening tag instead.
+  assert.ok(html.indexOf('<div class="home-hero-text">') < html.indexOf('<form class="lookup-form"'), 'Start Here must render inside .home-hero-text, not outside the hero');
 });
 
 test('indexPage (G2): an opening card with real band data shows the WDL bar + score for 1600-1800 inline, never an approximated number', () => {
@@ -980,7 +996,7 @@ test('the home page links to the (now WS-1 hub) drill, and the opening report is
     const homeHtml = fs.readFileSync(path.join(outDir, 'index.html'), 'utf8');
     assert.match(homeHtml, /href="drill\.html"/);
     assert.match(homeHtml, /Drill it: play the move your rating band plays/);
-    assert.match(homeHtml, /href="opening-report\.html"/);
+    assert.match(homeHtml, /action="opening-report\.html"/);
   })
 );
 

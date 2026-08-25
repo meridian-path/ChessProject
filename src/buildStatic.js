@@ -481,12 +481,38 @@ function buildHomeDemoBundle() {
 // .band-pill class (repertoire.html's own use of the same pills is
 // untouched). Packs/drill stay as they already were (outline cards, never
 // accent-filled to begin with -- see packsCtaSection()'s own comment).
+//
+// Site-audit item 2 (2026-08-25): promoted from a plain "go look up your
+// username on a different page" link to a REAL, functional lookup form
+// rendered directly in the hero -- a visitor can now type their username
+// and submit without a page visit just to find the input box. This is a
+// plain HTML GET form (action=opening-report.html, no new client-side JS
+// bundle on the homepage at all): opening-report.html's own
+// openingReport.client.js already reads a `?username=` query param and
+// auto-runs the report on load (its own prefill handling, unchanged here),
+// so a native form submission is both the simplest and the most robust
+// implementation -- it degrades to exactly today's "click through, then
+// type" flow with JavaScript disabled, never a dead button. `pattern` and
+// `maxlength` mirror src/leakAnalysis.js's own USERNAME_RE (`/^[\w-]{2,30}$/`)
+// exactly, for the same native-browser-validation nicety
+// renderOpeningReport.js's own form already gives visitors, not a new rule.
+//
+// Reuses .lookup-form/.lookup-row wholesale (renderOpeningReport.js's own
+// form markup, verbatim structure) rather than the old .start-here-cta --
+// zero new CSS needed, and it's a proven, already-shipped visual pattern
+// (same accent-filled button treatment .start-here-cta used to provide by
+// its own header comment: "same visual recipe as .pack-cta/.lookup-form
+// button").
 function startHereSection() {
-  return `<h2 class="section-lead">Start here</h2>
-    <p class="repertoire-intro">Get a real, personalized read on your own games, or skip straight to the
-       data below if you&rsquo;d rather browse first.</p>
-    <a class="start-here-cta" href="${OPENING_REPORT_FILE}">Look up your Lichess username &rarr;</a>
-    <p class="start-here-alt">Don&rsquo;t play on Lichess, or want to see the data first? <a href="#rating-band">Jump to openings by rating band &darr;</a></p>`;
+  return `<h2 class="section-lead sr-only">Start here</h2>
+    <form class="lookup-form" action="${OPENING_REPORT_FILE}" method="get">
+      <label for="home-username">Lichess username</label>
+      <div class="lookup-row">
+        <input type="text" id="home-username" name="username" placeholder="e.g. DrNykterstein" autocomplete="off" maxlength="30" pattern="[\\w-]{2,30}" required>
+        <button type="submit">Get my report &rarr;</button>
+      </div>
+    </form>
+    <p class="start-here-alt">Get a real, personalized read on your own games, or <a href="#rating-band">jump to openings by rating band &darr;</a> if you&rsquo;d rather browse first.</p>`;
 }
 
 // Drill CTA card for the home page. Kept as its own additive block (a new
@@ -739,15 +765,26 @@ function indexPage(contentEntries = [], drillFile = null, heroDemo = null) {
   // column, board in the right column at >=1024px (see SITE_CSS's
   // .home-hero-layout), stacked below that. Falls back to the plain
   // earlier plain header (no grid wrapper) when heroDemo is null.
+  //
+  // Site-audit item 2: startHereSection() (the real username-lookup form)
+  // now renders HERE, inside home-hero-text right after the h1/subtitle --
+  // the literal top of the page, ahead of the demo board in both the
+  // 2-column desktop layout and the stacked mobile one -- rather than its
+  // old position several sections further down. dataStripHtml/the
+  // rating-band picker (both rendered later in this function, unchanged)
+  // are now genuinely secondary content a visitor scrolls past the primary
+  // CTA to reach, not before it.
   const { asideHtml: homeDemoAsideHtml, dataScriptHtml: homeDemoDataScriptHtml } = homeDemoMarkup(heroDemo);
   const heroHtml = homeDemoAsideHtml
     ? `<div class="home-hero-layout">
       <div class="home-hero-text">
         ${pageHeadHtml}
+        ${startHereSection()}
       </div>
       ${homeDemoAsideHtml}
     </div>`
-    : pageHeadHtml;
+    : `${pageHeadHtml}
+    ${startHereSection()}`;
 
   // Piece attribution (boardSvg.js's Cburnett SVG set, CC BY-SA 3.0) is
   // required only when the hero demo actually rendered a board -- same
@@ -773,8 +810,6 @@ ${renderDocumentHead({
     ${heroHtml}
 
     ${dataStripHtml(contentEntries)}
-
-    ${startHereSection()}
 
     <h2 id="rating-band">Or browse by rating band</h2>
     <p class="repertoire-intro">Openings behave differently at every rating. Pick your band - everything below is
