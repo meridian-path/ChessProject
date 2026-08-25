@@ -2083,6 +2083,16 @@ ${designTokensCss(THEME_ROLES.dark)}
   }
   .pack-feature-board { margin: 0 auto; }
   .pack-feature h2 { margin-top: 0; }
+
+  /* Real on-page preview (packs index) -- same chip/score visual language
+     as .pack-row-summary on the detail page (src/renderPackPages.js's
+     previewRowHtml()), so a visitor who clicks through recognizes it as the
+     same real data rather than a different invented component. */
+  .pack-preview { margin: var(--space-4) 0; }
+  .pack-preview-label { color: var(--color-muted); font-size: var(--text-xs); margin: 0 0 var(--space-2); }
+  .pack-preview-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+  .pack-preview-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
   .pack-quiet-row {
     display: flex;
     flex-wrap: wrap;
@@ -2093,6 +2103,11 @@ ${designTokensCss(THEME_ROLES.dark)}
     padding: var(--space-4) 0;
   }
   .pack-quiet-row a { font-weight: var(--weight-bold); }
+  .pack-quiet-main { display: flex; flex-direction: column; gap: var(--space-2); }
+  .pack-quiet-title { font-weight: var(--weight-bold); }
+  .pack-quiet-main .pack-preview { margin: 0; }
+  .pack-quiet-main .pack-preview-label { display: none; }
+  .pack-sample-link--compact { margin-top: 0; }
   /* A quiet row's own direct buy link (packCtaHtml(pack, true) in
      src/renderPackPages.js) -- sits next to "See what's in it", same
      never-accent-filled text-link treatment renderLeakReportUpsell()

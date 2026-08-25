@@ -393,6 +393,49 @@ function contentsTableHtml(rows) {
   return `<ul class="pack-contents-table">${items}</ul>${visibleTemplates.join('')}${deferredBlock}${DISTRIBUTION_TOGGLE_SCRIPT}`;
 }
 
+/**
+ * One non-interactive preview row -- same chip/score visual language as
+ * contentsRowHtml()'s real `<details>` rows on the detail page (spec: a
+ * stranger who clicks through to a pack's own detail page should recognize
+ * this as the same real data, not a different, invented "teaser" component).
+ * No `<details>`/distribution template here on purpose: this is a taste
+ * sample on the index page, not the full interactive table, so it stays
+ * plain markup with nothing to hydrate.
+ */
+function previewRowHtml(row) {
+  const scoreText = row.ourScore != null ? `${formatPct(row.ourScore * 100)}%` : null;
+  const opponentSide = sideAtPly(row.ply);
+  const ourSide = opponentSide === 'white' ? 'black' : 'white';
+  return `<li class="pack-preview-row">
+      <span class="move-chip move-chip--${opponentSide}">${escapeHtml(row.opponentSan)}</span>
+      ${row.ourSan ? `<span class="pack-row-arrow" aria-hidden="true">&rarr;</span>
+      <span class="move-chip move-chip--${ourSide}">${escapeHtml(row.ourSan)}</span>
+      ${scoreText ? `<span class="pack-row-score">${scoreText} score (n=${row.ourN.toLocaleString()})</span>` : ''}` : ''}
+    </li>`;
+}
+
+/**
+ * Real, on-page preview of a pack's own content -- the packs INDEX page
+ * (unlike the detail page) previously showed only a board diagram and a
+ * price, asking a stranger to trust a $9 purchase sight-unseen. Pulls the
+ * first `count` rows straight from the same buildPack.js tree the sold
+ * repertoire.pgn is generated from (collectContentsRows() walks the real
+ * main line depth-first -- see that function's own doc comment -- so this
+ * reads as one coherent real line, not disconnected branch points).
+ *
+ * @param {object} pack PACK BUNDLE shape (needs `.tree`)
+ * @param {number} [count]
+ */
+function packPreviewHtml(pack, count = 3) {
+  const rows = collectContentsRows(pack.tree).slice(0, count);
+  if (rows.length === 0) return '';
+  const items = rows.map(previewRowHtml).join('');
+  return `<div class="pack-preview">
+      <p class="pack-preview-label">A real line from this pack, start to finish:</p>
+      <ul class="pack-preview-list">${items}</ul>
+    </div>`;
+}
+
 function packFileListHtml(pack) {
   const items = [
     { name: 'repertoire.pgn', desc: `${pack.lineCount.toLocaleString()} lines, standard PGN with variations and per-move stats.` },
@@ -595,17 +638,23 @@ function renderPacksIndexPage({ packs, nav, legalLinks }) {
       <div>
         <h2><a href="${escapeHtml(siteRelativeHref(packDetailFilename(feature.id)))}">${escapeHtml(feature.title)}</a></h2>
         <p>${feature.lineCount.toLocaleString()} lines, retrieved ${feature.retrieved}. Every move picked by one published rule from real games in this band.</p>
+        ${packPreviewHtml(feature)}
         <p class="pack-price">$${PRICE_USD} one-time</p>
         ${packCtaHtml(feature)}
+        <a class="pack-sample-link" href="${escapeHtml(siteRelativeHref(packSampleFilename(feature.id)))}" download>Download a free sample (first ${feature.sampleLineCount} lines) &rarr;</a>
       </div>
     </div>`;
 
   const restHtml = rest
     .map((p) => `<div class="pack-quiet-row">
-      <span>${escapeHtml(p.title)} - ${p.lineCount.toLocaleString()} lines</span>
+      <span class="pack-quiet-main">
+        <span class="pack-quiet-title">${escapeHtml(p.title)} - ${p.lineCount.toLocaleString()} lines</span>
+        ${packPreviewHtml(p, 1)}
+      </span>
       <span class="pack-quiet-actions">
         <a href="${escapeHtml(siteRelativeHref(packDetailFilename(p.id)))}">See what&rsquo;s in it &rarr;</a>
         ${packCtaHtml(p, true)}
+        <a class="pack-sample-link pack-sample-link--compact" href="${escapeHtml(siteRelativeHref(packSampleFilename(p.id)))}" download>Free sample &rarr;</a>
       </span>
     </div>`)
     .join('');
@@ -671,6 +720,7 @@ module.exports = {
   packOgImageFilename,
   boardFromFen,
   collectContentsRows,
+  packPreviewHtml,
   renderPacksIndexPage,
   renderPackDetailPage,
   renderLeakReportUpsell,
