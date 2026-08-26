@@ -15,7 +15,7 @@ const {
   renderLeakReportUpsell,
 } = require('../src/renderPackPages');
 
-const NAV = { home: '/', repertoire: 'repertoire.html', packs: packsIndexFilename() };
+const NAV = { home: '/', openings: 'openings.html', packs: packsIndexFilename() };
 const STARTING_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
 
 // ---------------------------------------------------------------------------
@@ -335,7 +335,7 @@ test('renderPackDetailPage: the free sample.pgn download link is root-relative (
 test('renderPackDetailPage: every nav link in the header is root-relative from this nested page', () => {
   const pack = makePack({});
   const html = renderPackDetailPage({ pack, otherPacks: [], nav: NAV });
-  assert.match(html, /href="\/repertoire\.html"/);
+  assert.match(html, /href="\/openings\.html"/);
   assert.match(html, /href="\/repertoire-packs\.html"/);
 });
 

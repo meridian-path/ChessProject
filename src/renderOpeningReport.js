@@ -31,7 +31,7 @@ const { breadcrumbJsonLd } = require('./structuredData');
 const { spriteDefsHtml, pieceAttributionHtml } = require('./boardSvg');
 
 const OPENING_REPORT_FILE = 'opening-report.html';
-const OPENING_REPORT_LEGAL_LINKS = { privacy: 'privacy.html', about: 'about.html', contact: 'contact.html', methodology: 'methodology.html' };
+const OPENING_REPORT_LEGAL_LINKS = { privacy: 'privacy.html', about: 'about.html', contact: 'contact.html', methodology: 'methodology.html', faq: 'chess-opening-faq.html' };
 
 const IS_PLACEHOLDER = false;
 

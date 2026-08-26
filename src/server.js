@@ -26,7 +26,10 @@ const DEFAULT_PORT = 8787;
 // Nav link targets for the dev server -- matches renderPlayerPage /
 // renderRepertoirePage's own default `nav` param, so every page reached via
 // `npm run serve` shares one identical header, not just the data pages.
-const SERVER_NAV = { player: '/', repertoire: '/repertoire' };
+// 'openings' (not 'repertoire') because render.js's NAV_ORDER only renders
+// that key now (site-audit item 1's nav collapse) -- the dev-only route
+// this points at is still literally /repertoire, unrelated to the key name.
+const SERVER_NAV = { player: '/', openings: '/repertoire' };
 
 function indexPage() {
   return `<!DOCTYPE html>
@@ -59,7 +62,7 @@ function repertoireFormPage() {
 ${renderDocumentHead(`Opening repertoire explorer - ${SITE_NAME}`)}
 <body>
 <div class="page">
-  ${renderHeader(SERVER_NAV, 'repertoire')}
+  ${renderHeader(SERVER_NAV, 'openings')}
   <main id="main-content">
     <h1 class="page-title">Rating-band opening-repertoire explorer</h1>
     <p class="subtitle">Pick a rating band and a color to see the most-played moves at each ply

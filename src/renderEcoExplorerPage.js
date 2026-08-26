@@ -44,7 +44,7 @@ const { ecoVolumeFilename, ECO_INDEX_FILE } = require('./renderEcoPages');
 const { familyHubFilename } = require('./ecoFamilies');
 
 const ECO_EXPLORER_FILE = 'eco-explorer.html';
-const ECO_EXPLORER_LEGAL_LINKS = { privacy: 'privacy.html', about: 'about.html', contact: 'contact.html', methodology: 'methodology.html' };
+const ECO_EXPLORER_LEGAL_LINKS = { privacy: 'privacy.html', about: 'about.html', contact: 'contact.html', methodology: 'methodology.html', faq: 'chess-opening-faq.html' };
 
 // Distinct from T2 page 1's own <title> ("Chess Opening Explorer - All 500
 // ECO Codes | Repertoire Builder", src/renderEcoPages.js's

@@ -65,7 +65,7 @@ const ECO_INDEX_FILE = 'eco-openings.html';
 // "kept in sync by comment" precedent as src/renderContent.js's
 // CONTENT_LEGAL_LINKS / src/buildStatic.js's LEGAL_LINKS.
 const ECO_EXPLORER_FILE = 'eco-explorer.html';
-const ECO_LEGAL_LINKS = { privacy: 'privacy.html', about: 'about.html', contact: 'contact.html', methodology: 'methodology.html' };
+const ECO_LEGAL_LINKS = { privacy: 'privacy.html', about: 'about.html', contact: 'contact.html', methodology: 'methodology.html', faq: 'chess-opening-faq.html' };
 
 function ecoVolumeFilename(volume) {
   return `eco-volume-${volume.toLowerCase()}.html`;

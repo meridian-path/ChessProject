@@ -38,7 +38,7 @@ const { SITE_NAME, BUILD_DATE, absoluteUrl } = require('./site');
 const { breadcrumbJsonLd } = require('./structuredData');
 const { renderComparisonTable } = require('./compareOpeningsShared');
 
-const CONTENT_LEGAL_LINKS = { privacy: 'privacy.html', about: 'about.html', contact: 'contact.html', methodology: 'methodology.html' };
+const CONTENT_LEGAL_LINKS = { privacy: 'privacy.html', about: 'about.html', contact: 'contact.html', methodology: 'methodology.html', faq: 'chess-opening-faq.html' };
 const DEFAULT_BAND = '1600-1800';
 
 /**

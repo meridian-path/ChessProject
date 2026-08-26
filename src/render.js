@@ -2354,40 +2354,53 @@ function renderDocumentHead(arg) {
 // Fixed nav order for every page that has more than the original two links.
 // renderHeader() below renders only the keys actually PRESENT in the `nav`
 // object it's given, in this order -- so server.js's existing 2-key nav
-// (player/repertoire) renders identically to before, while the static build
-// can pass additional keys as those pages come online (openings in this
-// phase; guides/faq in later phases; drill added for the opening-drill
-// pilot) without editing server.js at all.
-// 'packs' added for the Repertoire Pack sales pages (monetization-layer spec
-// 1.6.4: "one nav item"). Placed right after 'repertoire' -- the packs are a
-// finished output of the same repertoire-building idea, not a separate
-// product line, so they sit next to it in the nav rather than at the end.
-// 'builder' added for WS-1's Repertoire Builder (WS-1 spec section 3.1) -- first in NAV_ORDER because "it is
-// the site's name; it should be the site's first nav item" (that spec's
-// own words). Placeholder-page wiring for 'builder'/'player'/'drill' is
-// landed by that spec's W0 (shared-spine) task; see
-// src/renderRepertoireBuilder.js, src/renderOpeningReport.js, and
-// src/renderDrillHub.js for what each currently renders and why those
-// files, not this one, change again once each real surface ships.
-const NAV_ORDER = ['builder', 'repertoire', 'packs', 'openings', 'eco', 'drill', 'guides', 'faq', 'player'];
+// (player/openings) renders identically to before, while the static build
+// can pass additional keys as those pages come online without editing
+// server.js at all.
+//
+// Site-audit backlog item 1 (2026-08-26): collapsed
+// from 9 top-level items (Repertoire builder, Repertoire explorer, Packs,
+// Openings, ECO index, Opening drill, Guides, FAQ, Opening report) down to
+// these 5. 'openings' (now labeled "Explore") absorbs Repertoire explorer,
+// ECO index, and Compare Openings (PR #82, which shipped after the
+// original 9-item nav and was deliberately left out of it pending this
+// restructure) -- all three are real content-browsing surfaces, not
+// separate destinations, so they're one nav item that lands on the
+// openings.html hub, which itself now links out to each (see
+// renderOpeningsHub()'s "Explore the data" section in src/renderContent.js).
+// 'player' keeps its own key (unchanged from before) but is now labeled
+// "My report" for top billing, per the task's own wording -- it is the
+// site's single most useful personalized surface, not an equal peer of
+// the ECO index it used to sit next to.
+//
+// 'builder' and 'faq' are deliberately NOT in this list -- dropping them
+// from NAV_ORDER would silently orphan their pages (repertoire-builder.html
+// had no OTHER inbound link anywhere on the site), so this task also adds a
+// homepage CTA for the builder tool (buildStatic.js's indexPage(), "Build
+// your own repertoire" card) and moves the FAQ link into the footer's
+// legal-links row (renderFooter() below), the same "reachable from every
+// page, just not the top nav" treatment this site already gives Privacy/
+// About/Contact/Methodology.
+const NAV_ORDER = ['openings', 'player', 'drill', 'guides', 'packs'];
 const NAV_LABELS = {
+  // Kept (unused by NAV_ORDER above, but still real page destinations other
+  // code links to directly): builder, repertoire, eco, faq. Not deleted --
+  // see the site-audit item 1 comment above for where each is still reachable.
   builder: 'Repertoire builder',
   repertoire: 'Repertoire explorer',
-  packs: 'Repertoire packs',
-  openings: 'Openings',
+  packs: 'Packs',
+  openings: 'Explore',
   eco: 'ECO index',
   // Relabeled from "Italian Game Drill" -- WS-1's Drill Engine v2 (spec
   // section 3.3) generalizes this from one hardcoded opening to any
   // opening in the band data, so the nav label no longer needs the
   // "rename back once it generalizes" caveat this used to carry.
-  drill: 'Opening drill',
+  drill: 'Drill',
   guides: 'Guides',
   faq: 'FAQ',
-  // Relabeled from "Player lookup" -- WS-1's Personal Opening Report (spec
-  // section 3.2) folds rating-history/recent-games lookup into a bigger
-  // page (a leak report against band data); the old page survives as a
-  // redirect stub (src/buildStatic.js), never deleted.
-  player: 'Opening report',
+  // Relabeled "Opening report" -> "My report" per site-audit item 1: top
+  // billing now that it shares the nav with only 4 siblings instead of 8.
+  player: 'My report',
 };
 
 // WS-1 spec section 3.4 (task W4, band persistence). The four rating bands
@@ -2440,6 +2453,17 @@ const HEADER_BAND_DEFAULT = '1600-1800';
 // stated criterion) -- src/browser/homeDemo.client.js reads/writes the
 // same shared band state as every other page here.
 const BAND_CONTROL_PAGES = new Set(['builder', 'player', 'drill', 'repertoire', 'compare', 'home']);
+
+// Site-audit item 1's nav collapse (2026-08-26) folded
+// 'repertoire'/'eco'/'compare' into the single 'openings' ("Explore") nav
+// item, but those three pages' OWN `active` value must stay unaliased for
+// BAND_CONTROL_PAGES above -- 'compare'/'repertoire' show the band control,
+// 'eco' deliberately never has (ECO browsing isn't band-filtered), and
+// aliasing at the BAND_CONTROL_PAGES check too would silently turn the band
+// control on for eco-openings.html/eco-explorer.html, which never had it.
+// This map exists ONLY for nav-highlighting (which link gets aria-current),
+// applied below, never for the band-control check above.
+const NAV_HIGHLIGHT_ALIAS = { repertoire: 'openings', eco: 'openings', compare: 'openings' };
 
 /**
  * The <select> markup for the site-wide band-persistence control (WS-1
@@ -2511,15 +2535,18 @@ function siteRelativeHref(href) {
  *   filenames (buildStatic.js, up to 9 keys). Only keys present in this
  *   object are rendered.
  * @param {'builder'|'player'|'repertoire'|'packs'|'openings'|'eco'|'drill'|'guides'|'faq'|'compare'|null} [active]
- *   which nav link, if any, represents the current page. 'compare' has no
- *   `nav` key yet (site-audit item 11's page isn't in the top nav -- see
- *   src/renderCompareOpenings.js's own header comment), so it only ever
- *   controls BAND_CONTROL_PAGES below, never a highlighted nav link.
+ *   which nav link, if any, represents the current page. 'repertoire'/'eco'/
+ *   'compare' have no `nav` key of their own in NAV_ORDER any more (site-
+ *   audit item 1's nav collapse folded them into 'openings'/"Explore") --
+ *   NAV_HIGHLIGHT_ALIAS above maps them to 'openings' for the purpose of
+ *   which link gets aria-current, while `active` itself stays unaliased for
+ *   the BAND_CONTROL_PAGES check below.
  * @returns {string} the shared header/nav markup used on every page.
  */
 function renderHeader(nav, active = null) {
+  const highlightKey = NAV_HIGHLIGHT_ALIAS[active] || active;
   const links = NAV_ORDER.filter((key) => nav[key] != null)
-    .map((key) => `<a href="${escapeHtml(siteRelativeHref(nav[key]))}"${active === key ? ' aria-current="page"' : ''}>${escapeHtml(NAV_LABELS[key])}</a>`)
+    .map((key) => `<a href="${escapeHtml(siteRelativeHref(nav[key]))}"${highlightKey === key ? ' aria-current="page"' : ''}>${escapeHtml(NAV_LABELS[key])}</a>`)
     .join('\n      ');
 
   const showBandControl = BAND_CONTROL_PAGES.has(active);
@@ -2545,7 +2572,7 @@ function renderHeader(nav, active = null) {
   return `<a class="skip-link" href="#main-content">Skip to main content</a>
   <header class="site-header">
     <div class="brand-row">
-      <a class="brand" href="${escapeHtml(siteRelativeHref(nav.home || nav.repertoire || '/'))}"><span class="brand-mark" aria-hidden="true">&#9822;</span>Repertoire Builder</a>${bandControl}
+      <a class="brand" href="${escapeHtml(siteRelativeHref(nav.home || nav.openings || nav.repertoire || '/'))}"><span class="brand-mark" aria-hidden="true">&#9822;</span>Repertoire Builder</a>${bandControl}
       <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark theme">
         <span aria-hidden="true">&#9789;</span>
       </button>
@@ -2686,7 +2713,7 @@ function renderDisclosure() {
  * @param {string} innerHtml page-specific footer copy (data-source credit,
  *   etc). Callers should NOT claim the site is only local/unpublished --
  *   this app is deployed to GitHub Pages.
- * @param {{privacy?: string, about?: string, contact?: string, methodology?: string}} [legalLinks]
+ * @param {{privacy?: string, about?: string, contact?: string, methodology?: string, faq?: string}} [legalLinks]
  *   Optional footer link targets for the compliance pages implemented in
  *   src/renderCompliance.js, plus `methodology` (spec WS-3.3 section 3.5 --
  *   every page carrying an interval links to /methodology.html; the shared
@@ -2716,6 +2743,10 @@ function renderFooter(innerHtml, legalLinks) {
     if (legalLinks.about) links.push(`<a href="${escapeHtml(siteRelativeHref(legalLinks.about))}">About</a>`);
     if (legalLinks.contact) links.push(`<a href="${escapeHtml(siteRelativeHref(legalLinks.contact))}">Contact</a>`);
     if (legalLinks.methodology) links.push(`<a href="${escapeHtml(siteRelativeHref(legalLinks.methodology))}">Methodology</a>`);
+    // Site-audit item 1: FAQ dropped out of the top nav (see NAV_ORDER's own
+    // comment above) but must stay reachable from every page -- same
+    // footer-only treatment as the other four.
+    if (legalLinks.faq) links.push(`<a href="${escapeHtml(siteRelativeHref(legalLinks.faq))}">FAQ</a>`);
     legalRow = `
   <nav class="legal-links" aria-label="Legal">
     ${links.join('\n    ')}

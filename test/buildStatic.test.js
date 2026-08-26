@@ -661,14 +661,14 @@ test('indexPage links to opening-report.html and the collapsed repertoire.html (
   // page-relative filenames -- neither call site goes through
   // renderHeader()/renderFooter(), and indexPage() itself always lives at
   // the site root, so a bare filename is correct as-is; this was never
-  // part of the broken-nav-link fix. The NAV link for "repertoire" (the
-  // "Repertoire explorer" item in the header), by contrast, goes through
-  // renderHeader() and is root-relative per src/render.js's
-  // siteRelativeHref() -- checked below.
+  // part of the broken-nav-link fix. The NAV link for "openings" (the
+  // "Explore" item in the header, site-audit item 1's nav collapse), by
+  // contrast, goes through renderHeader() and is root-relative per src/
+  // render.js's siteRelativeHref() -- checked below.
   assert.match(html, /action="opening-report\.html"/);
   assert.match(html, /href="repertoire\.html#band=1400-1600&amp;color=white"/);
   assert.match(html, /href="repertoire\.html#band=1400-1600&amp;color=black"/);
-  assert.match(html, /href="\/repertoire\.html">Repertoire explorer<\/a>/, 'the nav link must be the real, root-relative static filename');
+  assert.match(html, /href="\/openings\.html">Explore<\/a>/, 'the nav link must be the real, root-relative static filename');
   // Must never be the DYNAMIC dev-server route (server.js's SERVER_NAV,
   // '/repertoire' with no extension).
   assert.doesNotMatch(html, /href="\/repertoire"/);
@@ -1031,7 +1031,7 @@ test('the home page links to the (now WS-1 hub) drill, and the opening report is
   })
 );
 
-test('the nav on an existing static page now includes the (WS-1 hub) drill link and the new builder link', () =>
+test('the nav on an existing static page includes the (WS-1 hub) drill link; the homepage links repertoire-builder.html via its own CTA card (site-audit item 1: builder dropped from the top nav, kept reachable from the homepage instead)', () =>
   withTempDist(async () => {
     const { fetchImpl } = fakeExplorerFetch();
     const { outDir } = await buildStatic({ fetchImpl, useCache: false });
@@ -1040,7 +1040,9 @@ test('the nav on an existing static page now includes the (WS-1 hub) drill link 
     // src/render.js's siteRelativeHref().
     const openingsHtml = fs.readFileSync(path.join(outDir, 'openings.html'), 'utf8');
     assert.match(openingsHtml, /href="\/drill\.html"/);
-    assert.match(openingsHtml, /href="\/repertoire-builder\.html"/);
+
+    const indexHtml = fs.readFileSync(path.join(outDir, 'index.html'), 'utf8');
+    assert.match(indexHtml, /href="repertoire-builder\.html">Repertoire Builder<\/a>/);
   })
 );
 
