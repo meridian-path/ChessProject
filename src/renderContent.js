@@ -686,6 +686,15 @@ function renderOpeningsHub(entries, { nav, ecoIndexLink = null, ranked = null })
   const rankBySlug = {};
   if (ranked) for (const r of ranked) rankBySlug[r.slug] = r;
 
+  // Site-audit item 8 (2026-08-26): the exact same per-row 1600-1800 game
+  // counts the table below already shows, summed -- never a separate,
+  // invented "X million games" headline figure. This is this specific
+  // table's own real total, not a sitewide claim.
+  const rankingsGamesTotal = orderedEntries.reduce((sum, { model }) => {
+    const band = model.bands.find((b) => b.band === '1600-1800') || model.bands[0];
+    return sum + (band ? band.games : 0);
+  }, 0);
+
   const rows = orderedEntries
     .map(({ openingConfig, model }) => {
       const band = model.bands.find((b) => b.band === '1600-1800') || model.bands[0];
@@ -730,10 +739,10 @@ function renderOpeningsHub(entries, { nav, ecoIndexLink = null, ranked = null })
   // passes a real ecoIndexLink), but worth closing while this exact
   // function is already being edited.
   const ecoIndexSection = ecoIndexLink
-    ? `\n\n    <h2>Browse the full ECO index</h2>
+    ? `\n\n    <h2>Browse the Chess Opening Encyclopedia</h2>
     <p class="repertoire-intro">Every one of the ${ecoIndexLink.lineCount.toLocaleString()} named lines in the standard Encyclopaedia of Chess Openings
        classification, grouped into ${ecoIndexLink.familyCount} opening families.
-       <a href="${escapeHtml(ecoIndexLink.href)}">Browse the ECO index &rarr;</a></p>`
+       <a href="${escapeHtml(ecoIndexLink.href)}">Browse the Chess Opening Encyclopedia &rarr;</a></p>`
     : '';
 
   // Every card below carries its 1600-1800 WDL bar (renderOpeningStatCard,
@@ -760,6 +769,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd: breadcrumbJsonLd(b
       1600-1800. Sample size is shown for every row: a rate over a small sample is not a signal. Want just two side
       by side? Try the <a href="compare-openings.html">Compare Openings tool &rarr;</a>. Want the full move tree
       for your own rating band instead? Try the <a href="${escapeHtml(nav.repertoire)}">Repertoire Explorer &rarr;</a>.</p>
+    <p class="article-meta">Data last updated ${BUILD_DATE}, sourced from ${rankingsGamesTotal.toLocaleString()} real Lichess games (1600-1800).</p>
 
     <h2>Compare all ${entries.length} openings</h2>
     ${confoundNote}

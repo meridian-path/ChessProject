@@ -90,7 +90,7 @@ function renderEcoExplorerPage({ nav, lineIndex, t0CrossLinkMap, reverseLookupUr
   const canonical = absoluteUrl(ECO_EXPLORER_FILE);
   const breadcrumbItems = [
     { label: 'Home', href: nav.home },
-    { label: 'ECO index', href: ECO_INDEX_FILE },
+    { label: 'Chess Opening Encyclopedia', href: ECO_INDEX_FILE },
     { label: 'Explorer', href: ECO_EXPLORER_FILE },
   ];
 
@@ -127,7 +127,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd })}
 
     <noscript>
       <p class="explorer-noscript">This tool needs JavaScript to search and play. Browse the
-        <a href="${ECO_INDEX_FILE}">full ECO index</a> or jump straight to a family guide below --
+        <a href="${ECO_INDEX_FILE}">full Chess Opening Encyclopedia</a> or jump straight to a family guide below --
         every line is also listed there as plain text.</p>
     </noscript>
 

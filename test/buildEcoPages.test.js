@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const { buildEcoPages, findT0CrossLink, pickRelatedFamilies, buildVolumeCodeRows } = require('../src/buildEcoPages');
+const { buildEcoPages, findT0CrossLink, findDrillCrossLink, pickRelatedFamilies, buildVolumeCodeRows } = require('../src/buildEcoPages');
 const { buildEcoDataset } = require('../src/ecoData');
 const { buildFamilyIndex, t1Families, familyHubFilename } = require('../src/ecoFamilies');
 const { ecoVolumeFilename, ecoIndexPageFilename, VOLUME_LABELS } = require('../src/renderEcoPages');
@@ -112,6 +112,35 @@ test('findT0CrossLink: returns the matching T0 opening for an exact family-name 
 
   const alekhine = familyIndex.find((f) => f.family === 'Alekhine Defense');
   assert.equal(findT0CrossLink(alekhine), null);
+});
+
+// ---------------------------------------------------------------------------
+// findDrillCrossLink (site-audit item 5, 2026-08-26)
+// ---------------------------------------------------------------------------
+
+test('findDrillCrossLink: returns the matching drill only for the one family DRILL_PAGES actually maps, null for every other T0-matching family', () => {
+  const { lines } = buildEcoDataset();
+  const familyIndex = buildFamilyIndex(lines);
+  const drillPages = { 'italian-game': 'drill.html' };
+
+  const italian = familyIndex.find((f) => f.family === 'Italian Game');
+  assert.deepEqual(findDrillCrossLink(italian, drillPages), {
+    label: 'Italian Game drill',
+    href: 'drill.html',
+    note: 'Pick the move, see instantly whether it is the move players at your rating actually make, and what that move scores.',
+  });
+
+  // Sicilian Defense has a real T0 cross-link but no drill -- must not
+  // fabricate one just because a T0 match exists.
+  const sicilian = familyIndex.find((f) => f.family === 'Sicilian Defense');
+  assert.equal(findDrillCrossLink(sicilian, drillPages), null);
+});
+
+test('findDrillCrossLink: returns null with an empty drillPages map, never throws', () => {
+  const { lines } = buildEcoDataset();
+  const familyIndex = buildFamilyIndex(lines);
+  const italian = familyIndex.find((f) => f.family === 'Italian Game');
+  assert.equal(findDrillCrossLink(italian, {}), null);
 });
 
 // ---------------------------------------------------------------------------

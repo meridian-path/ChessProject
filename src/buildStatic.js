@@ -1295,12 +1295,16 @@ async function buildStatic({ fetchImpl = politeFetch, useCache = true } = {}) {
   // T1 family hub pages + T2 ECO volume/browse index pages (Phase 7d):
   // same rate-limited, cached Explorer endpoint, one request at a time,
   // ~256 requests total (see src/buildEcoPages.js's own header comment for
-  // the exact budget). No dependency on contentWritten/drillFile -- reads
-  // openings.js only to find a T0 cross-link by name, never their files.
+  // the exact budget). No dependency on contentWritten -- reads openings.js
+  // only to find a T0 cross-link by name, never their files. drillPages is
+  // the same DRILL_PAGES map buildContentPages above already uses (site-
+  // audit item 5, 2026-08-26): lets a T1 family hub cross-link its matching
+  // drill, when one exists, by the same exact-name match as its T0 link.
   const { written: ecoWritten } = await buildEcoPages({
     fetchImpl: cachedFetchImpl,
     outDir: OUT_DIR,
     nav: STATIC_NAV,
+    drillPages: DRILL_PAGES,
   });
 
   // T3: the interactive ECO explorer (Phase 7e) -- zero Explorer API

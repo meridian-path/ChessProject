@@ -156,6 +156,9 @@ function renderVariationTree(familyEntry) {
  * @param {{label:string, href:string}|null} [opts.t0CrossLink] this family's
  *   matching T0 deep-dive opening page, when one exists by exact name match
  *   (src/openings.js) -- omitted (no section rendered) otherwise.
+ * @param {{label:string, href:string, note:string}|null} [opts.drillCrossLink]
+ *   this family's matching opening drill, when one exists (site-audit item 5,
+ *   2026-08-26) -- omitted otherwise, never a fabricated link.
  * @param {Array<{label:string, href:string}>} [opts.relatedFamilies] up to 3
  *   sibling T1 family hubs.
  * @param {string} [opts.mainLineSide] overrides familyEntry.mainLineSide --
@@ -163,7 +166,7 @@ function renderVariationTree(familyEntry) {
  *   curated `side` here for the 8 T0-overlapping families (see that
  *   function's own comment for why the raw heuristic needs one override).
  */
-function renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink = null, relatedFamilies = [], mainLineSide = familyEntry.mainLineSide }) {
+function renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink = null, drillCrossLink = null, relatedFamilies = [], mainLineSide = familyEntry.mainLineSide }) {
   const { family, mainLine, ecoCodes, lineCount, volumes } = familyEntry;
   const filename = familyHubFilename(familyEntry.slug);
   const primaryVolume = mainLine.eco[0];
@@ -201,7 +204,7 @@ function renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink = null, 
   const volumeFile = ecoVolumeFilename(primaryVolume);
   const breadcrumbItems = [
     { label: 'Home', href: nav.home },
-    { label: 'ECO index', href: ECO_INDEX_FILE },
+    { label: 'Chess Opening Encyclopedia', href: ECO_INDEX_FILE },
     { label: `Volume ${primaryVolume}`, href: volumeFile },
     { label: family, href: filename },
   ];
@@ -216,6 +219,7 @@ function renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink = null, 
 
   const related = [
     ...(t0CrossLink ? [{ label: `${t0CrossLink.label} (full deep-dive)`, href: t0CrossLink.href, note: 'Real replies, common mistakes, and master games for one curated line.' }] : []),
+    ...(drillCrossLink ? [drillCrossLink] : []),
     ...relatedFamilies,
   ];
   // See src/renderContent.js's renderOpeningPage/renderArticlePage for why
@@ -298,7 +302,7 @@ function renderEcoVolumeIndexPage({ volume, codeRows, nav }) {
   const canonical = absoluteUrl(filename);
   const breadcrumbItems = [
     { label: 'Home', href: nav.home },
-    { label: 'ECO index', href: ECO_INDEX_FILE },
+    { label: 'Chess Opening Encyclopedia', href: ECO_INDEX_FILE },
     { label: `Volume ${volume}`, href: filename },
   ];
 
@@ -379,7 +383,7 @@ function renderEcoIndexPage({ pageFamilies, pageNum, totalPages, stats, nav }) {
   const canonical = absoluteUrl(filename);
   const breadcrumbItems = [
     { label: 'Home', href: nav.home },
-    { label: 'ECO index', href: ECO_INDEX_FILE },
+    { label: 'Chess Opening Encyclopedia', href: ECO_INDEX_FILE },
     ...(pageNum > 1 ? [{ label: `Page ${pageNum}`, href: filename }] : []),
   ];
 
@@ -405,7 +409,7 @@ function renderEcoIndexPage({ pageFamilies, pageNum, totalPages, stats, nav }) {
     .join('');
 
   const pagination = totalPages > 1
-    ? `<nav class="pagination" aria-label="ECO index pages">
+    ? `<nav class="pagination" aria-label="Chess Opening Encyclopedia pages">
       ${pageNum > 1 ? `<a href="${escapeHtml(ecoIndexPageFilename(pageNum - 1))}" rel="prev">&larr; Previous page</a>` : '<span></span>'}
       <span class="pagination-status">Page ${pageNum} of ${totalPages}</span>
       ${pageNum < totalPages ? `<a href="${escapeHtml(ecoIndexPageFilename(pageNum + 1))}" rel="next">Next page &rarr;</a>` : '<span></span>'}

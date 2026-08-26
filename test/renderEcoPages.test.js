@@ -97,6 +97,29 @@ test('renderFamilyHubPage: a t0CrossLink renders as a visible related-page link'
   assert.match(html, /href="italian-game\.html"/);
 });
 
+test('renderFamilyHubPage: a drillCrossLink renders as a visible related-page link alongside the t0CrossLink (site-audit item 5)', () => {
+  const line = makeLine({ eco: 'C50', name: 'Italian Game', family: 'Italian Game' });
+  const entry = makeFamilyEntry({ lines: [line] });
+  const bandStats = buildFamilyBandStats({ side: entry.mainLineSide, bandResponses: {} });
+  const html = renderFamilyHubPage({
+    familyEntry: entry,
+    bandStats,
+    nav: NAV,
+    t0CrossLink: { label: 'Italian Game', href: 'italian-game.html' },
+    drillCrossLink: { label: 'Italian Game drill', href: 'drill.html', note: 'Pick the move.' },
+  });
+  assert.match(html, /href="italian-game\.html"/);
+  assert.match(html, /href="drill\.html">Italian Game drill/);
+});
+
+test('renderFamilyHubPage: omitting drillCrossLink renders no drill link -- never a fabricated one', () => {
+  const line = makeLine({ eco: 'B90', name: 'Sicilian Defense: Najdorf', family: 'Sicilian Defense' });
+  const entry = makeFamilyEntry({ lines: [line] });
+  const bandStats = buildFamilyBandStats({ side: entry.mainLineSide, bandResponses: {} });
+  const html = renderFamilyHubPage({ familyEntry: entry, bandStats, nav: NAV });
+  assert.doesNotMatch(html, /href="drill\.html"/);
+});
+
 test('renderFamilyHubPage: mainLineSide override changes which side the bands table reports a score for', () => {
   const line = makeLine({ eco: 'E61', name: "King's Indian Defense", family: "King's Indian Defense", plies: [
     { ply: 1, color: 'white', san: 'd4', uci: 'd2d4', fen: 'x' },

@@ -2390,7 +2390,7 @@ const NAV_LABELS = {
   repertoire: 'Repertoire explorer',
   packs: 'Packs',
   openings: 'Explore',
-  eco: 'ECO index',
+  eco: 'Chess Opening Encyclopedia',
   // Relabeled from "Italian Game Drill" -- WS-1's Drill Engine v2 (spec
   // section 3.3) generalizes this from one hardcoded opening to any
   // opening in the band data, so the nav label no longer needs the
