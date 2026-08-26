@@ -83,6 +83,20 @@ function findT0CrossLink(familyEntry) {
 }
 
 /**
+ * Site-audit item 5 (2026-08-26): a T1 family's matching drill, when one
+ * exists. Same exact-name-match discipline as findT0CrossLink above --
+ * `drillPages` (buildStatic.js's DRILL_PAGES, keyed by opening slug, same
+ * shape src/buildContent.js's own drillFile lookup already uses) currently
+ * has exactly one entry (the Italian Game), so this is `null` for every
+ * other family. Never a fabricated link to a drill that doesn't exist yet.
+ */
+function findDrillCrossLink(familyEntry, drillPages) {
+  const match = OPENINGS.find((o) => o.name === familyEntry.family);
+  const drillFile = match ? drillPages[match.slug] : null;
+  return drillFile ? { label: `${match.name} drill`, href: drillFile, note: 'Pick the move, see instantly whether it is the move players at your rating actually make, and what that move scores.' } : null;
+}
+
+/**
  * ecoFamilies.js's sideForLine() heuristic (color of the family's own main
  * line's last ply) matches openings.js's hand-picked `side` for every T0
  * family EXCEPT King's Indian Defense -- verified against the real data:
@@ -151,7 +165,7 @@ function buildVolumeCodeRows(lines, volume, familyIndex) {
  * @returns {Promise<{written: Array<{file,html,slug,title,description}>,
  *   familyIndex: Array, t1: Array, stats: object}>}
  */
-async function buildEcoPages({ fetchImpl = fetch, outDir = OUT_DIR, nav, aggregatesDir = AGGREGATES_DIR } = {}) {
+async function buildEcoPages({ fetchImpl = fetch, outDir = OUT_DIR, nav, aggregatesDir = AGGREGATES_DIR, drillPages = {} } = {}) {
   fs.mkdirSync(outDir, { recursive: true });
 
   const dataset = buildEcoDataset();
@@ -167,8 +181,9 @@ async function buildEcoPages({ fetchImpl = fetch, outDir = OUT_DIR, nav, aggrega
     const bandResponses = await fetchFamilyBandResponses(familyEntry.mainLine, { fetchImpl, familySlug: familyEntry.slug, aggregatesDir });
     const bandStats = buildFamilyBandStats({ side: mainLineSide, bandResponses });
     const t0CrossLink = findT0CrossLink(familyEntry);
+    const drillCrossLink = findDrillCrossLink(familyEntry, drillPages);
     const relatedFamilies = pickRelatedFamilies(familyEntry, t1);
-    const html = renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink, relatedFamilies, mainLineSide });
+    const html = renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink, drillCrossLink, relatedFamilies, mainLineSide });
     const file = familyHubFilename(familyEntry.slug);
     fs.writeFileSync(path.join(outDir, file), html, 'utf8');
     written.push({ file, html, slug: familyEntry.slug, title: extractTitle(html), description: extractDescription(html) });
@@ -204,6 +219,7 @@ module.exports = {
   buildEcoPages,
   fetchFamilyBandResponses,
   findT0CrossLink,
+  findDrillCrossLink,
   pickRelatedFamilies,
   buildVolumeCodeRows,
   ECO_INDEX_PAGE_COUNT,

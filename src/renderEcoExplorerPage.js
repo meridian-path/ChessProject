@@ -44,7 +44,7 @@ const { ecoVolumeFilename, ECO_INDEX_FILE } = require('./renderEcoPages');
 const { familyHubFilename } = require('./ecoFamilies');
 
 const ECO_EXPLORER_FILE = 'eco-explorer.html';
-const ECO_EXPLORER_LEGAL_LINKS = { privacy: 'privacy.html', about: 'about.html', contact: 'contact.html', methodology: 'methodology.html' };
+const ECO_EXPLORER_LEGAL_LINKS = { privacy: 'privacy.html', about: 'about.html', contact: 'contact.html', methodology: 'methodology.html', faq: 'chess-opening-faq.html' };
 
 // Distinct from T2 page 1's own <title> ("Chess Opening Explorer - All 500
 // ECO Codes | Repertoire Builder", src/renderEcoPages.js's
@@ -90,7 +90,7 @@ function renderEcoExplorerPage({ nav, lineIndex, t0CrossLinkMap, reverseLookupUr
   const canonical = absoluteUrl(ECO_EXPLORER_FILE);
   const breadcrumbItems = [
     { label: 'Home', href: nav.home },
-    { label: 'ECO index', href: ECO_INDEX_FILE },
+    { label: 'Chess Opening Encyclopedia', href: ECO_INDEX_FILE },
     { label: 'Explorer', href: ECO_EXPLORER_FILE },
   ];
 
@@ -127,7 +127,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd })}
 
     <noscript>
       <p class="explorer-noscript">This tool needs JavaScript to search and play. Browse the
-        <a href="${ECO_INDEX_FILE}">full ECO index</a> or jump straight to a family guide below --
+        <a href="${ECO_INDEX_FILE}">full Chess Opening Encyclopedia</a> or jump straight to a family guide below --
         every line is also listed there as plain text.</p>
     </noscript>
 

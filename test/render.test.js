@@ -288,20 +288,27 @@ test('siteRelativeHref passes through falsy values unchanged', () => {
 test('renderHeader renders every STATIC_NAV-style (bare filename) nav link as a root-relative absolute href, and the brand/home link too', () => {
   const nav = { home: '/', builder: 'repertoire-builder.html', player: 'opening-report.html', repertoire: 'repertoire.html', packs: 'repertoire-packs.html', openings: 'openings.html', eco: 'eco-openings.html', drill: 'drill.html', guides: 'guides.html', faq: 'chess-opening-faq.html' };
   const html = renderHeader(nav, 'packs');
-  for (const key of ['builder', 'player', 'repertoire', 'packs', 'openings', 'eco', 'drill', 'guides', 'faq']) {
+  // Site-audit item 1: NAV_ORDER collapsed to these 5
+  // -- 'builder'/'repertoire'/'eco'/'faq' are still valid STATIC_NAV keys
+  // (other pages link to them directly) but must NOT render as top-nav links
+  // any more, even when present in the nav object passed in.
+  for (const key of ['player', 'packs', 'openings', 'drill', 'guides']) {
     assert.match(html, new RegExp(`href="/${nav[key]}"`), `nav.${key} must render with a leading slash so it resolves correctly from a page nested one directory deep`);
+  }
+  for (const key of ['builder', 'repertoire', 'eco', 'faq']) {
+    assert.doesNotMatch(html, new RegExp(`href="/${nav[key]}"`), `nav.${key} was dropped from the top nav by the site-audit item 1 collapse and must not render`);
   }
   assert.match(html, /class="brand" href="\/"/, 'the brand/home link must resolve to the real site root, not a page-relative "/"');
 });
 
 test('renderHeader leaves an already-absolute nav object (server.js\'s SERVER_NAV) unchanged -- no double slash', () => {
-  const html = renderHeader({ player: '/', repertoire: '/repertoire' }, 'player');
+  const html = renderHeader({ player: '/', openings: '/repertoire' }, 'player');
   // No nav.home in this 2-key server nav -- the brand link falls back to
-  // nav.repertoire (render.js's own `nav.home || nav.repertoire || '/'`),
-  // which is already absolute and must render unchanged.
+  // nav.openings (render.js's own `nav.home || nav.openings || nav.repertoire
+  // || '/'`), which is already absolute and must render unchanged.
   assert.match(html, /class="brand" href="\/repertoire"/);
-  assert.match(html, /href="\/repertoire">Repertoire explorer/);
-  assert.match(html, /href="\/" aria-current="page">Opening report/);
+  assert.match(html, /href="\/repertoire">Explore/);
+  assert.match(html, /href="\/" aria-current="page">My report/);
   assert.doesNotMatch(html, /href="\/\//, 'must never double up a leading slash');
 });
 

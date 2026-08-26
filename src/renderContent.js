@@ -103,7 +103,7 @@ function wideIntervalNote(halfWidthPct) {
 // the static compliance-page filenames directly rather than threaded
 // through as a parameter. Keep in sync with buildStatic.js's LEGAL_LINKS,
 // which points at the same three flat filenames.
-const CONTENT_LEGAL_LINKS = { privacy: 'privacy.html', about: 'about.html', contact: 'contact.html', methodology: 'methodology.html' };
+const CONTENT_LEGAL_LINKS = { privacy: 'privacy.html', about: 'about.html', contact: 'contact.html', methodology: 'methodology.html', faq: 'chess-opening-faq.html' };
 
 /**
  * @param {Record<string,string>} board square -> FEN piece letter (see chessPosition.js)
@@ -686,6 +686,15 @@ function renderOpeningsHub(entries, { nav, ecoIndexLink = null, ranked = null })
   const rankBySlug = {};
   if (ranked) for (const r of ranked) rankBySlug[r.slug] = r;
 
+  // Site-audit item 8 (2026-08-26): the exact same per-row 1600-1800 game
+  // counts the table below already shows, summed -- never a separate,
+  // invented "X million games" headline figure. This is this specific
+  // table's own real total, not a sitewide claim.
+  const rankingsGamesTotal = orderedEntries.reduce((sum, { model }) => {
+    const band = model.bands.find((b) => b.band === '1600-1800') || model.bands[0];
+    return sum + (band ? band.games : 0);
+  }, 0);
+
   const rows = orderedEntries
     .map(({ openingConfig, model }) => {
       const band = model.bands.find((b) => b.band === '1600-1800') || model.bands[0];
@@ -730,10 +739,10 @@ function renderOpeningsHub(entries, { nav, ecoIndexLink = null, ranked = null })
   // passes a real ecoIndexLink), but worth closing while this exact
   // function is already being edited.
   const ecoIndexSection = ecoIndexLink
-    ? `\n\n    <h2>Browse the full ECO index</h2>
+    ? `\n\n    <h2>Browse the Chess Opening Encyclopedia</h2>
     <p class="repertoire-intro">Every one of the ${ecoIndexLink.lineCount.toLocaleString()} named lines in the standard Encyclopaedia of Chess Openings
        classification, grouped into ${ecoIndexLink.familyCount} opening families.
-       <a href="${escapeHtml(ecoIndexLink.href)}">Browse the ECO index &rarr;</a></p>`
+       <a href="${escapeHtml(ecoIndexLink.href)}">Browse the Chess Opening Encyclopedia &rarr;</a></p>`
     : '';
 
   // Every card below carries its 1600-1800 WDL bar (renderOpeningStatCard,
@@ -758,7 +767,9 @@ ${renderDocumentHead({ title, description, canonical, jsonLd: breadcrumbJsonLd(b
     <h1 class="page-title">Chess openings by real win rate</h1>
     <p class="subtitle">Ranked by the score each opening actually gets for its own side in real Lichess games at
       1600-1800. Sample size is shown for every row: a rate over a small sample is not a signal. Want just two side
-      by side? Try the <a href="compare-openings.html">Compare Openings tool &rarr;</a>.</p>
+      by side? Try the <a href="compare-openings.html">Compare Openings tool &rarr;</a>. Want the full move tree
+      for your own rating band instead? Try the <a href="${escapeHtml(nav.repertoire)}">Repertoire Explorer &rarr;</a>.</p>
+    <p class="article-meta">Data last updated ${BUILD_DATE}, sourced from ${rankingsGamesTotal.toLocaleString()} real Lichess games (1600-1800).</p>
 
     <h2>Compare all ${entries.length} openings</h2>
     ${confoundNote}
@@ -847,6 +858,26 @@ ${renderDocumentHead({ title, description: meta.description, canonical, ogType: 
 }
 
 /**
+ * Site-audit item 6 (2026-08-26): pure routing, no new
+ * content -- every linked guide below is already one of the GUIDES entries
+ * src/buildContent.js always builds (best-chess-openings-for-beginners and
+ * most-common-opening-mistakes-1400-1600 come from that file's own factory
+ * calls; aggressive-vs-positional-openings and rapid-chess-opening-prep are
+ * two of its hand-authored entries), so this never links a page that
+ * doesn't exist. 1400-1600 gets the beginner/mistake-analysis pair per the
+ * task's own wording; 1800+ gets the style-matching (aggressive vs.
+ * positional) and prep-budgeting (rapid-chess-opening-prep's own
+ * description literally says "a practical prep budget") pair.
+ */
+function startHereForRatingBanner() {
+  return `<div class="callout" id="start-here-for-your-rating">
+    <h2>Start here for your rating</h2>
+    <p>New or under 1600? <a href="best-chess-openings-for-beginners.html">Best chess openings for beginners &rarr;</a> &middot; <a href="most-common-opening-mistakes-1400-1600.html">The most common opening mistakes at 1400-1600 &rarr;</a></p>
+    <p>1800 and up? <a href="aggressive-vs-positional-openings.html">Aggressive vs. positional openings &rarr;</a> &middot; <a href="rapid-chess-opening-prep.html">Rapid chess opening prep &rarr;</a></p>
+  </div>`;
+}
+
+/**
  * @param {Array<{slug:string, title:string, description:string}>} articles
  * @param {object} opts
  * @param {object} opts.nav
@@ -873,6 +904,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd: breadcrumbJsonLd(b
     ${renderBreadcrumb(breadcrumbItems)}
     <h1 class="page-title">Chess opening guides</h1>
     <p class="subtitle">${articles.length} articles, each grounded in this site&rsquo;s own Lichess Opening Explorer data.</p>
+    ${startHereForRatingBanner()}
     <h2>Every guide</h2>
     <div class="card-grid">${cards}</div>
   </main>

@@ -193,7 +193,7 @@ const DRILL_PAGES = { [DRILL_OPENING_SLUG]: DRILL_HUB_FILE };
 // every other static page, and shared with src/renderContent.js's own
 // CONTENT_LEGAL_LINKS constant (kept in sync by comment there, since that
 // module can't require() this one without a circular dependency).
-const LEGAL_LINKS = { privacy: 'privacy.html', about: 'about.html', contact: 'contact.html', methodology: 'methodology.html' };
+const LEGAL_LINKS = { privacy: 'privacy.html', about: 'about.html', contact: 'contact.html', methodology: 'methodology.html', faq: 'chess-opening-faq.html' };
 
 const BROWSER_ENTRY = path.join(__dirname, 'browser', 'playerLookup.client.js');
 const DRILL_ENTRY = path.join(__dirname, 'browser', 'drill.client.js');
@@ -549,6 +549,19 @@ function drillCtaSection(drillFile) {
     </div>`;
 }
 
+// Site-audit item 1 (2026-08-26): repertoire-builder.html
+// (the site's own namesake tool) lost its only inbound link when 'builder'
+// was dropped from render.js's NAV_ORDER as part of the nav collapse -- this
+// card is what keeps it reachable, same outline-card treatment as the drill/
+// packs cards below it so it doesn't compete with the band picker's single
+// accent-filled action.
+function builderCtaSection() {
+  return `<h2>Build your own repertoire</h2>
+    <div class="card-grid card-grid--single">
+      <div class="card card--outline card--nav"><h3><a href="${escapeHtml(BUILDER_FILE)}">Repertoire Builder</a></h3><p>Pick your moves, ply by ply, and see the real score and sample size for each one as you go - build a repertoire you chose, not one this site chose for you.</p></div>
+    </div>`;
+}
+
 // Repertoire pack CTA card for the home page (2026-08-19 revenue-path fix:
 // the site-wide top nav already carries a "Repertoire packs" link
 // (render.js's NAV_ORDER), but that is one plain text link among nine,
@@ -885,6 +898,8 @@ ${renderDocumentHead({
     <p class="repertoire-intro">Openings behave differently at every rating. Pick your band - everything below is
        filtered to real games at that level.</p>
     <div class="home-band-picker">${bandPickerHtml()}</div>
+
+    ${builderCtaSection()}
 
     ${packsCtaSection()}
 
@@ -1280,12 +1295,16 @@ async function buildStatic({ fetchImpl = politeFetch, useCache = true } = {}) {
   // T1 family hub pages + T2 ECO volume/browse index pages (Phase 7d):
   // same rate-limited, cached Explorer endpoint, one request at a time,
   // ~256 requests total (see src/buildEcoPages.js's own header comment for
-  // the exact budget). No dependency on contentWritten/drillFile -- reads
-  // openings.js only to find a T0 cross-link by name, never their files.
+  // the exact budget). No dependency on contentWritten -- reads openings.js
+  // only to find a T0 cross-link by name, never their files. drillPages is
+  // the same DRILL_PAGES map buildContentPages above already uses (site-
+  // audit item 5, 2026-08-26): lets a T1 family hub cross-link its matching
+  // drill, when one exists, by the same exact-name match as its T0 link.
   const { written: ecoWritten } = await buildEcoPages({
     fetchImpl: cachedFetchImpl,
     outDir: OUT_DIR,
     nav: STATIC_NAV,
+    drillPages: DRILL_PAGES,
   });
 
   // T3: the interactive ECO explorer (Phase 7e) -- zero Explorer API
