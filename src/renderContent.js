@@ -18,7 +18,7 @@
  * only what that same page already renders visibly, never anything extra.
  */
 
-const { escapeHtml, formatPct, renderDocumentHead, renderHeader, renderFooter, wrapTable, renderPageHead } = require('./render');
+const { escapeHtml, formatPct, renderDocumentHead, renderHeader, renderFooter, wrapTable, renderPageHead, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT } = require('./render');
 const { START_BOARD, applyUciMoves } = require('./chessPosition');
 const { SITE_NAME, SITE_AUTHOR, BUILD_DATE, absoluteUrl, pageTitle } = require('./site');
 const { breadcrumbJsonLd, articleJsonLd, faqPageJsonLd, datasetJsonLd } = require('./structuredData');
@@ -42,6 +42,17 @@ const WIDE_INTERVAL_THRESHOLD_PP = 1.0;
  * caller can always concatenate this right after its own point-value markup
  * with no extra branching.
  *
+ * Split into renderCIVisible/renderCISr (craft-audit fix, item 3): the
+ * visible `.ci` span is now `aria-hidden="true"`, since its own sr-only
+ * sibling already speaks the same number in full -- without aria-hidden,
+ * assistive tech announced BOTH the terse "±X.X" figure and its own
+ * expansion back to back, which is what the audit flagged. renderCI() below
+ * still concatenates both pieces immediately (unchanged output for every
+ * existing caller); a caller that needs the sr-only sentence to land at the
+ * END of a longer sentence instead (renderOpeningStatCard's card-score line,
+ * the second audit defect: the sentence used to continue mid-clause right
+ * after the sr-only span) calls renderCIVisible()/renderCISr() separately.
+ *
  * @param {object} opts
  * @param {number|null} halfWidthPct half-width in PERCENTAGE POINTS (not a
  *   fraction) -- every caller in this codebase already computes this shape
@@ -54,10 +65,19 @@ const WIDE_INTERVAL_THRESHOLD_PP = 1.0;
  * @param {number|null} highPct
  * @param {number} sampleSize
  */
-function renderCI({ halfWidthPct, srLabel, lowPct, highPct, sampleSize }) {
+function renderCIVisible({ halfWidthPct, lowPct, highPct }) {
+  if (halfWidthPct == null || lowPct == null || highPct == null) return '';
+  return `<span class="ci" aria-hidden="true"> ${escapeHtml(formatInterval(halfWidthPct / 100))}</span>`;
+}
+
+function renderCISr({ halfWidthPct, srLabel, lowPct, highPct, sampleSize }) {
   if (halfWidthPct == null || lowPct == null || highPct == null) return '';
   const srText = `${escapeHtml(srLabel)}: 95 percent confidence interval ${formatPct(lowPct)} to ${formatPct(highPct)} percent, ${sampleSize.toLocaleString()} games.`;
-  return `<span class="ci"> ${escapeHtml(formatInterval(halfWidthPct / 100))}</span><span class="sr-only">${srText}</span>`;
+  return `<span class="sr-only">${srText}</span>`;
+}
+
+function renderCI(opts) {
+  return renderCIVisible(opts) + renderCISr(opts);
 }
 
 /**
@@ -162,34 +182,96 @@ function renderRelated(items, heading = 'Related') {
  *   table's single combined "score for its side" number. Defaults true so
  *   every other caller (the homepage's demoted outline cards, which have
  *   no adjacent table) renders unchanged.
+ * @param {boolean} [opts.bandAware] Craft-audit fix (item 2): when true,
+ *   renders ONE panel per HEADER_BAND_OPTIONS band (each independently
+ *   deciding its own hasData/no-data shape), wrapped in
+ *   `.card-band-panel[data-band-variant]`, with every band except
+ *   HEADER_BAND_DEFAULT starting `hidden` -- the homepage's own
+ *   band-toggle client script (src/browser/homeDemo.client.js) reveals the
+ *   visitor's actual persisted band on load and on every band change,
+ *   instead of this card being permanently locked to a hardcoded 1600-1800
+ *   figure regardless of the site-wide band control's own state. Defaults
+ *   false so every other caller (the openings hub, which has no band
+ *   toggle on the page) renders exactly as before, unchanged.
  * @returns {string}
  */
-function renderOpeningStatCard(openingConfig, model, extraClass = '', { showScoreLine = true } = {}) {
+function renderOpeningStatCard(openingConfig, model, extraClass = '', { showScoreLine = true, bandAware = false } = {}) {
   const href = `${escapeHtml(openingConfig.slug)}.html`;
-  const band = (model.bands || []).find((b) => b.band === '1600-1800') || null;
-  const hasData = band && band.enoughData && band.scoreForSide != null && band.whitePct != null;
-  const classes = ['card', hasData ? 'card--stat' : 'card--nav', extraClass].filter(Boolean).join(' ');
-  if (!hasData) {
-    return `<div class="${classes}"><h3><a href="${href}">${escapeHtml(model.name)}</a></h3><p>${escapeHtml(model.eco)}, playing as ${escapeHtml(model.side)}</p></div>`;
-  }
-  const scoreCI = renderCI({
-    halfWidthPct: band.scoreForSideCI, srLabel: `Score for ${model.side}`,
-    lowPct: band.scoreForSideCI != null ? Number((band.scoreForSide - band.scoreForSideCI).toFixed(1)) : null,
-    highPct: band.scoreForSideCI != null ? Number((band.scoreForSide + band.scoreForSideCI).toFixed(1)) : null,
-    sampleSize: band.games,
-  });
-  // Same reasoning as drillCtaHtml/relatedSection elsewhere in this file:
-  // showScoreLine: false legitimately produces '', and interpolating that
-  // at its own indented template line would leave a whitespace-only line
-  // that html-validate's no-trailing-whitespace rule flags -- so the
-  // newline + indent are only added when there's a real line to attach
-  // them to.
-  const scoreLine = showScoreLine
-    ? `\n    <p class="card-score">Scores ${formatPct(band.scoreForSide)}%${scoreCI} for ${escapeHtml(model.side)} at 1600-1800 (${band.games.toLocaleString()} games)</p>`
-    : '';
-  return `<div class="${classes}">
+
+  const scoreLineFor = (band, bandLabel) => {
+    if (!showScoreLine) return '';
+    const scoreCIVisible = renderCIVisible({
+      halfWidthPct: band.scoreForSideCI,
+      lowPct: band.scoreForSideCI != null ? Number((band.scoreForSide - band.scoreForSideCI).toFixed(1)) : null,
+      highPct: band.scoreForSideCI != null ? Number((band.scoreForSide + band.scoreForSideCI).toFixed(1)) : null,
+    });
+    // Craft-audit fix (item 3): the sr-only expansion now lands at the END
+    // of the full sentence (after "games)"), not immediately after the
+    // visible "±X.X" figure -- previously the announced sentence broke off
+    // mid-clause right after the sr-only span, then continued with a second,
+    // redundant statement of the games count. renderCIVisible()'s own `.ci`
+    // span is also now aria-hidden, so a screen reader hears this sentence
+    // exactly once.
+    const scoreCISr = renderCISr({
+      halfWidthPct: band.scoreForSideCI, srLabel: `Score for ${model.side}`,
+      lowPct: band.scoreForSideCI != null ? Number((band.scoreForSide - band.scoreForSideCI).toFixed(1)) : null,
+      highPct: band.scoreForSideCI != null ? Number((band.scoreForSide + band.scoreForSideCI).toFixed(1)) : null,
+      sampleSize: band.games,
+    });
+    // Same reasoning as drillCtaHtml/relatedSection elsewhere in this file:
+    // showScoreLine: false legitimately produces '', and interpolating that
+    // at its own indented template line would leave a whitespace-only line
+    // that html-validate's no-trailing-whitespace rule flags -- so the
+    // newline + indent are only added when there's a real line to attach
+    // them to.
+    return `\n    <p class="card-score">Scores ${formatPct(band.scoreForSide)}%${scoreCIVisible} for ${escapeHtml(model.side)} at ${escapeHtml(bandLabel)} (${band.games.toLocaleString()} games)${scoreCISr}</p>`;
+  };
+
+  if (!bandAware) {
+    const band = (model.bands || []).find((b) => b.band === '1600-1800') || null;
+    const hasData = band && band.enoughData && band.scoreForSide != null && band.whitePct != null;
+    const classes = ['card', hasData ? 'card--stat' : 'card--nav', extraClass].filter(Boolean).join(' ');
+    if (!hasData) {
+      return `<div class="${classes}"><h3><a href="${href}">${escapeHtml(model.name)}</a></h3><p>${escapeHtml(model.eco)}, playing as ${escapeHtml(model.side)}</p></div>`;
+    }
+    const scoreLine = scoreLineFor(band, '1600-1800');
+    return `<div class="${classes}">
     <h3><a href="${href}">${escapeHtml(model.name)}</a></h3>
     <div class="card-wdl-row">${wdlBar(band.whitePct, band.drawPct, band.blackPct, `White/draw/black at 1600-1800: ${formatPct(band.whitePct)}% / ${formatPct(band.drawPct)}% / ${formatPct(band.blackPct)}%`)}</div>${scoreLine}
+  </div>`;
+  }
+
+  // Band-aware path (homepage ranked cards, craft-audit item 2). Every
+  // HEADER_BAND_OPTIONS band gets its own panel: real data when this
+  // opening has enough games at that band, an honest "not enough games at
+  // this band yet" note otherwise -- this never approximates or invents a
+  // number, the same discipline the single-band path above already applies.
+  // An opening with NO qualifying band at all (no `bands` field, or every
+  // band under-sampled) falls back to the exact same plain nav-style card
+  // the non-bandAware path above renders -- there is nothing for a band
+  // switch to ever reveal on this card, so four identical "not enough
+  // games" panels would be pure noise rather than genuine band-awareness.
+  const anyBandHasData = (model.bands || []).some((b) => b.enoughData && b.scoreForSide != null && b.whitePct != null);
+  if (!anyBandHasData) {
+    const classes = ['card', 'card--nav', extraClass].filter(Boolean).join(' ');
+    return `<div class="${classes}"><h3><a href="${href}">${escapeHtml(model.name)}</a></h3><p>${escapeHtml(model.eco)}, playing as ${escapeHtml(model.side)}</p></div>`;
+  }
+  const classes = ['card', 'card--stat', extraClass].filter(Boolean).join(' ');
+  const panels = HEADER_BAND_OPTIONS.map((bandName) => {
+    const band = (model.bands || []).find((b) => b.band === bandName) || null;
+    const hasData = band && band.enoughData && band.scoreForSide != null && band.whitePct != null;
+    const hiddenAttr = bandName === HEADER_BAND_DEFAULT ? '' : ' hidden';
+    if (!hasData) {
+      return `<div class="card-band-panel" data-band-variant="${escapeHtml(bandName)}"${hiddenAttr}><p>${escapeHtml(model.eco)}, playing as ${escapeHtml(model.side)}. Not enough games at ${escapeHtml(bandName)} yet.</p></div>`;
+    }
+    const scoreLine = scoreLineFor(band, bandName);
+    return `<div class="card-band-panel" data-band-variant="${escapeHtml(bandName)}"${hiddenAttr}>
+      <div class="card-wdl-row">${wdlBar(band.whitePct, band.drawPct, band.blackPct, `White/draw/black at ${bandName}: ${formatPct(band.whitePct)}% / ${formatPct(band.drawPct)}% / ${formatPct(band.blackPct)}%`)}</div>${scoreLine}
+    </div>`;
+  }).join('\n    ');
+  return `<div class="${classes}" data-stat-card="${escapeHtml(openingConfig.slug)}">
+    <h3><a href="${href}">${escapeHtml(model.name)}</a></h3>
+    ${panels}
   </div>`;
 }
 
@@ -479,7 +561,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd:
 <body>
 <div class="page">
   ${renderHeader(nav, 'openings')}
-  <main>
+  <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
       eyebrow: 'Opening guide',
@@ -671,7 +753,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd: breadcrumbJsonLd(b
 <body>
 <div class="page">
   ${renderHeader(nav, 'openings')}
-  <main>
+  <main id="main-content">
     ${renderBreadcrumb(breadcrumbItems)}
     <h1 class="page-title">Chess openings by real win rate</h1>
     <p class="subtitle">Ranked by the score each opening actually gets for its own side in real Lichess games at
@@ -749,7 +831,7 @@ ${renderDocumentHead({ title, description: meta.description, canonical, ogType: 
 <body>
 <div class="page">
   ${renderHeader(nav, 'guides')}
-  <main>
+  <main id="main-content">
     ${renderBreadcrumb(breadcrumbItems)}
     <article class="prose">
       <h1 class="page-title">${escapeHtml(meta.title)}</h1>
@@ -787,7 +869,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd: breadcrumbJsonLd(b
 <body>
 <div class="page">
   ${renderHeader(nav, 'guides')}
-  <main>
+  <main id="main-content">
     ${renderBreadcrumb(breadcrumbItems)}
     <h1 class="page-title">Chess opening guides</h1>
     <p class="subtitle">${articles.length} articles, each grounded in this site&rsquo;s own Lichess Opening Explorer data.</p>
@@ -826,7 +908,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd })}
 <body>
 <div class="page">
   ${renderHeader(nav, 'faq')}
-  <main>
+  <main id="main-content">
     ${renderBreadcrumb(breadcrumbItems)}
     <h1 class="page-title">Chess opening FAQ</h1>
     <p class="subtitle">Plain answers, most of them backed directly by this site&rsquo;s own Lichess data.</p>
@@ -948,7 +1030,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd 
 <body>
 <div class="page">
   ${renderHeader(nav, null)}
-  <main>
+  <main id="main-content">
     ${renderBreadcrumb(breadcrumbItems)}
     <article class="prose">
       <h1 class="page-title">How Repertoire Builder computes its numbers</h1>

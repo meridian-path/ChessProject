@@ -232,7 +232,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd 
 <body>
 <div class="page">
   ${renderHeader(nav, 'eco')}
-  <main>
+  <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
       eyebrow: 'ECO family guide',
@@ -327,7 +327,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd })}
 <body>
 <div class="page">
   ${renderHeader(nav, 'eco')}
-  <main>
+  <main id="main-content">
     ${renderBreadcrumb(breadcrumbItems)}
     <h1 class="page-title">ECO Volume ${escapeHtml(volume)}: ${escapeHtml(label)}</h1>
     <p class="subtitle">${codeRows.length} ECO codes, ${totalLines.toLocaleString()} named lines. Linked names have
@@ -434,7 +434,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd })}
 <body>
 <div class="page">
   ${renderHeader(nav, 'eco')}
-  <main>
+  <main id="main-content">
     ${renderBreadcrumb(breadcrumbItems)}
     <h1 class="page-title">${pageNum === 1 ? 'Chess opening families, A–Z' : `Chess opening families, page ${pageNum} of ${totalPages}`}</h1>${introSection}
 

@@ -88,7 +88,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd: breadcrumbJsonLd(b
 <body>
 <div class="page">
   ${renderHeader(nav, 'compare')}
-  <main>
+  <main id="main-content">
     ${renderBreadcrumb(breadcrumbItems)}
     <h1 class="page-title">Compare two openings</h1>
     <p class="subtitle">Pick any two openings this site tracks to see their real games, score, and confidence interval side by side at your rating band. Change the rating band from the picker in the header above.</p>

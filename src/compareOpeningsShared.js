@@ -46,14 +46,21 @@ const WIDE_INTERVAL_THRESHOLD_PP = 1.0;
  *   a de-emphasized "±X.X" span plus a screen-reader-only sentence -- kept
  *   in sync by eye (both are simple enough that a mismatch would be obvious
  *   in review) rather than importing renderContent.js itself, which is
- *   server-only.
+ *   server-only. Craft-audit fix (item 3): the visible `.ci` span is now
+ *   `aria-hidden="true"`, matching renderContent.js's own renderCI() fix --
+ *   without it, assistive tech announced both the terse "±X.X" figure and
+ *   its own sr-only expansion back to back. Unlike renderContent.js's
+ *   card-score line, nothing here continues the sentence after the sr-only
+ *   span (the games count and any further note are already separate
+ *   sentences/cells), so no sentence-restructuring is needed at this call
+ *   site.
  */
 function renderCI(halfWidthPct, scorePct, label, sampleSize) {
   if (halfWidthPct == null || scorePct == null) return '';
   const low = Number((scorePct - halfWidthPct).toFixed(1));
   const high = Number((scorePct + halfWidthPct).toFixed(1));
   const srText = `${escapeHtml(label)}: 95 percent confidence interval ${formatPct(low)} to ${formatPct(high)} percent, ${sampleSize.toLocaleString()} games.`;
-  return `<span class="ci"> &plusmn;${formatPct(halfWidthPct)}</span><span class="sr-only">${srText}</span>`;
+  return `<span class="ci" aria-hidden="true"> &plusmn;${formatPct(halfWidthPct)}</span><span class="sr-only">${srText}</span>`;
 }
 
 function wideIntervalNote(halfWidthPct) {

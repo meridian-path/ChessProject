@@ -289,7 +289,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'website', jsonLd,
 <div class="page page--wide">
   ${renderHeader(nav, 'builder')}
   ${spriteDefsHtml()}
-  <main>
+  <main id="main-content">
     <nav class="breadcrumb" aria-label="Breadcrumb"><ol><li aria-current="page">Repertoire builder</li></ol></nav>
     <h1 class="page-title">Repertoire builder</h1>
     <p class="subtitle">Play out an opening and see, at every move, what players at your rating band actually play and how it scores. Save the moves you want, and export a real PGN when you are done.</p>
