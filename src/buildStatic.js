@@ -52,7 +52,7 @@ const path = require('path');
 const esbuild = require('esbuild');
 const { buildRepertoireTree } = require('./buildRepertoire');
 const { RATING_BANDS } = require('./processRepertoire');
-const { renderRedirectStubPage, renderGenericRedirectStub, escapeHtml, formatPct, renderDocumentHead, renderHeader, renderFooter, renderPageHead } = require('./render');
+const { renderRedirectStubPage, renderGenericRedirectStub, escapeHtml, formatPct, renderDocumentHead, renderHeader, renderFooter, renderPageHead, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT } = require('./render');
 const { renderRepertoireExplorerPage } = require('./renderRepertoireExplorer');
 const { renderOpeningStatCard, renderMethodologyPage } = require('./renderContent');
 // Board-visibility work (homepage hero demo) -- see
@@ -664,6 +664,11 @@ const HOME_DEMO_COLOR = 'black';
  * board's start FEN is a literal constant, not derived from this data.
  *
  * @param {Object<string, {tree: Array}>} combos buildRepertoireCombos() output
+ * @param {string} [band] Craft-audit item 2: parameterized so this function
+ *   can extract the same shape for any of HEADER_BAND_OPTIONS, not only the
+ *   original hardcoded 1600-1800 -- see buildHomeDemoDataAllBands() below.
+ *   Defaults to HOME_DEMO_BAND, preserving this function's original
+ *   single-band call shape for every existing caller/test.
  * @returns {{band: string, openingSan: string, openingPlayedPct: number,
  *   replies: Object<string, {san: string, playedPct: number, score: number}>}|null}
  *   `replies` is keyed by UCI (e.g. "e7e5"), not SAN -- see
@@ -671,8 +676,8 @@ const HOME_DEMO_COLOR = 'black';
  *   client-side, so no SAN generation from a played move either; the board
  *   input handler matches on from/to squares).
  */
-function buildHomeDemoData(combos) {
-  const combo = combos && combos[`${HOME_DEMO_BAND}|${HOME_DEMO_COLOR}`];
+function buildHomeDemoData(combos, band = HOME_DEMO_BAND) {
+  const combo = combos && combos[`${band}|${HOME_DEMO_COLOR}`];
   const root = combo && Array.isArray(combo.tree) ? combo.tree[0] : null;
   if (!root || root.uci !== 'e2e4' || !Array.isArray(root.children) || root.children.length === 0) {
     return null;
@@ -698,11 +703,36 @@ function buildHomeDemoData(combos) {
   }
   if (Object.keys(replies).length === 0) return null;
   return {
-    band: HOME_DEMO_BAND,
+    band,
     openingSan: root.san,
     openingPlayedPct: root.playedPct,
     replies,
   };
+}
+
+/**
+ * Craft-audit item 2: the homepage hero demo used to be permanently locked
+ * to 1600-1800 data regardless of the site-wide band control's own state --
+ * this computes the SAME extraction as buildHomeDemoData() above for every
+ * band the site offers, from the SAME already-fetched `combos` (no new
+ * fetch -- every band+color combo buildRepertoireCombos() produces is
+ * already present in `combos`, the same object bandPickerHtml()/
+ * dataStripHtml() already iterate over the full band set of). A band whose
+ * White top move at this band isn't 1. e4 is simply absent from the
+ * returned map's own non-null entries (buildHomeDemoData's own data-drift
+ * guard, unchanged) -- src/browser/homeDemo.client.js falls back to the
+ * default band's data rather than switching to a band with no valid entry.
+ *
+ * @param {Object<string, {tree: Array}>} combos
+ * @returns {Object<string, ReturnType<typeof buildHomeDemoData>>} keyed by
+ *   band name; a band with no qualifying 1. e4 line maps to null.
+ */
+function buildHomeDemoDataAllBands(combos) {
+  const byBand = {};
+  for (const band of HEADER_BAND_OPTIONS) {
+    byBand[band] = buildHomeDemoData(combos, band);
+  }
+  return byBand;
 }
 
 /**
@@ -714,10 +744,23 @@ function buildHomeDemoData(combos) {
  * header with no board, no bundle, and no piece attribution added to the
  * footer.
  *
- * @param {ReturnType<typeof buildHomeDemoData>} heroDemo
+ * @param {ReturnType<typeof buildHomeDemoData>} heroDemo the DEFAULT band's
+ *   data (HOME_DEMO_BAND) -- what the server-rendered markup below shows
+ *   before any client JS runs, same progressive-enhancement shape as every
+ *   other control on this site.
+ * @param {Object<string, ReturnType<typeof buildHomeDemoData>>} [heroDemoAllBands]
+ *   Craft-audit item 2: every band's own data (buildHomeDemoDataAllBands()),
+ *   baked into the page's JSON payload so src/browser/homeDemo.client.js can
+ *   switch the caption/replies/link to whichever band the visitor actually
+ *   has persisted, instead of this demo staying locked to `heroDemo.band`
+ *   regardless of the site-wide band control. Optional and defaults to just
+ *   `heroDemo` itself under its own band key -- every existing caller that
+ *   omits this argument keeps rendering a single-band demo exactly as
+ *   before, just now also reachable (inertly) if a visitor's persisted band
+ *   happens to already match `heroDemo.band`.
  * @returns {{asideHtml: string, dataScriptHtml: string}}
  */
-function homeDemoMarkup(heroDemo) {
+function homeDemoMarkup(heroDemo, heroDemoAllBands = null) {
   if (!heroDemo) return { asideHtml: '', dataScriptHtml: '' };
   const introCaption = `${escapeHtml(heroDemo.band)} plays 1. ${escapeHtml(heroDemo.openingSan)} ${formatPct(heroDemo.openingPlayedPct)}% of the time. Your move.`;
   const repertoireHref = repertoireFragmentUrl(heroDemo.band, 'black');
@@ -733,18 +776,24 @@ function homeDemoMarkup(heroDemo) {
   // heading fixes the sequence for real (h1 -> h2 -> h3) without changing
   // anything visible -- the aria-label itself is left in place too, since
   // removing it would drop the landmark's accessible name for AT that
-  // doesn't expose heading-derived names for <aside> the same way.
+  // doesn't expose heading-derived names for <aside> the same way. The
+  // aria-label/h2 text never needs to change on a band switch: every
+  // non-null byBand entry is, by buildHomeDemoData's own data-drift guard,
+  // ALWAYS a 1. e4 line (a band whose top move isn't e4 is simply absent).
   const asideHtml = `<aside class="home-demo" aria-label="Try a real reply to 1. ${escapeHtml(heroDemo.openingSan)}">
         ${spriteDefsHtml()}
         <h2 class="sr-only">Try a real reply to 1. ${escapeHtml(heroDemo.openingSan)}</h2>
         <p id="home-demo-caption" class="home-demo-caption" role="status" aria-live="polite">${introCaption}</p>
         <div id="home-demo-board" class="home-demo-board-mount"></div>
         <p class="home-demo-actions">
-          <a href="${escapeHtml(repertoireHref)}">See the full ${escapeHtml(heroDemo.band)} repertoire &rarr;</a>
+          <a href="${escapeHtml(repertoireHref)}" id="home-demo-repertoire-link">See the full ${escapeHtml(heroDemo.band)} repertoire &rarr;</a>
           <button type="button" id="home-demo-reset" class="home-demo-reset">Reset</button>
         </p>
       </aside>`;
-  const dataScriptHtml = `<script type="application/json" id="home-demo-data">${JSON.stringify({ replies: heroDemo.replies })}</script>
+  const byBand = heroDemoAllBands || { [heroDemo.band]: { openingSan: heroDemo.openingSan, openingPlayedPct: heroDemo.openingPlayedPct, replies: heroDemo.replies } };
+  const dataScriptHtml = `<script type="application/json" id="home-demo-data">${JSON.stringify({
+    replies: heroDemo.replies, band: heroDemo.band, openingSan: heroDemo.openingSan, openingPlayedPct: heroDemo.openingPlayedPct, byBand,
+  })}</script>
   <script src="home-demo.js" defer></script>`;
   return { asideHtml, dataScriptHtml };
 }
@@ -761,7 +810,7 @@ function homeDemoMarkup(heroDemo) {
 // demo's own single action (spec section 2.3's "one-accent-filled-action
 // rule") is a plain text link, never a second filled button -- the band
 // picker above stays the page's only accent-filled control.
-function indexPage(contentEntries = [], drillFile = null, heroDemo = null) {
+function indexPage(contentEntries = [], drillFile = null, heroDemo = null, heroDemoAllBands = null) {
   const openingsSection = contentEntries.length > 0
     ? `<h2 class="section-lead">Openings by real win rate</h2>
     <p class="repertoire-intro">${contentEntries.length} openings, ranked by what they actually score in real games
@@ -769,7 +818,7 @@ function indexPage(contentEntries = [], drillFile = null, heroDemo = null) {
     <div class="card-grid">
       ${contentEntries
         .slice(0, 6)
-        .map((e) => renderOpeningStatCard(e.openingConfig, e.model, 'card--outline'))
+        .map((e) => renderOpeningStatCard(e.openingConfig, e.model, 'card--outline', { bandAware: true }))
         .join('\n      ')}
     </div>`
     : '';
@@ -795,7 +844,7 @@ function indexPage(contentEntries = [], drillFile = null, heroDemo = null) {
   // rating-band picker (both rendered later in this function, unchanged)
   // are now genuinely secondary content a visitor scrolls past the primary
   // CTA to reach, not before it.
-  const { asideHtml: homeDemoAsideHtml, dataScriptHtml: homeDemoDataScriptHtml } = homeDemoMarkup(heroDemo);
+  const { asideHtml: homeDemoAsideHtml, dataScriptHtml: homeDemoDataScriptHtml } = homeDemoMarkup(heroDemo, heroDemoAllBands);
   const heroHtml = homeDemoAsideHtml
     ? `<div class="home-hero-layout">
       <div class="home-hero-text">
@@ -826,8 +875,8 @@ ${renderDocumentHead({
   })}
 <body>
 <div class="page">
-  ${renderHeader(STATIC_NAV, null)}
-  <main>
+  ${renderHeader(STATIC_NAV, 'home')}
+  <main id="main-content">
     ${heroHtml}
 
     ${dataStripHtml(contentEntries)}
@@ -861,7 +910,7 @@ ${renderDocumentHead({ title, description, canonical })}
 <body>
 <div class="page page--wide">
   ${renderHeader(STATIC_NAV, 'player')}
-  <main>
+  <main id="main-content">
     <h1 class="page-title">Player lookup</h1>
     <p class="subtitle">Enter a Lichess username to view rating history and recent games. This runs
        entirely in your browser, calling Lichess&rsquo;s public API directly - no token
@@ -1288,7 +1337,8 @@ async function buildStatic({ fetchImpl = politeFetch, useCache = true } = {}) {
   // comment), in which case indexPage() below falls back to its earlier
   // header with no board/bundle at all.
   const homeDemoData = buildHomeDemoData(repertoireCombos);
-  fs.writeFileSync(path.join(OUT_DIR, 'index.html'), indexPage(contentEntries, drillFile, homeDemoData), 'utf8');
+  const homeDemoDataAllBands = buildHomeDemoDataAllBands(repertoireCombos);
+  fs.writeFileSync(path.join(OUT_DIR, 'index.html'), indexPage(contentEntries, drillFile, homeDemoData, homeDemoDataAllBands), 'utf8');
   if (homeDemoData) {
     fs.writeFileSync(path.join(OUT_DIR, 'home-demo.js'), buildHomeDemoBundle(), 'utf8');
   }
@@ -1572,6 +1622,7 @@ module.exports = {
   buildCompareOpeningsBundle,
   buildHomeDemoBundle,
   buildHomeDemoData,
+  buildHomeDemoDataAllBands,
   bundleBrowserEntry,
   indexPage,
   playerLookupPage,

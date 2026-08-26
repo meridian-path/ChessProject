@@ -198,7 +198,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd, extraCss: OPENING_
 <body>
 <div class="page">
   ${renderHeader(nav, 'player')}
-  <main class="prose">
+  <main class="prose" id="main-content">
     ${renderPageHead({
       eyebrow: 'Personal opening report',
       title: 'Find your five biggest opening leaks',

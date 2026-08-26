@@ -16,6 +16,17 @@
  * this page always reflects whichever band a visitor already picked
  * elsewhere, and reacts live if they change it from this page's own header
  * control without a reload.
+ *
+ * Craft-audit fix (item 1): every early-exit path below used to be a bare
+ * `return` with no user-visible state at all -- if the embedded data blob
+ * were ever malformed, or this script loaded against changed markup, the
+ * two <select> elements rendered and sat completely inert: no error, no
+ * message, nothing happened on change. Every path now renders a real,
+ * human-readable failure state into the results container (when that
+ * container itself is reachable) and disables whichever selects exist,
+ * rather than leaving a visitor staring at a dead control with zero
+ * feedback -- the same "edge states designed, not defaulted" bar
+ * opening-report.js and drill.html already meet.
  */
 
 const { readBandState, onBandStateChange } = require('./bandState.client');
@@ -25,22 +36,38 @@ const { renderComparisonTable } = require('../compareOpeningsShared');
   const app = document.querySelector('[data-compare-app]');
   const resultsEl = document.getElementById('compare-results');
   const dataEl = document.getElementById('compare-openings-data');
-  if (!app || !resultsEl || !dataEl) return; // no compare markup present -- nothing to wire up
+  const selectA = document.getElementById('compare-opening-a');
+  const selectB = document.getElementById('compare-opening-b');
+
+  function showError(message) {
+    if (selectA) selectA.disabled = true;
+    if (selectB) selectB.disabled = true;
+    if (resultsEl) {
+      resultsEl.innerHTML = `<p class="compare-error" role="alert">${message}</p>`;
+    }
+  }
+
+  if (!app || !resultsEl || !dataEl) {
+    showError('This tool could not load. Try refreshing the page.');
+    return; // no compare markup present (or the results container itself is missing) -- nothing further to wire up
+  }
 
   let openings;
   try {
     openings = JSON.parse(dataEl.textContent);
     if (!Array.isArray(openings)) throw new Error('compare-openings-data is not an array');
   } catch (err) {
-    return; // corrupt baked data -- leave the server-rendered default table as-is
+    showError('This tool could not load its opening data. Try refreshing the page.');
+    return; // corrupt baked data -- error shown, selects disabled, rather than leaving the server-rendered default table silently stale
   }
 
   const bySlug = {};
   for (const o of openings) bySlug[o.slug] = o;
 
-  const selectA = document.getElementById('compare-opening-a');
-  const selectB = document.getElementById('compare-opening-b');
-  if (!selectA || !selectB) return;
+  if (!selectA || !selectB) {
+    showError('This tool could not load. Try refreshing the page.');
+    return;
+  }
 
   // The 4 real bands this page's baked data actually has -- matches
   // src/render.js's HEADER_BAND_OPTIONS. A band outside this set (this

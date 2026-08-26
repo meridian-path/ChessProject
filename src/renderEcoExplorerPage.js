@@ -115,7 +115,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd })}
 <body>
 <div class="page page--wide">
   ${renderHeader(nav, 'eco')}
-  <main>
+  <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
       eyebrow: 'Interactive tool',

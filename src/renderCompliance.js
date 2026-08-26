@@ -40,7 +40,7 @@ ${renderDocumentHead({ title, description, canonical })}
 <body>
 <div class="page">
   ${renderHeader(nav)}
-  <main class="prose">
+  <main class="prose" id="main-content">
     <h1 class="page-title">Privacy Policy</h1>
     <p class="subtitle">Effective ${escapeHtml(BUILD_DATE)}</p>
 
@@ -123,7 +123,7 @@ ${renderDocumentHead({ title, description, canonical })}
 <body>
 <div class="page">
   ${renderHeader(nav)}
-  <main class="prose">
+  <main class="prose" id="main-content">
     <h1 class="page-title">About ${escapeHtml(SITE_NAME)}</h1>
 
     <h2>What this is</h2>
@@ -182,7 +182,7 @@ ${renderDocumentHead({ title, description, canonical })}
 <body>
 <div class="page">
   ${renderHeader(nav)}
-  <main class="prose">
+  <main class="prose" id="main-content">
     <h1 class="page-title">Contact</h1>
 
     <p>Questions, corrections (for example, a wrong move order or a stat that looks off), or
@@ -228,7 +228,7 @@ ${renderDocumentHead({ title, description, noindex: true })}
 <body>
 <div class="page">
   ${renderHeader(nav)}
-  <main class="prose">
+  <main class="prose" id="main-content">
     <h1 class="page-title">That page doesn&rsquo;t exist</h1>
     <p class="subtitle">The link you followed may be out of date, or the page may have moved.
       Here&rsquo;s where to pick back up.</p>

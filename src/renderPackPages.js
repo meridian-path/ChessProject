@@ -607,7 +607,7 @@ function renderPackDetailPage({ pack, otherPacks = [], nav, legalLinks }) {
 ${renderDocumentHead({ title: pageTitle(`${pack.title} repertoire pack`), description, canonical, jsonLd, ogImage, noindex: pack.noindex })}
 <body class="layout--wide">
   ${renderHeader(nav, 'packs')}
-  <main>
+  <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
       eyebrow: 'Repertoire pack',
@@ -688,7 +688,7 @@ function renderPacksIndexPage({ packs, nav, legalLinks }) {
 ${renderDocumentHead({ title: pageTitle('Repertoire packs'), description, canonical, jsonLd, noindex: allNoindex })}
 <body class="layout--wide">
   ${renderHeader(nav, 'packs')}
-  <main>
+  <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
       eyebrow: 'Direct sale',

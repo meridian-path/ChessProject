@@ -85,7 +85,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'website', jsonLd,
 <div class="page page--wide">
   ${renderHeader(nav, 'drill')}
   ${spriteDefsHtml()}
-  <main>
+  <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
       eyebrow: 'Drill',
@@ -230,7 +230,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'website', jsonLd 
 <body>
 <div class="page page--wide">
   ${renderHeader(nav, 'drill')}
-  <main>
+  <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
       eyebrow: 'Drill',

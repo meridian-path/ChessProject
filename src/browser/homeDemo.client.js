@@ -30,12 +30,28 @@
  * validates a proposed move.
  *
  * Data comes from the #home-demo-data JSON block src/buildStatic.js's
- * indexPage() bakes at build time (real 1600-1800/Black Opening Explorer
+ * indexPage() bakes at build time (real per-band/Black Opening Explorer
  * numbers, same pipeline repertoire.html's own combos use) -- never a
  * runtime fetch, per spec section 2.3's "build-time constants" rule.
+ *
+ * Craft-audit fix (item 2): this demo used to be permanently locked to
+ * whichever band the build baked as its default (1600-1800), regardless of
+ * the site-wide band control's own state (this page is now one of
+ * BAND_CONTROL_PAGES, src/render.js). The baked #home-demo-data payload now
+ * carries a `byBand` map (every band's own replies/opening data, from
+ * src/buildStatic.js's buildHomeDemoDataAllBands()) alongside the original
+ * flat `replies`/`band` fields (kept for exact backward compatibility with
+ * older builds/tests); this file reads the visitor's actual persisted band
+ * via bandState.client.js (the same shared module every other band-aware
+ * page/control on this site reads/writes) and re-mounts the board plus
+ * updates every band-dependent string when it changes. A band with no
+ * qualifying entry in `byBand` (buildHomeDemoData's own data-drift guard --
+ * see that function's doc comment) is skipped: the demo stays on whichever
+ * band it was last showing rather than breaking or showing empty data.
  */
 const { createBoard, COLOR } = require('../boardWidget');
 const { INPUT_EVENT_TYPE } = require('cm-chessboard/src/Chessboard.js');
+const { readBandState, onBandStateChange } = require('./bandState.client');
 
 // The position after 1. e4 -- a fixed, well-known FEN, not derived from the
 // fetched tree data (cm-chessboard's setPosition only ever needs the
@@ -55,8 +71,38 @@ function readData() {
   }
 }
 
-function replyCaption(reply) {
-  return reply.san + ' - played by ' + reply.playedPct + '% of Black at 1600-1800, scoring ' + reply.score + '% for Black.';
+/**
+ * Picks the entry to show for `band` out of the baked `byBand` map
+ * (src/buildStatic.js's buildHomeDemoDataAllBands()), falling back to the
+ * data's own default band when `band` has no qualifying entry (a band
+ * whose top White move isn't 1. e4 -- see buildHomeDemoData's own doc
+ * comment for the data-drift guard this reflects), and finally to the flat
+ * top-level fields for a build old enough not to carry `byBand` at all.
+ * Never returns null when `data` itself passed readData()'s own check.
+ */
+function entryForBand(data, band) {
+  var byBand = data.byBand || {};
+  if (byBand[band]) return byBand[band];
+  if (data.band && byBand[data.band]) return byBand[data.band];
+  return { openingPlayedPct: data.openingPlayedPct, replies: data.replies };
+}
+
+function replyCaption(reply, band) {
+  return reply.san + ' - played by ' + reply.playedPct + '% of Black at ' + band + ', scoring ' + reply.score + '% for Black.';
+}
+
+// Matches src/render.js's formatPct() exactly (n.toFixed(1)) -- duplicated
+// as a plain one-liner rather than imported, same "kept in sync by eye"
+// reasoning src/compareOpeningsShared.js's own header comment already
+// states for this codebase's isomorphic-render modules; render.js itself
+// isn't requireable here without pulling in its Node-only SITE_CSS/
+// document-head machinery this tiny bundle has no business depending on.
+function formatPct1(n) {
+  return typeof n === 'number' ? n.toFixed(1) : String(n);
+}
+
+function introCaptionFor(entry, band) {
+  return band + ' plays 1. e4 ' + formatPct1(entry.openingPlayedPct) + '% of the time. Your move.';
 }
 
 /**
@@ -113,25 +159,92 @@ function mountAllowlistBoard(container, opts) {
   };
 }
 
+// Replaces `target`'s own keys/values with `source`'s in place (never
+// reassigns the reference) -- mountAllowlistBoard()'s move-input handler
+// closes over the SAME object passed as its `replies` option, and reads it
+// fresh via Object.keys() on every event rather than caching a snapshot at
+// mount time, so mutating its contents in place is what lets a band switch
+// update which moves the board accepts without remounting the whole board.
+function replaceContents(target, source) {
+  var key;
+  for (key in target) {
+    if (Object.prototype.hasOwnProperty.call(target, key)) delete target[key];
+  }
+  for (key in source) {
+    if (Object.prototype.hasOwnProperty.call(source, key)) target[key] = source[key];
+  }
+}
+
+// Toggles every homepage ranked-card's baked-per-band panel
+// (src/renderContent.js's renderOpeningStatCard `bandAware` path) to show
+// only the one matching `band`, hiding the rest via the plain `hidden`
+// attribute -- no extra CSS needed. A no-op (empty NodeList) on any page
+// without band-aware cards (every page but the homepage), so this is safe
+// to call unconditionally from init() below rather than gating it on which
+// page loaded this bundle.
+function switchStatCardBands(band) {
+  var panels = document.querySelectorAll('.card-band-panel[data-band-variant]');
+  for (var i = 0; i < panels.length; i += 1) {
+    var panel = panels[i];
+    if (panel.getAttribute('data-band-variant') === band) {
+      panel.hidden = false;
+    } else {
+      panel.hidden = true;
+    }
+  }
+}
+
 function init() {
+  // Band-aware ranked cards (craft-audit item 2) have no dependency on the
+  // hero-demo board mount below -- wire them up unconditionally so they
+  // still work on a build/page where the board itself didn't mount (no
+  // heroDemo, no #home-demo-board) but the ranked cards did.
+  switchStatCardBands(readBandState().band);
+  onBandStateChange(function (state) {
+    switchStatCardBands(state.band);
+  });
+
   var mount = document.getElementById('home-demo-board');
-  if (!mount) return; // no reserved box on this build/page -- nothing to do
+  if (!mount) return; // no reserved box on this build/page -- nothing more to do
 
   var data = readData();
   if (!data) return; // no baked data -- leave the empty reserved box (no layout shift either way, it's aspect-ratio boxed)
 
   var captionEl = document.getElementById('home-demo-caption');
   var resetBtn = document.getElementById('home-demo-reset');
-  var initialCaption = captionEl ? captionEl.textContent : '';
+  var linkEl = document.getElementById('home-demo-repertoire-link');
+
+  var currentBand = readBandState().band;
+  var currentEntry = entryForBand(data, currentBand);
+  // The band actually shown may differ from `currentBand` itself when the
+  // visitor's persisted band has no qualifying 1. e4 entry (see
+  // entryForBand's own comment) -- track it separately so captions/links
+  // always name the band whose data is really on screen, never a band that
+  // silently fell back to different numbers.
+  var shownBand = (data.byBand && data.byBand[currentBand]) ? currentBand : (data.band || currentBand);
+
+  // `replies` is a stable, mutable object handed to mountAllowlistBoard()
+  // once below; every subsequent band switch mutates its CONTENTS (via
+  // replaceContents), never reassigns this variable, so the board's own
+  // move-input closure keeps seeing the current band's allowed moves.
+  var replies = {};
+  replaceContents(replies, currentEntry.replies);
+
+  var initialCaption = introCaptionFor(currentEntry, shownBand);
+  if (captionEl) captionEl.textContent = initialCaption;
+  if (linkEl) {
+    linkEl.setAttribute('href', 'repertoire.html#band=' + encodeURIComponent(shownBand) + '&color=black');
+    linkEl.textContent = 'See the full ' + shownBand + ' repertoire →';
+  }
 
   var handle = mountAllowlistBoard(mount, {
     fen: START_FEN,
     orientation: COLOR.black,
-    replies: data.replies,
+    replies: replies,
     onMove: function (uci) {
       if (!captionEl) return;
-      var reply = data.replies[uci];
-      if (reply) captionEl.textContent = replyCaption(reply);
+      var reply = replies[uci];
+      if (reply) captionEl.textContent = replyCaption(reply, shownBand);
     },
   });
 
@@ -141,6 +254,19 @@ function init() {
       if (captionEl) captionEl.textContent = initialCaption;
     });
   }
+
+  onBandStateChange(function (state) {
+    var entry = entryForBand(data, state.band);
+    shownBand = (data.byBand && data.byBand[state.band]) ? state.band : (data.band || state.band);
+    replaceContents(replies, entry.replies);
+    initialCaption = introCaptionFor(entry, shownBand);
+    handle.reset(START_FEN);
+    if (captionEl) captionEl.textContent = initialCaption;
+    if (linkEl) {
+      linkEl.setAttribute('href', 'repertoire.html#band=' + encodeURIComponent(shownBand) + '&color=black');
+      linkEl.textContent = 'See the full ' + shownBand + ' repertoire →';
+    }
+  });
 }
 
 if (document.readyState === 'loading') {

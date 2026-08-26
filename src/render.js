@@ -11,8 +11,8 @@
  * directly in a visitor's browser for the static player-lookup page --
  * bundled with esbuild (see buildStatic.js's bundleBrowserEntry()) into one
  * self-contained IIFE, so ordinary CommonJS module.exports here is exactly
- * what that bundler expects. The shared design system below (SITE_CSS
- * / FAVICON_DATA_URI) is defined as plain constants right here, not pulled
+ * what that bundler expects. The shared design system below (SITE_CSS)
+ * is defined as plain constants right here, not pulled
  * in from a separate module, so render.js stays the single source of truth
  * for markup AND styling that both server.js and buildStatic.js import
  * from, with nothing to drift.
@@ -75,8 +75,8 @@ function formatPct(n) {
  * its own module -- render.js is concatenated verbatim into the browser
  * bundle (see this file's header comment) and has no CommonJS loader in
  * that context -- so it stays a same-file constant, same reasoning as
- * SITE_CSS/FAVICON_DATA_URI already being defined directly here rather than
- * required() from elsewhere.
+ * SITE_CSS already being defined directly here rather than required() from
+ * elsewhere.
  *
  * This is the VALUE layer only -- ramps of perceptual lightness steps, plus
  * every non-color scale (type, space, radius, shadow, motion, grid, focus).
@@ -504,6 +504,40 @@ ${designTokensCss(THEME_ROLES.dark)}
     border: 0;
   }
 
+  /* Craft-audit item 4: WCAG 2.2 SC 2.4.1 (Bypass Blocks) -- every one of
+     this site's 125+ pages shares the same 9-item main nav (renderHeader()
+     below), so a keyboard-only or screen-reader visitor previously had to
+     tab through all 9 links on every single page before reaching content.
+     Same .sr-only clip technique above for the hidden state, restored to a
+     normal visible, positioned control on :focus-visible -- the shared
+     :focus-visible rule further down still supplies the outline, so this
+     uses the site's one focus language rather than inventing a second. */
+  .skip-link {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .skip-link:focus-visible {
+    position: fixed;
+    top: var(--space-3);
+    left: var(--space-3);
+    z-index: 100;
+    width: auto; height: auto;
+    padding: var(--space-2) var(--space-4);
+    margin: 0;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1.5px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+  }
+
   /* boardSvg.js's spriteDefsHtml() wrapper: a fixed, non-dynamic hiding
      style (never varies per-instance), so it's a plain class rather than
      the inline style="..." html-validate's no-inline-style rule flags. */
@@ -892,6 +926,12 @@ ${designTokensCss(THEME_ROLES.dark)}
     box-shadow: 0 0 0 var(--focus-ring-width) var(--focus-ring-color);
     outline: none;
   }
+  .compare-picker-field select:disabled { opacity: 0.6; cursor: not-allowed; }
+  /* Craft-audit item 1: same visual language as .explorer-error below
+     (color-loss-text, same size/spacing) -- a real, visible failure state
+     for compare-openings.client.js's three previously-silent early-exit
+     paths, rather than a dead pair of selects with no feedback. */
+  .compare-error { color: var(--color-loss-text); font-size: var(--text-sm); margin: var(--space-2) 0 0; }
 
   .lookup-form button {
     min-height: 44px;
@@ -1381,6 +1421,15 @@ ${designTokensCss(THEME_ROLES.dark)}
   .card--stat .card-score { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--color-accent-dark); }
   .card--stat.card--primary .card-score,
   .card--stat.card--outline .card-score { color: inherit; }
+
+  /* Craft-audit item 2 (band persistence): the homepage's ranked cards bake
+     one panel per rating band (src/renderContent.js's renderOpeningStatCard
+     bandAware path); only the visitor's actual persisted band is shown,
+     via the plain hidden attribute -- no extra CSS needed to hide it, but
+     the no-data fallback panel's own paragraph needs the same
+     .card--nav p reset applied above so it doesn't inherit .card--stat's
+     WDL/score spacing rules it never renders. */
+  .card--stat .card-band-panel p { margin: 0; }
 
   /* Homepage "Start here" section (src/buildStatic.js's startHereSection())
      -- the page's one accent-filled action (design-standards.md's per-page
@@ -2166,35 +2215,19 @@ ${designTokensCss(THEME_ROLES.dark)}
   }
 `;
 
-/**
- * A minimalist chess-pawn favicon as an inline SVG data URI -- no external
- * asset, no build step. Colors are hardcoded here (not pulled from the CSS
- * tokens above) because a favicon is loaded by the browser as its own
- * standalone resource and does not inherit the page's CSS custom
- * properties; they're kept visually in sync with --color-accent-dark /
- * --color-accent-contrast by hand.
- *
- * Geometry: head, a narrow straight-sided neck, a collar ring bar, a flared
- * skirt, and a base -- the narrow neck + collar ring is what reads as a
- * turned chess piece rather than a person silhouette (a wide neckless
- * shoulder flare straight off the head reads as account-icon geometry
- * instead).
- */
-const FAVICON_DATA_URI = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%232a4d3a'/%3E%3Ccircle cx='32' cy='19' r='7' fill='%23f8f5ea'/%3E%3Crect x='26' y='24' width='12' height='10' fill='%23f8f5ea'/%3E%3Crect x='19' y='33' width='26' height='4' rx='2' fill='%23f8f5ea'/%3E%3Cpath d='M20 37L44 37L48 50L16 50Z' fill='%23f8f5ea'/%3E%3Crect x='15' y='50' width='34' height='8' rx='3' fill='%23f8f5ea'/%3E%3C/svg%3E";
-
 // Default social-share image (1200x630, per Open Graph's recommended size).
 // Generated locally by scripts/build-og-image.js and committed to
 // assets/og-default.png / copied into dist/ -- a separate build step, not
 // this file's job. Hardcoded as an absolute URL here rather than built from
 // site.js's SITE_ORIGIN because render.js has no CommonJS module loading
 // available to it at all (see this file's header comment); same reasoning as
-// FAVICON_DATA_URI and the KOFI_URL constant below already being a
-// hardcoded absolute URL.
+// the KOFI_URL constant below already being a hardcoded absolute URL.
 const OG_DEFAULT_IMAGE = 'https://repertoire-builder.com/og-default.png';
 
 // Copied by value from DESIGN_TOKENS/THEME_ROLES' light/dark --color-bg
 // (ink-0 / ink-9) -- a <meta name="theme-color"> can't reference a CSS
-// custom property, same reasoning as FAVICON_DATA_URI above.
+// custom property, same reasoning /favicon.svg's own colors below are
+// hardcoded rather than themed.
 const THEME_COLOR_LIGHT = '#F5F1E6';
 const THEME_COLOR_DARK = '#14130F';
 
@@ -2308,7 +2341,6 @@ function renderDocumentHead(arg) {
   <meta name="theme-color" content="${THEME_COLOR_LIGHT}" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="${THEME_COLOR_DARK}" media="(prefers-color-scheme: dark)">
   <title>${escapeHtmlText(title)}</title>${metaDescription}${canonicalLink}${robotsMeta}${og}${feedLink}
-  <link rel="icon" href="${FAVICON_DATA_URI}">
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preload" href="/fonts/fraunces-variable.woff2" as="font" type="font/woff2" crossorigin>
@@ -2401,8 +2433,13 @@ const HEADER_BAND_DEFAULT = '1600-1800';
 // (buildStatic.js's renderBandPicker) -- this header control is an
 // additional, smaller, always-visible affordance, not a replacement; both
 // read/write the same src/browser/bandState.client.js state and stay in
-// sync via its onBandStateChange() subscription.
-const BAND_CONTROL_PAGES = new Set(['builder', 'player', 'drill', 'repertoire', 'compare']);
+// sync via its onBandStateChange() subscription. 'home' added by the
+// craft-audit fix (item 2): the homepage's ranked opening cards and hero
+// demo both show band-dependent numbers (previously hardcoded to
+// 1600-1800 with no control at all, a real gap against this set's own
+// stated criterion) -- src/browser/homeDemo.client.js reads/writes the
+// same shared band state as every other page here.
+const BAND_CONTROL_PAGES = new Set(['builder', 'player', 'drill', 'repertoire', 'compare', 'home']);
 
 /**
  * The <select> markup for the site-wide band-persistence control (WS-1
@@ -2505,7 +2542,8 @@ function renderHeader(nav, active = null) {
   // present) sits between them -- same row, wraps onto its own line first
   // on narrow viewports since it's the widest of the three (.brand-row's
   // flex-wrap, see SITE_CSS).
-  return `<header class="site-header">
+  return `<a class="skip-link" href="#main-content">Skip to main content</a>
+  <header class="site-header">
     <div class="brand-row">
       <a class="brand" href="${escapeHtml(siteRelativeHref(nav.home || nav.repertoire || '/'))}"><span class="brand-mark" aria-hidden="true">&#9822;</span>Repertoire Builder</a>${bandControl}
       <button class="theme-toggle" type="button" data-theme-toggle aria-label="Switch to dark theme">
@@ -2566,7 +2604,7 @@ function isPlaceholderStoreUrl(url) {
  * are the artist's fixed brand colors, not derived from this site's own
  * token ramp, so the mark stays recognizable and identical across every
  * property and the social profile itself -- same self-contained-asset
- * exemption from the tokens-only rule as FAVICON_DATA_URI above, which is
+ * exemption from the tokens-only rule /favicon.svg's own colors carry,
  * hardcoded for the same reason (a favicon/shared mark is its own
  * standalone resource, not themed per-site).
  */
@@ -2841,7 +2879,7 @@ ${renderDocumentHead(`${username} | Repertoire Builder`)}
 <body>
 <div class="page page--wide">
   ${renderHeader(nav, 'player')}
-  <main>
+  <main id="main-content">
     <h1 class="page-title">${escapeHtml(username)}</h1>
     <p class="subtitle">Lichess rating history and recent games</p>
 
@@ -2961,7 +2999,7 @@ ${renderDocumentHead({ title, description, canonical })}
 <body>
 <div class="page page--wide">
   ${renderHeader(nav, 'repertoire')}
-  <main>
+  <main id="main-content">
     ${renderPageHead({
       eyebrow: 'Repertoire',
       title: 'Opening repertoire explorer',
@@ -3078,7 +3116,6 @@ module.exports = {
   escapeHtmlText,
   formatPct,
   SITE_CSS,
-  FAVICON_DATA_URI,
   DESIGN_TOKENS,
   THEME_ROLES,
   designTokensCss,

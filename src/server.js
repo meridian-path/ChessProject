@@ -35,7 +35,7 @@ ${renderDocumentHead(SITE_NAME)}
 <body>
 <div class="page">
   ${renderHeader(SERVER_NAV, 'player')}
-  <main>
+  <main id="main-content">
     <h1 class="page-title">${escapeHtml(SITE_NAME)}</h1>
     <p class="subtitle">Enter a Lichess username to view rating history and recent games.</p>
     <form action="/player" method="get" class="lookup-form">
@@ -60,7 +60,7 @@ ${renderDocumentHead(`Opening repertoire explorer - ${SITE_NAME}`)}
 <body>
 <div class="page">
   ${renderHeader(SERVER_NAV, 'repertoire')}
-  <main>
+  <main id="main-content">
     <h1 class="page-title">Rating-band opening-repertoire explorer</h1>
     <p class="subtitle">Pick a rating band and a color to see the most-played moves at each ply
        for players in that band, with win/draw/loss rates per move.</p>

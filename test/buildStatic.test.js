@@ -198,9 +198,13 @@ test('buildStatic writes the collapsed repertoire.html + repertoire.js, all 8 re
       assert.match(html, /<script src="band-header\.js" defer><\/script>/, `expected ${page} to load band-header.js`);
       assert.match(html, /data-band-header-control/, `expected ${page} to render the band control`);
     }
-    // A page with no band-dependent numbers must NOT carry the dead weight.
+    // Craft-audit item 2: index.html DOES show band-dependent numbers (the
+    // ranked opening cards and the hero demo) and previously had no band
+    // control at all despite that -- it now carries the same control every
+    // other band-dependent page above does.
     const indexHtml = fs.readFileSync(path.join(outDir, 'index.html'), 'utf8');
-    assert.doesNotMatch(indexHtml, /band-header\.js|data-band-header-control/, 'index.html is not a band-dependent page and must not load the control');
+    assert.match(indexHtml, /<script src="band-header\.js" defer><\/script>/, 'index.html shows band-dependent numbers and must load band-header.js');
+    assert.match(indexHtml, /data-band-header-control/, 'index.html must render the band control');
   })
 );
 
@@ -593,7 +597,7 @@ test('indexPage renders the hero demo aside, board mount, baked JSON data, and s
   assert.match(html, /<aside class="home-demo" aria-label="Try a real reply to 1\. e4">/);
   assert.match(html, /<div id="home-demo-board" class="home-demo-board-mount"><\/div>/);
   assert.match(html, /<p id="home-demo-caption" class="home-demo-caption" role="status" aria-live="polite">1600-1800 plays 1\. e4 62\.5% of the time\. Your move\.<\/p>/);
-  assert.match(html, /<a href="repertoire\.html#band=1600-1800&amp;color=black">See the full 1600-1800 repertoire &rarr;<\/a>/);
+  assert.match(html, /<a href="repertoire\.html#band=1600-1800&amp;color=black" id="home-demo-repertoire-link">See the full 1600-1800 repertoire &rarr;<\/a>/);
   assert.match(html, /<button type="button" id="home-demo-reset" class="home-demo-reset">Reset<\/button>/);
   const dataMatch = html.match(/<script type="application\/json" id="home-demo-data">([\s\S]*?)<\/script>/);
   assert.ok(dataMatch, 'expected a #home-demo-data JSON block');
@@ -801,9 +805,36 @@ test('indexPage (G2): an opening card with real band data shows the WDL bar + sc
     },
   }];
   const html = indexPage(contentEntries, null);
-  assert.match(html, /<div class="card card--stat card--outline">/);
+  assert.match(html, /<div class="card card--stat card--outline" data-stat-card="italian-game">/);
   assert.match(html, /class="wdl-bar"/);
   assert.match(html, /Scores 50\.0% for white at 1600-1800 \(12,345 games\)/);
+});
+
+// Craft-audit item 2 (band persistence): the homepage's ranked cards now
+// bake ALL of HEADER_BAND_OPTIONS as data-band-variant panels (only the
+// default band starts visible), instead of being permanently locked to a
+// hardcoded 1600-1800 figure with no way to ever show a different band --
+// src/browser/homeDemo.client.js's switchStatCardBands() reveals whichever
+// band the visitor actually has persisted on load/change.
+test('indexPage (craft-audit item 2): a bandAware ranked card bakes one panel per HEADER_BAND_OPTIONS band, only the default band visible, others honestly showing "not enough games" when that band has no data', () => {
+  const contentEntries = [{
+    openingConfig: { slug: 'italian-game' },
+    model: {
+      name: 'Italian Game',
+      eco: 'C50',
+      side: 'white',
+      bands: [
+        { band: '1600-1800', enoughData: true, games: 12345, whitePct: 40, drawPct: 20, blackPct: 40, scoreForSide: 50 },
+      ],
+    },
+  }];
+  const html = indexPage(contentEntries, null);
+  assert.match(html, /<div class="card-band-panel" data-band-variant="1600-1800">/, 'the default band panel must be visible (no hidden attribute)');
+  for (const band of ['1400-1600', '1800-2000', '2000+']) {
+    const re = new RegExp(`<div class="card-band-panel" data-band-variant="${band.replace('+', '\\+')}" hidden>`);
+    assert.match(html, re, `band ${band} has no data in this fixture and must render its own hidden "not enough games" panel, not be dropped`);
+  }
+  assert.match(html, /Not enough games at 1400-1600 yet\./);
 });
 
 test('indexPage embeds WebSite + Organization JSON-LD', () => {

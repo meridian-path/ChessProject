@@ -68,7 +68,7 @@ ${renderDocumentHead({ title, description, canonical })}
 <body>
 <div class="page page--wide">
   ${renderHeader(nav, 'repertoire')}
-  <main>
+  <main id="main-content">
     ${renderPageHead({
       eyebrow: 'Repertoire',
       title: 'Opening repertoire explorer',
