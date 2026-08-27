@@ -175,6 +175,46 @@ const OPENING_REPORT_CSS = `
     .leak-cost { grid-column: 2; justify-self: start; text-align: left; }
     .leak-actions { grid-column: 1 / -1; flex-direction: row; }
   }
+
+  /* Site-audit item 3 (2026-08-26): the platform and username fields each
+     wrap a span label plus their own control in one label.report-field, so
+     the pair can never separate across a flex-wrap line break the way two
+     bare sibling labels did in an earlier version of this markup (a real
+     regression caught in visual QA, not a hypothetical). Deliberately its
+     OWN small component rather than reusing .compare-picker-field
+     (src/renderCompareOpenings.js, same label-wraps-span-plus-select
+     shape) -- that class sizes itself via flex-basis, which follows the
+     FLEX CONTAINER's main axis: correct as a width in its own row-
+     direction home, but render.js's own .lookup-form mobile breakpoint
+     (max-width:767px) flips .lookup-form to flex-direction:column, and at
+     that point ANY flex-basis on a direct child -- .report-field here,
+     exactly as .compare-picker-field did when tried in this same spot --
+     is reinterpreted as a HEIGHT instead, producing a tall empty block
+     (caught in visual QA at 360px, not hypothetical either). Sizing via a
+     real width property instead of flex-basis sidesteps this entirely:
+     width always means physical width regardless of flex-direction, so no
+     dedicated mobile override is needed here -- render.js's own existing
+     .lookup-form label width:100% mobile rule already overrides this
+     file's own width:220px on its own (higher specificity: one class plus
+     one type beats one class alone), giving the intended fixed-width-on-
+     desktop, full-width-on-mobile behavior for free. The nested select and
+     input still need their OWN flex:none -- render.js's .lookup-form
+     input/select flex:1 1 240px rule still reaches them by plain
+     descendant match regardless of which wrapper class contains them, and
+     would hit the exact same axis-reinterpretation bug one level deeper
+     without this; an explicit width:100% replaces the sizing the flex-
+     basis used to provide, filling the wrapper explicitly instead. */
+  .report-field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    font-size: var(--text-sm);
+    color: var(--color-muted);
+    flex: 0 1 auto;
+    width: 220px;
+    max-width: 100%;
+  }
+  #report-platform, #report-username { flex: none; width: 100%; }
 `;
 
 /**
@@ -206,11 +246,18 @@ ${renderDocumentHead({ title, description, canonical, jsonLd, extraCss: OPENING_
     })}
 
     <form class="lookup-form" id="report-form">
-      <label for="report-username">Lichess username</label>
-      <div class="lookup-row">
+      <label class="report-field">
+        <span>Platform</span>
+        <select id="report-platform" name="platform">
+          <option value="lichess" selected>Lichess</option>
+          <option value="chesscom">Chess.com</option>
+        </select>
+      </label>
+      <label class="report-field">
+        <span>Username</span>
         <input type="text" id="report-username" name="username" placeholder="e.g. DrNykterstein" autocomplete="off" maxlength="30" required>
-        <button type="submit">Get my report</button>
-      </div>
+      </label>
+      <button type="submit">Get my report</button>
     </form>
 
     <noscript>
@@ -226,21 +273,24 @@ ${renderDocumentHead({ title, description, canonical, jsonLd, extraCss: OPENING_
 
     <section class="data-handling">
       <h2>How this works</h2>
-      <p>Your games are fetched by your own browser, directly from Lichess's public API. Nothing is ever sent to
-        ${escapeHtml(SITE_NAME)}'s servers, because this site has no servers that could receive it. Your report is
-        stored only in your browser's local storage, and only if you choose to save it. A "leak" here means: at a
-        position you've reached at least three times, the move you usually play scores measurably worse, across
-        hundreds of thousands of games at your rating band, than the move your band's own data recommends. Your own
-        games only tell us how often you reach a position and which move you pick. The band data, not your own small
-        sample, tells us what that move actually scores. Example: a player who reaches the position after 1.e4 e5
-        2.Nf3 Nc6 and answers 3.Bc4 twenty-five times might be shown that 3.Bb5 scores several points per 100 games
-        better among their rating band, worth roughly a full point of rating over a season of play at that
-        frequency.</p>
-      <p>We fetch up to 300 of your most recent rated blitz and rapid games (about 15 seconds of streaming, per
-        Lichess's own published rate limit for this endpoint) and look only at the first 24 half-moves of each, since
-        we're identifying openings, not analysing whole games. Coverage is bounded: our band dataset only reaches as
-        deep as real games commonly go before branching out, so some of your games will have no comparison available.
-        That's shown honestly, not hidden.</p>
+      <p>Your games are fetched by your own browser, directly from Lichess's or Chess.com's public API (whichever
+        platform you pick above). Nothing is ever sent to ${escapeHtml(SITE_NAME)}'s servers, because this site has no
+        servers that could receive it. Your report is stored only in your browser's local storage, and only if you
+        choose to save it. A "leak" here means: at a position you've reached at least three times, the move you
+        usually play scores measurably worse, across hundreds of thousands of games at your rating band, than the
+        move your band's own data recommends. Your own games only tell us how often you reach a position and which
+        move you pick. The band data, not your own small sample, tells us what that move actually scores. Example: a
+        player who reaches the position after 1.e4 e5 2.Nf3 Nc6 and answers 3.Bc4 twenty-five times might be shown
+        that 3.Bb5 scores several points per 100 games better among their rating band, worth roughly a full point of
+        rating over a season of play at that frequency.</p>
+      <p>We fetch up to 300 of your most recent rated blitz and rapid games and look only at the first 24 half-moves
+        of each, since we're identifying openings, not analysing whole games. On Lichess that's one streamed request
+        (about 15 seconds, per Lichess's own published rate limit for this endpoint); on Chess.com, which publishes
+        games in monthly archives rather than one combined feed, we walk backward from your most recent month, one
+        request per month, stopping once we reach 300 games or 12 months back, whichever comes first. Coverage is
+        bounded: our band dataset only reaches as deep as real games commonly go before branching out, so some of
+        your games will have no comparison available. That's shown honestly, not hidden.</p>
+      <p class="report-provenance">Rating history and recent games (below your report) are Lichess-only for now.</p>
     </section>
   </main>
   ${renderFooter(`Data source: <a href="https://lichess.org/api" rel="noopener noreferrer">lichess.org/api</a>, called directly from your browser. ${escapeHtml(SITE_NAME)} never sees your games. ${pieceAttributionHtml()}`, legalLinks)}

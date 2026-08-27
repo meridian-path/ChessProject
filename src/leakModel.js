@@ -49,6 +49,12 @@ const VALID_COLORS = new Set(['white', 'black']);
 // asserts these stay identical to processRepertoire.js's own keys.
 const VALID_BANDS = new Set(['1400-1600', '1600-1800', '1800-2000', '2000+']);
 const VALID_POOLS = new Set(['bullet', 'blitz', 'rapid_classical']);
+// Site-audit item 3 (2026-08-26): which source platform a report's games
+// came from. Defaults to 'lichess' on both read (parse() below) and write
+// (buildLeakReport() below) so every report built before this field existed
+// -- localStorage, an already-shared link -- still round-trips cleanly; the
+// field is additive, not a schema version bump.
+const VALID_PLATFORMS = new Set(['lichess', 'chesscom']);
 
 function isFiniteNumber(v) {
   return typeof v === 'number' && Number.isFinite(v);
@@ -170,6 +176,7 @@ function parse(raw) {
   if (!VALID_BANDS.has(doc.band)) problems.push(`band "${doc.band}" is not a recognized rating band`);
   if (!VALID_POOLS.has(doc.pool)) problems.push(`pool "${doc.pool}" is not a recognized pool`);
   if (!isNonEmptyString(doc.username, 30) || !/^[\w-]{2,30}$/.test(doc.username)) problems.push('username must be a 2-30 char Lichess-shaped username');
+  if (doc.platform != null && !VALID_PLATFORMS.has(doc.platform)) problems.push(`platform "${doc.platform}" is not a recognized platform`);
   if (!isNonNegativeInt(doc.gamesFetched)) problems.push('gamesFetched must be a non-negative integer');
   if (!isNonNegativeInt(doc.gamesUsable)) problems.push('gamesUsable must be a non-negative integer');
   if (!isNonNegativeInt(doc.gamesInCoverage)) problems.push('gamesInCoverage must be a non-negative integer');
@@ -192,6 +199,7 @@ function parse(raw) {
       band: doc.band,
       pool: doc.pool,
       username: doc.username,
+      platform: doc.platform || 'lichess',
       gamesFetched: doc.gamesFetched,
       gamesUsable: doc.gamesUsable,
       gamesInCoverage: doc.gamesInCoverage,
@@ -209,7 +217,8 @@ function parse(raw) {
  * `parse(JSON.stringify(result))`, which src/leakAnalysis.js's own tests do.
  *
  * @param {{band:string, pool:string, username:string, gamesFetched:number,
- *   gamesUsable:number, gamesInCoverage:number, leaks:object[], generated?:string}} fields
+ *   gamesUsable:number, gamesInCoverage:number, leaks:object[], generated?:string,
+ *   platform?:'lichess'|'chesscom'}} fields `platform` defaults to 'lichess'.
  * @returns {object} a leak-report/1 document.
  */
 function buildLeakReport(fields) {
@@ -219,6 +228,7 @@ function buildLeakReport(fields) {
     band: fields.band,
     pool: fields.pool,
     username: fields.username,
+    platform: fields.platform || 'lichess',
     gamesFetched: fields.gamesFetched,
     gamesUsable: fields.gamesUsable,
     gamesInCoverage: fields.gamesInCoverage,
@@ -233,6 +243,7 @@ module.exports = {
   VALID_BANDS,
   VALID_POOLS,
   VALID_COLORS,
+  VALID_PLATFORMS,
   validateMoveStat,
   validateLeak,
   parse,

@@ -65,6 +65,7 @@
 const { Chess } = require('chess.js');
 const { posKeyFor } = require('./bandShards');
 const { parse: parseLeakReport, buildLeakReport, UCI_RE, VALID_BANDS, VALID_POOLS } = require('./leakModel');
+const { parsePgnSafe } = require('./pgnWrapper');
 
 // -- spec 3.2.1 / 3.7 constants ---------------------------------------------
 
@@ -251,14 +252,24 @@ function bandBestMoveOf(moves) {
 }
 
 /**
- * The whole AGGREGATE + RANK pipeline (spec 3.2.2/3.2.3). Walks each usable
- * game's recorded plies IN ORDER, calling the injected `lookupFn` at every
- * one, and stops that game's contribution the first time a position
- * resolves out of band coverage (spec 3.2.2: "Stop at the first position
- * where bandData reports out-of-book") -- both because a leak past that
- * depth would rest on band data the crawl never gathered, and because it
- * bounds the work (the crawl's own ply<=12 reach means deeper positions are
- * essentially always out of book). `gamesInCoverage` (the leak-report/1
+ * The shared AGGREGATE + RANK core (spec 3.2.2/3.2.3) -- platform-agnostic.
+ * Site-audit item 3 (2026-08-26) split this out of what used to be
+ * buildLeakAnalysis()'s own body: it now takes an array of ALREADY-EXTRACTED
+ * per-game ply data (extractUserPlies()'s or extractUserPliesFromPgn()'s own
+ * `ok:true` output), so the statistically load-bearing logic itself (band
+ * lookup, delta/costPer100, ranking, report assembly) exists in exactly one
+ * place regardless of which platform's games produced it. buildLeakAnalysis()
+ * (Lichess ndjson) and buildLeakAnalysisFromChessCom() (Chess.com's monthly
+ * archive JSON) below are both thin wrappers: parse their own platform's raw
+ * format into this shape, then call this function unchanged.
+ *
+ * Walks each usable game's recorded plies IN ORDER, calling the injected
+ * `lookupFn` at every one, and stops that game's contribution the first time
+ * a position resolves out of band coverage (spec 3.2.2: "Stop at the first
+ * position where bandData reports out-of-book") -- both because a leak past
+ * that depth would rest on band data the crawl never gathered, and because
+ * it bounds the work (the crawl's own ply<=12 reach means deeper positions
+ * are essentially always out of book). `gamesInCoverage` (the leak-report/1
  * schema's report-level denominator, spec 3.2.3's costPer100 formula) is
  * counted as "games that contributed at least one in-coverage data point" --
  * the spec states the formula but not this exact denominator definition;
@@ -271,7 +282,8 @@ function bandBestMoveOf(moves) {
  * cache, since this cache also skips the chess.js replay `lookupFn` would
  * otherwise redo.
  *
- * @param {{ndjsonLines:string[], username:string, band:string, pool:string,
+ * @param {{usableGames:Array, gamesFetched:number, skippedCount:number,
+ *   username:string, band:string, pool:string, platform:'lichess'|'chesscom',
  *   lookupFn:Function, identifyFn?:Function, maxLeaks?:number}} args
  *   `identifyFn(fen)` -> `Promise<{eco:string, name:string}|null>`, used to
  *   fill each leak's optional `opening` label; omit or supply a function
@@ -281,19 +293,7 @@ function bandBestMoveOf(moves) {
  *   gamesUsable:number, skippedCount:number} | {ok:false, reason:string,
  *   gamesFetched:number, gamesUsable:number}>}
  */
-async function buildLeakAnalysis({ ndjsonLines, username, band, pool, lookupFn, identifyFn = async () => null, maxLeaks = MAX_LEAKS_RETURNED }) {
-  const gamesFetched = ndjsonLines.length;
-  let skippedCount = 0;
-  const usableGames = [];
-
-  for (const line of ndjsonLines) {
-    const parsed = parseGameLine(line);
-    if (!parsed.ok) { skippedCount += 1; continue; }
-    const extracted = extractUserPlies(parsed.game, username);
-    if (!extracted.ok) { skippedCount += 1; continue; }
-    usableGames.push(extracted);
-  }
-
+async function aggregateAndRank({ usableGames, gamesFetched, skippedCount, username, band, pool, platform = 'lichess', lookupFn, identifyFn = async () => null, maxLeaks = MAX_LEAKS_RETURNED }) {
   const gamesUsable = usableGames.length;
   if (gamesUsable < MIN_GAMES_USABLE) {
     return { ok: false, reason: 'too-few-games', gamesFetched, gamesUsable };
@@ -407,7 +407,7 @@ async function buildLeakAnalysis({ ndjsonLines, username, band, pool, lookupFn, 
     });
   }
 
-  const report = buildLeakReport({ band, pool, username, gamesFetched, gamesUsable, gamesInCoverage, leaks });
+  const report = buildLeakReport({ band, pool, username, platform, gamesFetched, gamesUsable, gamesInCoverage, leaks });
   // Round-trip through the strict validator before handing it back (this
   // module's own doc comment on leakModel.buildLeakReport recommends
   // exactly this belt-and-braces check for anything that assembles a
@@ -426,6 +426,172 @@ async function buildLeakAnalysis({ ndjsonLines, username, band, pool, lookupFn, 
     gamesInCoverage,
     skippedCount,
   };
+}
+
+/**
+ * Lichess entry point -- unchanged behavior from before the site-audit
+ * item 3 (2026-08-26) refactor above: parses each ndjson line, extracts the
+ * visitor's own plies, and hands the result to the shared aggregateAndRank()
+ * core. Every existing caller/test keeps working unmodified.
+ *
+ * @param {{ndjsonLines:string[], username:string, band:string, pool:string,
+ *   lookupFn:Function, identifyFn?:Function, maxLeaks?:number}} args
+ * @returns {Promise<{ok:true, report:object, watchList:object[], gamesFetched:number,
+ *   gamesUsable:number, skippedCount:number} | {ok:false, reason:string,
+ *   gamesFetched:number, gamesUsable:number}>}
+ */
+async function buildLeakAnalysis({ ndjsonLines, username, band, pool, lookupFn, identifyFn = async () => null, maxLeaks = MAX_LEAKS_RETURNED }) {
+  const gamesFetched = ndjsonLines.length;
+  let skippedCount = 0;
+  const usableGames = [];
+
+  for (const line of ndjsonLines) {
+    const parsed = parseGameLine(line);
+    if (!parsed.ok) { skippedCount += 1; continue; }
+    const extracted = extractUserPlies(parsed.game, username);
+    if (!extracted.ok) { skippedCount += 1; continue; }
+    usableGames.push(extracted);
+  }
+
+  return aggregateAndRank({ usableGames, gamesFetched, skippedCount, username, band, pool, platform: 'lichess', lookupFn, identifyFn, maxLeaks });
+}
+
+// -- Chess.com integration (site-audit item 3, 2026-08-26) -------------------
+//
+// Chess.com's own username length (3-25 chars, verified against their
+// registration rules); word chars + hyphen, same conservative-superset
+// approach as USERNAME_RE above -- a defense-in-depth gate before a value
+// reaches the fetch layer or a URL-building sink, not a claim to exactly
+// replicate Chess.com's own validation.
+const CHESSCOM_USERNAME_RE = /^[\w-]{3,25}$/;
+
+/** @returns {boolean} true only for a plausible Chess.com username. */
+function isValidChessComUsername(candidate) {
+  return typeof candidate === 'string' && CHESSCOM_USERNAME_RE.test(candidate);
+}
+
+/**
+ * Validates and normalizes one raw Chess.com archive-month game object
+ * (src/fetchChessCom.js's fetchArchiveGames() -- one entry of that
+ * response's own `games` array, verified live against a real account before
+ * this was written -- see fetchChessCom.js's own header comment) into the
+ * same {white, black, winner} shape parseGameLine() produces for a Lichess
+ * ndjson line, PLUS the raw `pgn` string (Chess.com's own move format is
+ * full PGN with headers/move-numbers, not Lichess's bare SAN-token `moves`
+ * field, so it cannot share parseGameLine()'s `movesText` shape -- see
+ * extractUserPliesFromPgn() below, which parses `pgn` via the same
+ * security-hardened pgnWrapper.js every visitor-pasted PGN on this site
+ * already goes through, since a third-party API response is untrusted input
+ * exactly like visitor-typed text (security-standards.md)).
+ *
+ * Filters to the real, comparable population: `rated` games only (an
+ * unrated game says nothing about how the visitor actually plays under the
+ * same incentives band data was crawled from), `rules === "chess"` only (no
+ * variants -- this site has no variant band data), and `time_class` blitz or
+ * rapid only (the same two speeds Lichess's own fetch already filters to
+ * server-side via `perfType=blitz,rapid`).
+ *
+ * @param {object} raw one Chess.com archive-month game object.
+ * @returns {{ok:true, game:{white:string|null, black:string|null, pgn:string,
+ *   winner:'white'|'black'|null}} | {ok:false, reason:string}}
+ */
+function parseChessComGame(raw) {
+  if (!raw || typeof raw !== 'object') return { ok: false, reason: 'not-an-object' };
+  if (typeof raw.pgn !== 'string' || raw.pgn.length === 0) return { ok: false, reason: 'no-pgn' };
+  if (raw.rated !== true) return { ok: false, reason: 'not-rated' };
+  if (raw.rules !== 'chess') return { ok: false, reason: 'not-standard-chess' };
+  if (raw.time_class !== 'blitz' && raw.time_class !== 'rapid') return { ok: false, reason: 'not-blitz-or-rapid' };
+  if (!raw.white || typeof raw.white !== 'object' || !raw.black || typeof raw.black !== 'object') return { ok: false, reason: 'no-players' };
+
+  const white = typeof raw.white.username === 'string' ? raw.white.username : null;
+  const black = typeof raw.black.username === 'string' ? raw.black.username : null;
+  // Exactly one side reads "win" for a decisive game; neither does for a
+  // draw (both sides carry one of Chess.com's several draw-shaped result
+  // strings -- agreed/repetition/stalemate/insufficient/50move/
+  // timevsinsufficient) -- verified against real game data, not guessed
+  // from docs alone.
+  const winner = raw.white.result === 'win' ? 'white' : (raw.black.result === 'win' ? 'black' : null);
+
+  return { ok: true, game: { white, black, pgn: raw.pgn, winner } };
+}
+
+/**
+ * Chess.com's own analogue of extractUserPlies() above -- same output
+ * shape, same MAX_PLY cap, same resultForUser derivation, but the move data
+ * comes from a real PGN string (parsePgnSafe(), not a manual chess.js
+ * token-by-token replay loop) since Chess.com's `pgn` field is real PGN,
+ * unlike Lichess's bare-SAN-token `moves` field. Unlike extractUserPlies()'s
+ * "stop at the first illegal token, keep what was already collected"
+ * recovery, an unparseable PGN here drops the WHOLE game -- Chess.com's own
+ * PGN exports are programmatically generated, not visitor-typed, so a
+ * malformed one is a real anomaly worth dropping outright rather than a
+ * routine transcription typo worth partially recovering from.
+ *
+ * @param {{white:string|null, black:string|null, pgn:string,
+ *   winner:'white'|'black'|null}} game parseChessComGame()'s output.
+ * @param {string} username already known-valid (isValidChessComUsername())
+ *   by the caller.
+ * @returns {{ok:true, color:'white'|'black', resultForUser:'win'|'draw'|'loss',
+ *   plies:Array<{ply:number, play:string[], uci:string, san:string}>} |
+ *   {ok:false, reason:string}}
+ */
+function extractUserPliesFromPgn(game, username) {
+  const lower = username.toLowerCase();
+  let color = null;
+  if (game.white && game.white.toLowerCase() === lower) color = 'white';
+  else if (game.black && game.black.toLowerCase() === lower) color = 'black';
+  if (!color) return { ok: false, reason: 'not-a-participant' };
+
+  const parsed = parsePgnSafe(game.pgn);
+  if (!parsed.ok) return { ok: false, reason: parsed.reason };
+
+  const moves = parsed.moves.slice(0, MAX_PLY);
+  const plies = [];
+  const playSoFar = [];
+
+  for (let i = 0; i < moves.length; i += 1) {
+    const toMoveColor = i % 2 === 0 ? 'white' : 'black';
+    const m = moves[i];
+    if (toMoveColor === color) {
+      plies.push({ ply: i, play: playSoFar.slice(), uci: m.uci, san: m.san });
+    }
+    playSoFar.push(m.uci);
+  }
+
+  const resultForUser = game.winner == null ? 'draw' : (game.winner === color ? 'win' : 'loss');
+  return { ok: true, color, resultForUser, plies };
+}
+
+/**
+ * Chess.com entry point, parallel to buildLeakAnalysis() above -- parses
+ * each raw archive-month game object, extracts the visitor's own plies, and
+ * hands the result to the SAME shared aggregateAndRank() core, so the
+ * statistically load-bearing logic is identical regardless of platform.
+ *
+ * @param {{games:object[], username:string, band:string, pool:string,
+ *   lookupFn:Function, identifyFn?:Function, maxLeaks?:number}} args
+ *   `games` is the flat, already-collected array of raw Chess.com game
+ *   objects across however many monthly archives the caller chose to fetch
+ *   (src/browser/openingReport.client.js's own month-walking orchestration,
+ *   mirroring where its Lichess streamGames() orchestration already lives).
+ * @returns {Promise<{ok:true, report:object, watchList:object[], gamesFetched:number,
+ *   gamesUsable:number, skippedCount:number} | {ok:false, reason:string,
+ *   gamesFetched:number, gamesUsable:number}>}
+ */
+async function buildLeakAnalysisFromChessCom({ games, username, band, pool, lookupFn, identifyFn = async () => null, maxLeaks = MAX_LEAKS_RETURNED }) {
+  const gamesFetched = games.length;
+  let skippedCount = 0;
+  const usableGames = [];
+
+  for (const raw of games) {
+    const parsed = parseChessComGame(raw);
+    if (!parsed.ok) { skippedCount += 1; continue; }
+    const extracted = extractUserPliesFromPgn(parsed.game, username);
+    if (!extracted.ok) { skippedCount += 1; continue; }
+    usableGames.push(extracted);
+  }
+
+  return aggregateAndRank({ usableGames, gamesFetched, skippedCount, username, band, pool, platform: 'chesscom', lookupFn, identifyFn, maxLeaks });
 }
 
 // -- spec 3.7 N3: the shareable report fragment ------------------------------
@@ -497,18 +663,23 @@ module.exports = {
   MAX_LEAKS_RETURNED,
   GAME_ID_RE,
   USERNAME_RE,
+  CHESSCOM_USERNAME_RE,
   SHARE_FRAGMENT_MAX_CHARS,
   VALID_BANDS,
   VALID_POOLS,
   UCI_RE,
   byteLength,
   isValidUsername,
+  isValidChessComUsername,
   isValidGameId,
   buildGameUrl,
   parseGameLine,
+  parseChessComGame,
   extractUserPlies,
+  extractUserPliesFromPgn,
   bandBestMoveOf,
   buildLeakAnalysis,
+  buildLeakAnalysisFromChessCom,
   encodeShareFragment,
   decodeShareFragment,
 };
