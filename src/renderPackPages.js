@@ -61,7 +61,7 @@ function disclosedLimitations(speeds) {
 }
 
 /**
- * Before/after pitch framing (site-audit item 4, task-mt9464mx-caf384):
+ * Before/after pitch framing (site-audit item 4):
  * contrasts what the free site already gives a visitor against what a pack
  * adds, in concrete practice-session terms rather than restating
  * FREE_GUARANTEE_HTML's trust angle ("we're not paywalling anything") below

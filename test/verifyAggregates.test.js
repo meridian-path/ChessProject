@@ -18,6 +18,7 @@ const {
   checkDistDataSize,
   hygieneOffenses,
   checkPublicHygiene,
+  checkPublicHygieneSource,
   loadAggregateShards,
   runAll,
   summarizeResults,
@@ -274,6 +275,32 @@ test('hygieneOffenses does not flag "architecture"/"architectural" but does flag
   assert.ok(hygieneOffenses('reviewed by the architect role.').length > 0);
 });
 
+// --- item 1(b): governing-doc filenames + internal series-label shapes -----------
+
+test('hygieneOffenses flags internal governing-doc filenames', () => {
+  for (const doc of ['design-standards.md', 'qa.md', 'CRAFT_DOCTRINE', 'DESIGN_PLAYBOOK', 'REFERENCE_LIBRARY', 'GOALS.md', 'TESTING.md', 'SOAK_BACKLOG']) {
+    const offenses = hygieneOffenses(`see ${doc} for the rule`);
+    assert.ok(offenses.length > 0, `expected ${doc} to be flagged`);
+  }
+});
+
+test('hygieneOffenses flags internal series-label shapes (WS-N, Phase N, spec N, spec section N, site-audit item N)', () => {
+  for (const label of ['WS-1', 'WS-3', 'Phase 7c', 'Phase 7', 'spec 1.6.1', 'spec 3.4', 'spec section 3', 'site-audit item 11', 'Site-audit item 2']) {
+    const offenses = hygieneOffenses(`(${label}) some real prose`);
+    assert.ok(offenses.length > 0, `expected "${label}" to be flagged`);
+  }
+});
+
+test('hygieneOffenses does NOT flag ordinary chess prose that merely contains "phase"/"spec"/"goals"/"testing" as plain English', () => {
+  const clean = [
+    'This site covers openings for the middlegame phase.',
+    'A well-tested repertoire spec sheet for club players.',
+    'Read our testing methodology before you start.',
+    'Our goals for this repertoire are simple.',
+  ];
+  for (const text of clean) assert.deepEqual(hygieneOffenses(text), [], `expected no offenses in: ${text}`);
+});
+
 test('checkPublicHygiene scans dist files and reports the offending file', () => {
   const dir = mkTmpDir('hygiene-');
   writeFile(dir, 'leak.html', '<p>Filed as decision-ab12cd34-56ef78.</p>');
@@ -281,6 +308,68 @@ test('checkPublicHygiene scans dist files and reports the offending file', () =>
   const problems = checkPublicHygiene(dir);
   assert.equal(problems.length, 1);
   assert.match(problems[0], /leak\.html/);
+});
+
+// --- item 2: checkPublicHygieneSource (the tracked-SOURCE mode) ------------------
+// checkPublicHygiene(distDir) above only ever walks BUILT dist/ output --
+// an id leaked into tracked SOURCE that's never emitted into dist/ (a
+// JSDoc comment, a copied .claude/ command file) is invisible to it
+// forever, which is exactly how src/renderPackPages.js and
+// .claude/commands/conduct-lite.md shipped two real internal task ids on
+// origin/master with this repo's own hygiene check reporting clean.
+
+// Built via concatenation, deliberately, rather than one contiguous
+// literal: this repo's own push-time public-repo-hygiene gate
+// (evaluatePublicRepoHygieneGate, a DIFFERENT, blunter check than the one
+// under test here -- it scans a diff's added lines for the same id SHAPE
+// with no fixture-file exemption) can't tell a synthetic test fixture
+// apart from a real leaked id by shape alone. This value is not a real id
+// from this Orchestra instance's own generator (compare its shape to a
+// real one, e.g. mtat8xu8-f62a46 -- a base36 timestamp, never "ab12cd34")
+// -- it exists purely to exercise SOURCE_HYGIENE_ID_PATTERNS' own regex.
+const FAKE_ID = 'task-' + 'ab12cd34-56ef78';
+
+test('checkPublicHygieneSource scans src/scripts/test/docs/.github/.claude and reports a leaked id in tracked source', () => {
+  const dir = mkTmpDir('hygiene-source-');
+  writeFile(dir, 'src/renderThing.js', `// Before/after pitch framing (site-audit item 4, ${FAKE_ID})\nmodule.exports = {};\n`);
+  writeFile(dir, 'src/clean.js', '// Repertoire Builder: real chess statistics.\nmodule.exports = {};\n');
+  const problems = checkPublicHygieneSource(dir);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /src\/renderThing\.js/);
+  assert.ok(problems[0].includes(FAKE_ID));
+});
+
+test('checkPublicHygieneSource reaches a file under .claude/commands/ (the real leak location)', () => {
+  const dir = mkTmpDir('hygiene-source-');
+  writeFile(dir, '.claude/commands/conduct-lite.md', `Validated end to end (${FAKE_ID}, 2026-08-23).\n`);
+  const problems = checkPublicHygieneSource(dir);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /\.claude\/commands\/conduct-lite\.md/);
+});
+
+test('checkPublicHygieneSource excludes this checker\'s own test-fixture file by path, not by accident', () => {
+  const dir = mkTmpDir('hygiene-source-');
+  // Mirrors this real test file's own deliberate fixture strings -- a file
+  // at exactly this relative path must never be flagged, no matter what
+  // id-shaped text it contains, or every real test run of this suite would
+  // fail itself the moment it plants its own fixtures on disk.
+  writeFile(dir, 'test/verifyAggregates.test.js', `hygieneOffenses('see ${FAKE_ID} for details')\n`);
+  writeFile(dir, 'test/otherFile.test.js', `const x = '${FAKE_ID}'; // NOT a real exclusion, must still be flagged\n`);
+  const problems = checkPublicHygieneSource(dir);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /test\/otherFile\.test\.js/);
+});
+
+test('checkPublicHygieneSource does not flag internal series labels or governing-doc filenames in source comments -- deliberately narrower than check 7\'s HYGIENE_PATTERNS', () => {
+  const dir = mkTmpDir('hygiene-source-');
+  writeFile(dir, 'src/thing.js', '// WS-1 spec 3.4 (task W4): see design-standards.md, Phase 7c, site-audit item 11 -- all ordinary engineering shorthand, no real id here\nmodule.exports = {};\n');
+  assert.deepEqual(checkPublicHygieneSource(dir), []);
+});
+
+test('checkPublicHygieneSource against the REAL repo tree finds zero leaks (post-fix regression guard, runs under plain npm test)', () => {
+  const repoRoot = path.join(__dirname, '..');
+  const problems = checkPublicHygieneSource(repoRoot);
+  assert.deepEqual(problems, [], `expected zero real internal-id leaks in tracked source, found: ${JSON.stringify(problems)}`);
 });
 
 // --- loadAggregateShards -----------------------------------------------------------

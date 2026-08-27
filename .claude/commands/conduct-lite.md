@@ -59,7 +59,7 @@ repo's root - read it in full before anything else if this is the first run this
    for the outcome (`ready_for_human_merge`/`rebase_failed`/`test_failed`/etc. - a failure just
    means the branch is left rebased-but-unpushed for you to fix and re-run, nothing is lost).
    Validated end to end against a sibling product repo's own real `npm test` command
-   (task-mt638skf-4558aa, 2026-08-23, tested against lol-practice-system) - no code changes were
+   (2026-08-23, tested against lol-practice-system) - no code changes were
    needed for external-repo adoption; the tool's own external-repo path runs directly against
    whatever `--repo` you give it, guarded by the same claim-check `push-branch` already uses
    (blocked if some other agent has a live claim on this repo, keyed by directory basename
