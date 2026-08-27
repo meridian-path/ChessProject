@@ -88,6 +88,29 @@ const HYGIENE_PATTERNS = [
   /\bdecision brief\b/i,
   /\bqueue task\b/i,
   /\bALWAYS ESCALATE\b/,
+  // Internal governing-doc filenames -- an exact filename/label match only,
+  // never a bare common word, so a chess-site page discussing e.g. "goals"
+  // or "testing" in the ordinary sense is never caught.
+  /\bdesign-standards\.md\b/i,
+  /\bqa\.md\b/i,
+  /\bCRAFT_DOCTRINE\b/,
+  /\bDESIGN_PLAYBOOK\b/,
+  /\bREFERENCE_LIBRARY\b/,
+  /\bGOALS\.md\b/,
+  /\bTESTING\.md\b/,
+  /\bSOAK_BACKLOG\b/,
+  // Internal series-label SHAPES -- anchored on the numbered-label form
+  // only (a real digit/section number must follow), never a bare
+  // word-boundary "spec"/"phase"/"site-audit": those are ordinary English
+  // on a chess-openings site (a repertoire "site audit"? no, but "phase of
+  // the game"/"opening phase"/a study "spec" are all plausible real chess
+  // copy) and a bare match would false-positive into uselessness the same
+  // way a bare "builder" pattern would (see the comment above on "builder").
+  /\bWS-\d+\b/,
+  /\bPhase\s?\d+[a-z]?\b/i,
+  /\bspec\s+\d+(?:\.\d+)*\b/i,
+  /\bspec section\s+\d+\b/i,
+  /\bsite-audit item\s+\d+\b/i,
 ];
 
 // --- generic filesystem helpers -------------------------------------------------
@@ -352,6 +375,68 @@ function hygieneOffenses(text) {
   return [...found];
 }
 
+// --- check 8: public-repo-hygiene, TRACKED SOURCE (id-leak scan) -----------------
+//
+// Distinct from check 7 above: checkPublicHygiene(distDir) only ever walks
+// BUILT dist/ output, so a leaked internal id in TRACKED SOURCE that never
+// gets emitted into dist/ at all (a JSDoc comment, a copied Orchestra
+// command file under .claude/) is invisible to it forever -- exactly how
+// two real internal task ids (src/renderPackPages.js, .claude/commands/
+// conduct-lite.md) sat live on origin/master with this repo's own hygiene
+// check reporting clean. This is that second, source-tree mode.
+//
+// Deliberately scoped to the ID-SHAPE patterns only (task-xxxxxxxx-xxxxxx /
+// decision-xxxxxxxx-xxxxxx), not the full HYGIENE_PATTERNS list check 7
+// uses: this codebase's own JS source comments legitimately reference
+// internal governing docs and numbered series labels (WS-1, Phase 7c,
+// spec 3.4, site-audit item N) constantly and appropriately, as ordinary
+// engineering shorthand that never reaches a rendered page or a shipped
+// bundle (see stripCssComments()'s own doc comment in src/render.js) --
+// running the full vocabulary list against every source comment too would
+// false-positive on that legitimate, pervasive practice across most of
+// src/. A real internal ID, unlike a series label, has no legitimate
+// reason to ever appear in source outside this checker's own header/tests.
+const SOURCE_HYGIENE_ID_PATTERNS = [
+  /\btask-[a-z0-9]{8}-[a-f0-9]{6}\b/i,
+  /\bdecision-[a-z0-9]{8}-[a-f0-9]{6}\b/i,
+];
+
+const SOURCE_HYGIENE_DIRS = ['src', 'scripts', 'test', 'docs', '.github', '.claude'];
+
+// This checker's own test file deliberately contains id-shaped fixture
+// strings (a fake "task-XXXXXXXX-XXXXXX"-shaped id, spelled out with X's in
+// THIS comment specifically so it does not itself match the pattern above)
+// to test hygieneOffenses()/checkPublicHygiene() themselves -- excluded
+// explicitly by path, not by accident, so a real leak anywhere else under
+// test/ still fails the gate.
+const SOURCE_HYGIENE_EXCLUDE_FILES = ['test/verifyAggregates.test.js'];
+
+function sourceIdOffenses(text) {
+  const found = new Set();
+  for (const re of SOURCE_HYGIENE_ID_PATTERNS) {
+    const m = text.match(re);
+    if (m) found.add(m[0]);
+  }
+  return [...found];
+}
+
+function checkPublicHygieneSource(repoRoot) {
+  const problems = [];
+  for (const relDir of SOURCE_HYGIENE_DIRS) {
+    const dir = path.join(repoRoot, relDir);
+    for (const file of listFiles(dir, (f) => /\.(html|htm|js|mjs|json|xml|md|yml|yaml)$/i.test(f))) {
+      const relFile = path.relative(repoRoot, file).split(path.sep).join('/');
+      if (SOURCE_HYGIENE_EXCLUDE_FILES.includes(relFile)) continue;
+      const text = fs.readFileSync(file, 'utf8');
+      const offenses = sourceIdOffenses(text);
+      if (offenses.length) {
+        problems.push(`${relFile}: internal id leaked into tracked source: ${offenses.join(', ')}`);
+      }
+    }
+  }
+  return problems;
+}
+
 function checkPublicHygiene(distDir) {
   const problems = [];
   for (const file of listFiles(distDir, (f) => f.endsWith('.html') || f.endsWith('.js') || f.endsWith('.json') || f.endsWith('.xml'))) {
@@ -480,7 +565,7 @@ function loadAggregateShards(aggregatesDir, manifest) {
  *   on every "shard missing on disk" it lists, since the build doesn't
  *   consume raw shards off disk at all today.
  */
-function runAll({ distDir, aggregatesDir, skipDist = false, skipAggregates = false }) {
+function runAll({ distDir, aggregatesDir, skipDist = false, skipAggregates = false, repoRoot = path.resolve('.') }) {
   const results = [];
 
   // Aggregate-shard-level checks (1a, 2, 4, 6a) -- depend on the ingestion pipeline's output.
@@ -536,6 +621,16 @@ function runAll({ distDir, aggregatesDir, skipDist = false, skipAggregates = fal
       results.push({ name, problems: [`skipped: ${distDir} not found -- run npm run build:static first`] });
     }
   }
+
+  // 8. public-repo-hygiene, tracked source -- always runnable (depends only
+  // on the source tree being checked out, never on dist/ or
+  // data/aggregates/), and deliberately NOT gated by skipDist/
+  // skipAggregates: those flags exist for contexts that genuinely never
+  // build dist/ or never have raw shards on disk, but a real git checkout
+  // always has its own tracked source tree. Runs on every `npm test`
+  // invocation too (see test/verifyAggregates.test.js), not only in CI, so
+  // a leak fails fast at commit time rather than waiting for deploy.
+  results.push({ name: '8. public-repo-hygiene (tracked source)', problems: checkPublicHygieneSource(repoRoot) });
 
   return results;
 }
@@ -632,6 +727,11 @@ module.exports = {
   checkDistDataSize,
   hygieneOffenses,
   checkPublicHygiene,
+  SOURCE_HYGIENE_ID_PATTERNS,
+  SOURCE_HYGIENE_DIRS,
+  SOURCE_HYGIENE_EXCLUDE_FILES,
+  sourceIdOffenses,
+  checkPublicHygieneSource,
   loadAggregateShards,
   runAll,
   summarizeResults,

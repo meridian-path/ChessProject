@@ -2215,6 +2215,45 @@ ${designTokensCss(THEME_ROLES.dark)}
   }
 `;
 
+/**
+ * Strips CSS block comments from a CSS string. SITE_CSS's own comments
+ * above explain non-obvious token/layout decisions for a future builder
+ * reading SOURCE -- real engineering value that has nothing to do with a
+ * site visitor, and no reason to pay bytes on every one of 125 pages (or,
+ * worse, put engineering shorthand meant for internal readers straight into
+ * View Source). Deliberately a plain global block-comment strip, not a real
+ * CSS parser: checked by hand that SITE_CSS contains no content:/url()
+ * value with a literal comment-delimiter sequence inside it, and no
+ * comment a rule depends on being present -- safe for this specific input,
+ * not a general-purpose CSS minifier.
+ * @param {string} css
+ * @returns {string}
+ */
+function stripCssComments(css) {
+  return css
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    // A removed comment that occupied one or more whole lines leaves behind
+    // a now-empty (or whitespace-only) line where it used to be -- drop
+    // those rather than shipping them: harmless for CSS itself, but this
+    // project's own whole-page whitespace-hygiene check (see
+    // test/renderPackPages.test.js's NO_BLANK_LINE) flags two consecutive
+    // blank/whitespace-only lines anywhere in a rendered page, and the
+    // <style> block is part of that same page.
+    .split('\n')
+    .filter((line) => line.trim() !== '')
+    .join('\n');
+}
+
+// The SHIPPED value -- comment-free -- used everywhere SITE_CSS actually
+// reaches a visitor: the <style> tag in renderDocumentHead() below, AND
+// (via bundleBrowserEntry()'s own post-bundle strip in src/buildStatic.js)
+// every client-side JS bundle that require()s this whole module. The raw,
+// commented SITE_CSS binding above stays SOURCE-only and is never itself
+// exported or referenced past this line, so there is exactly one place the
+// comment text can leak from (a bundler copying this module's source
+// wholesale), not two.
+const SITE_CSS_SHIPPED = stripCssComments(SITE_CSS);
+
 // Default social-share image (1200x630, per Open Graph's recommended size).
 // Generated locally by scripts/build-og-image.js and committed to
 // assets/og-default.png / copied into dist/ -- a separate build step, not
@@ -2345,7 +2384,7 @@ function renderDocumentHead(arg) {
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preload" href="/fonts/fraunces-variable.woff2" as="font" type="font/woff2" crossorigin>
   ${THEME_PREPAINT_SCRIPT}
-  <style>${SITE_CSS}</style>${extraStyleBlock}${jsonLdBlock}
+  <style>${SITE_CSS_SHIPPED}</style>${extraStyleBlock}${jsonLdBlock}
   <script data-goatcounter="https://dylangerrrr.goatcounter.com/count" data-goatcounter-settings='{"allow_query":["utm_source","utm_medium","utm_campaign","utm_content","utm_term","ref"]}' async src="https://gc.zgo.at/count.js"></script>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9767914878112531" crossorigin="anonymous"></script>
 </head>`;
@@ -3147,6 +3186,8 @@ module.exports = {
   escapeHtmlText,
   formatPct,
   SITE_CSS,
+  SITE_CSS_SHIPPED,
+  stripCssComments,
   DESIGN_TOKENS,
   THEME_ROLES,
   designTokensCss,

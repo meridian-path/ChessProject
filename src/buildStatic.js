@@ -52,7 +52,7 @@ const path = require('path');
 const esbuild = require('esbuild');
 const { buildRepertoireTree } = require('./buildRepertoire');
 const { RATING_BANDS } = require('./processRepertoire');
-const { renderRedirectStubPage, renderGenericRedirectStub, escapeHtml, formatPct, renderDocumentHead, renderHeader, renderFooter, renderPageHead, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT } = require('./render');
+const { renderRedirectStubPage, renderGenericRedirectStub, escapeHtml, formatPct, renderDocumentHead, renderHeader, renderFooter, renderPageHead, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT, stripCssComments } = require('./render');
 const { renderRepertoireExplorerPage } = require('./renderRepertoireExplorer');
 const { renderOpeningStatCard, renderMethodologyPage } = require('./renderContent');
 // Board-visibility work (homepage hero demo) -- see
@@ -259,7 +259,6 @@ function bundleBrowserEntry(entryPath, headerComment) {
     format: 'iife',
     platform: 'browser',
     target: ['es2019'],
-    banner: { js: headerComment },
     logLevel: 'silent',
     // Whitespace/dead-code minification only -- NOT minifyIdentifiers.
     // test/buildStatic.test.js's own bundle tests (and any future ones)
@@ -275,7 +274,22 @@ function bundleBrowserEntry(entryPath, headerComment) {
     minifyWhitespace: true,
     minifySyntax: true,
   });
-  return result.outputFiles[0].text;
+  // Any bundle that require()s src/render.js -- even for one unrelated
+  // named export -- carries render.js's ENTIRE module body along with it:
+  // esbuild bundles a required CommonJS module wholesale (there is no
+  // static export list to tree-shake against the way real ESM named
+  // imports have), so the raw, comment-bearing SITE_CSS template literal
+  // ends up embedded as a JS string literal in the compiled bundle even
+  // when nothing in the client code ever reads SITE_CSS. Stripping the
+  // <style> tag's HTML text (render.js's own SITE_CSS_SHIPPED) does
+  // nothing for this leak -- that only touches the separately-computed
+  // Node-side HTML string, never these bundled JS bytes. Stripped here,
+  // AFTER minification (real comments are already gone by this point, so
+  // this only ever matches CSS text baked into a string literal) and
+  // BEFORE the header banner is added, so the banner itself is never at
+  // risk of being stripped as a false match.
+  const stripped = stripCssComments(result.outputFiles[0].text);
+  return headerComment ? `${headerComment}\n${stripped}` : stripped;
 }
 
 function buildPlayerLookupBundle() {

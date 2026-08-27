@@ -2,9 +2,52 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { SITE_CSS, DESIGN_TOKENS, THEME_ROLES, renderDocumentHead, renderNewsletterSignup, renderFooter, renderHeader, renderRepertoireTree, siteRelativeHref, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT, BAND_CONTROL_PAGES } = require('../src/render');
+const { SITE_CSS, SITE_CSS_SHIPPED, stripCssComments, DESIGN_TOKENS, THEME_ROLES, renderDocumentHead, renderNewsletterSignup, renderFooter, renderHeader, renderRepertoireTree, siteRelativeHref, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT, BAND_CONTROL_PAGES } = require('../src/render');
 const { RATING_BANDS } = require('../src/processRepertoire');
 const { BANDS: BAND_STATE_BANDS, DEFAULT_STATE: BAND_STATE_DEFAULT } = require('../src/browser/bandState.client');
+const { hygieneOffenses } = require('../scripts/verifyAggregates');
+
+// --- item 1(a): public-content hygiene, the <style> emission path ----------------
+// Regression guard for the 6th occurrence of incident class
+// public-repo-hygiene-leak (2026-08-27): SITE_CSS's own engineering-doc
+// comments (design-standards.md references, internal spec/phase/WS series
+// labels) were shipping straight into every page's View Source because
+// nothing ever stripped comments before emission. stripCssComments() /
+// SITE_CSS_SHIPPED close that; these tests fail loudly if either the strip
+// itself or the swap-over at the <style> emission point ever regresses.
+
+test('stripCssComments removes /* */ blocks and leaves no dangling whitespace-only lines', () => {
+  const input = '  :root {\n    /* a real engineering note */\n    color: red;\n  }\n\n  /* another\n     multi-line\n     comment */\n  .foo { color: blue; }\n';
+  const out = stripCssComments(input);
+  assert.doesNotMatch(out, /\/\*/, 'no comment-open marker should remain');
+  assert.doesNotMatch(out, /\*\//, 'no comment-close marker should remain');
+  assert.doesNotMatch(out, /^[\t ]+$/m, 'no line should be whitespace-only after stripping');
+  assert.match(out, /color: red;/);
+  assert.match(out, /\.foo \{ color: blue; \}/);
+});
+
+test('stripCssComments leaves content:""/url() declarations and real rules intact', () => {
+  assert.match(stripCssComments(SITE_CSS), /content:\s*"";/, 'a real content: "" declaration must survive comment-stripping');
+  assert.match(stripCssComments(SITE_CSS), /--focus-ring-width:\s*3px;/, 'real token declarations must survive comment-stripping');
+});
+
+test('SITE_CSS_SHIPPED is comment-free and carries zero hygieneOffenses, even though the raw source-only SITE_CSS legitimately does', () => {
+  assert.doesNotMatch(SITE_CSS_SHIPPED, /\/\*/, 'SITE_CSS_SHIPPED must never contain a CSS comment-open marker');
+  assert.deepEqual(hygieneOffenses(SITE_CSS_SHIPPED), [], 'SITE_CSS_SHIPPED must carry zero internal-hygiene offenses -- this is what actually ships');
+  // Not a hygiene bug: SITE_CSS's own SOURCE comments are real engineering
+  // documentation and are expected to reference internal docs/labels -- see
+  // stripCssComments()'s own doc comment in src/render.js. This assertion
+  // exists only to make the SOURCE-vs-SHIPPED distinction explicit and
+  // guard against someone "fixing" it by scrubbing the comments themselves.
+  assert.ok(hygieneOffenses(SITE_CSS).length > 0, 'sanity check: the raw, source-only SITE_CSS is expected to carry real engineering-doc references');
+});
+
+test('renderDocumentHead emits the comment-free SITE_CSS_SHIPPED, not the raw commented SITE_CSS', () => {
+  const html = renderDocumentHead('Test page');
+  const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/);
+  assert.ok(styleMatch, 'expected a <style> block');
+  assert.deepEqual(hygieneOffenses(styleMatch[1]), [], 'the rendered <style> block must carry zero internal-hygiene offenses');
+});
 
 // Regression coverage: the self-hosted Fraunces
 // heading webfont must stay scoped to headings only, self-hosted (never a

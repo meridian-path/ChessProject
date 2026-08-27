@@ -643,6 +643,30 @@ test('indexPage falls back to its earlier single-column header with no hero demo
   assert.match(html, /<h1 class="page-title">The chess opening meta, by rating band<\/h1>/);
 });
 
+test('bundleBrowserEntry strips SITE_CSS comment leaks that would otherwise ride along with any bundle requiring src/render.js', () => {
+  // Regression guard for the 6th occurrence of incident class
+  // public-repo-hygiene-leak (2026-08-27): a client bundle that
+  // require()s src/render.js for ANY named export carries render.js's
+  // whole module body, including the raw comment text inside its SITE_CSS
+  // template literal -- esbuild bundles a required CommonJS module
+  // wholesale (there's no static export list to tree-shake against).
+  // Real repro used here: src/browser/playerLookup.client.js requires
+  // render.js only for renderRatingTable/renderGamesTable/escapeHtml, none
+  // of which reference SITE_CSS, yet the raw comment text used to end up
+  // in the bundle anyway.
+  const { hygieneOffenses } = require('../scripts/verifyAggregates');
+  const header = '/* test header */';
+  const out = bundleBrowserEntry(path.join(__dirname, '..', 'src', 'browser', 'playerLookup.client.js'), header);
+  assert.deepEqual(hygieneOffenses(out), [], 'a client bundle that transitively includes src/render.js must carry zero internal-hygiene offenses');
+  const bodyAfterHeader = out.slice(header.length);
+  assert.doesNotMatch(bodyAfterHeader, /\/\*/, 'no leftover CSS-comment-open marker should survive in the bundle body (past the intentional header)');
+});
+
+test('bundleBrowserEntry still prepends the header banner intact, unaffected by the comment strip', () => {
+  const out = bundleBrowserEntry(path.join(__dirname, '..', 'src', 'browser', 'playerLookup.client.js'), '/* Auto-generated header */');
+  assert.ok(out.startsWith('/* Auto-generated header */'), 'the header banner must survive the post-bundle comment strip');
+});
+
 test('bundleBrowserEntry throws loudly on a syntax error in the entry point, same failure-loudly guarantee the old string-splice bundler had', () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lichess-bundle-test-'));
   try {
