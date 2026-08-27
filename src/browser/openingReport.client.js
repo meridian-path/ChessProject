@@ -42,12 +42,17 @@
  */
 
 const {
-  isValidUsername, buildGameUrl, buildLeakAnalysis, encodeShareFragment, decodeShareFragment,
+  isValidUsername, isValidChessComUsername, buildGameUrl, buildLeakAnalysis, buildLeakAnalysisFromChessCom,
+  encodeShareFragment, decodeShareFragment,
 } = require('../leakAnalysis');
 const { parse: parseLeakReport } = require('../leakModel');
 const { lookup: bandLookup } = require('./bandData.client');
 const { FILES, RANKS, START_BOARD, applyUciMoves } = require('../chessPosition');
 const { fetchRatingHistory, fetchRecentGames } = require('../fetchLichess');
+const {
+  fetchArchives: fetchChessComArchives, fetchArchiveGames: fetchChessComArchiveGames,
+  ChessComNotFoundError, ChessComRateLimitError,
+} = require('../fetchChessCom');
 const { summarizeRatingHistory, summarizeGames } = require('../process');
 const {
   renderRatingTable, escapeHtml, formatPct, wrapTable,
@@ -57,6 +62,16 @@ const { readBandState } = require('./bandState.client');
 const GAMES_ENDPOINT_BASE = 'https://lichess.org/api/games/user/';
 const MAX_GAMES = 300;
 const MAX_RESPONSE_BYTES = 8 * 1024 * 1024; // spec 3.7 altered #1: cap the ndjson response at 8MB total
+// Site-audit item 3 (2026-08-26): Chess.com publishes games in monthly
+// archives rather than one combined feed (src/fetchChessCom.js), so there is
+// no single "how many games" request parameter to mirror MAX_GAMES with --
+// this is the disclosed month-range default instead (see this file's own
+// fetchChessComRecentGames()): walk backward from the most recent month, one
+// request per month, stopping at MAX_GAMES games or this many months back,
+// whichever comes first. Real copy in renderOpeningReport.js's "How this
+// works" section states this exact number, not a hidden implementation
+// detail.
+const CHESSCOM_MAX_MONTHS = 12;
 const STORAGE_KEY = 'rb.leakReport.v1';
 const SHARE_FRAGMENT_MAX_CHARS_FALLBACK_NOTE = 'That report was too large to fit in a shareable link, so this link re-runs the lookup for that username instead.';
 const REVERSE_LOOKUP_URL = 'eco-reverse-lookup.json';
@@ -114,7 +129,24 @@ function formatSanLineFromUci(play) {
   const resultEl = $('report-result');
   const form = $('report-form');
   const usernameInput = $('report-username');
+  const platformSelect = $('report-platform'); // optional: a stale cached HTML shell without it just always reads as 'lichess' below, never crashes
   if (!statusEl || !resultEl || !form || !usernameInput) return;
+
+  // Site-audit item 3 (2026-08-26): the only two real values report-platform's
+  // own <option>s carry -- never trust the raw select value or a URL param
+  // beyond this check.
+  function currentPlatform() {
+    return platformSelect && platformSelect.value === 'chesscom' ? 'chesscom' : 'lichess';
+  }
+
+  function setPlatform(platform) {
+    if (platformSelect) platformSelect.value = platform === 'chesscom' ? 'chesscom' : 'lichess';
+    if (usernameInput) usernameInput.placeholder = platform === 'chesscom' ? 'e.g. Hikaru' : 'e.g. DrNykterstein';
+  }
+
+  if (platformSelect) {
+    platformSelect.addEventListener('change', () => setPlatform(platformSelect.value));
+  }
 
   let activeController = null; // AbortController for the in-flight games fetch, if any
   let reverseLookupPromise = null;
@@ -338,13 +370,25 @@ function formatSanLineFromUci(play) {
 
   function renderSuccessScreen(report, watchList, opts = {}) {
     const { cancelled = false } = opts;
+    const platform = report.platform === 'chesscom' ? 'chesscom' : 'lichess';
+    setPlatform(platform);
     const top = report.leaks[0];
     const verdict = top
       ? `Your biggest opening leak is ${escapeHtml(top.yourMove.san)}${top.opening && top.opening.name ? ` in the ${escapeHtml(top.opening.name)}` : ''}. It costs you about ${top.costPer100.toFixed(1)} points per 100 games.`
       : 'No leak cleared our statistical floor - your play is close to what your rating band recommends at the positions we could compare.';
-    const provenance = `${report.gamesUsable.toLocaleString()} games analysed (${report.gamesFetched.toLocaleString()} fetched, ${report.gamesInCoverage.toLocaleString()} reached data we have coverage for), ${escapeHtml(report.band)} band, ${escapeHtml(report.pool)}, retrieved ${escapeHtml(new Date(report.generated).toISOString().slice(0, 10))}.${cancelled ? ' (You cancelled the fetch early - this is based on the games already retrieved.)' : ''}`;
+    const platformLabel = platform === 'chesscom' ? ' (Chess.com)' : '';
+    const provenance = `${report.gamesUsable.toLocaleString()} games analysed (${report.gamesFetched.toLocaleString()} fetched, ${report.gamesInCoverage.toLocaleString()} reached data we have coverage for), ${escapeHtml(report.band)} band, ${escapeHtml(report.pool)}${platformLabel}, retrieved ${escapeHtml(new Date(report.generated).toISOString().slice(0, 10))}.${cancelled ? ' (You cancelled the fetch early - this is based on the games already retrieved.)' : ''}`;
 
     const leakRows = report.leaks.map((leak, i) => renderLeakRow(leak, i)).join('');
+
+    // Rating history/recent games (renderPlayerHistorySection below) hits
+    // Lichess-only endpoints (src/fetchLichess.js) -- Chess.com reports get
+    // an honest note instead of a section that would silently fail or,
+    // worse, fetch Lichess data for a Chess.com username that may not even
+    // exist there under the same handle.
+    const historySection = platform === 'chesscom'
+      ? '<p class="empty-note">Rating history and recent games are Lichess-only for now.</p>'
+      : '<div id="report-history-mount"><p class="status-message status-message--loading">Loading rating history and recent games&hellip;</p></div>';
 
     setResult(`
       <section>
@@ -354,27 +398,32 @@ function formatSanLineFromUci(play) {
         <button type="button" class="fetch-cancel" data-share-report>Copy my report link</button>
       </section>
       ${renderWatchList(watchList)}
-      <div id="report-history-mount"><p class="status-message status-message--loading">Loading rating history and recent games&hellip;</p></div>
+      ${historySection}
     `);
     wireLeakToggles(resultEl);
     wireShareButton(resultEl, report);
 
-    renderPlayerHistorySection(report.username).then((html) => {
-      const mount = $('report-history-mount');
-      if (mount) mount.innerHTML = html;
-    });
+    if (platform !== 'chesscom') {
+      renderPlayerHistorySection(report.username).then((html) => {
+        const mount = $('report-history-mount');
+        if (mount) mount.innerHTML = html;
+      });
+    }
   }
 
   function renderDesignedState(kind, extra = {}) {
+    const platform = extra.platform === 'chesscom' ? 'chesscom' : 'lichess';
+    const platformName = platform === 'chesscom' ? 'Chess.com' : 'Lichess';
+    const usernameShape = platform === 'chesscom' ? '3-25 letters, digits, hyphens, or underscores' : '2-30 letters, digits, hyphens, or underscores';
     const messages = {
-      'unknown-user': `No Lichess account found for "${escapeHtml(extra.username || '')}". Check the spelling and try again.`,
-      'no-games': `We couldn't find any rated blitz or rapid games for "${escapeHtml(extra.username || '')}" to analyse.`,
+      'unknown-user': `No ${platformName} account found for "${escapeHtml(extra.username || '')}". Check the spelling and try again.`,
+      'no-games': `We couldn't find any rated blitz or rapid games for "${escapeHtml(extra.username || '')}" on ${platformName} to analyse.`,
       'too-few-games': `"${escapeHtml(extra.username || '')}" has only ${extra.gamesUsable != null ? extra.gamesUsable : 'a few'} usable rated blitz/rapid games. We need at least 20 to say anything statistically honest. Play some more games and check back.`,
       'no-coverage': `None of "${escapeHtml(extra.username || '')}"'s games reached a position our band data covers yet. Our coverage is still bounded. Try a more mainstream opening, or check back as coverage grows.`,
-      unreachable: 'Could not reach Lichess from this page (network error, or your browser blocked the cross-origin request). Check your connection and try again.',
-      'rate-limited': 'Lichess asked us to slow down. Try again in a minute.',
+      unreachable: `Could not reach ${platformName} from this page (network error, or your browser blocked the cross-origin request). Check your connection and try again.`,
+      'rate-limited': `${platformName} asked us to slow down. Try again in a minute.`,
       cancelled: 'Fetch cancelled before enough games were retrieved to build a report.',
-      'invalid-username': `"${escapeHtml(extra.username || '')}" isn't a Lichess-shaped username (2-30 letters, digits, hyphens, or underscores). Check it and try again.`,
+      'invalid-username': `"${escapeHtml(extra.username || '')}" isn't a ${platformName}-shaped username (${usernameShape}). Check it and try again.`,
     };
     setResult(`<p class="status-message status-message--error">${messages[kind] || 'Something went wrong building your report.'}</p>`);
   }
@@ -464,11 +513,91 @@ function formatSanLineFromUci(play) {
     return { lines, cancelled };
   }
 
+  /**
+   * Chess.com's own analogue of streamGames() above (site-audit item 3,
+   * 2026-08-26). Chess.com has no single bulk-export endpoint like Lichess's
+   * ndjson stream -- games are published one calendar month at a time
+   * (src/fetchChessCom.js). Walks backward from the visitor's most recent
+   * archive month, one request at a time (this project's own standing
+   * politeness convention -- see src/fetchOpeningExplorer.js's header
+   * comment for the precedent), stopping once MAX_GAMES real games have been
+   * collected or CHESSCOM_MAX_MONTHS months have been walked, whichever
+   * comes first -- the disclosed default this task's own copy in
+   * src/renderOpeningReport.js states plainly, not a hidden implementation
+   * detail. Unfiltered games are returned; src/leakAnalysis.js's
+   * parseChessComGame() (called downstream, inside buildLeakAnalysisFromChessCom)
+   * is what actually filters to rated/blitz-or-rapid/standard-chess.
+   * @returns {Promise<{games:object[], cancelled:boolean}>}
+   */
+  async function fetchChessComRecentGames(username, controller) {
+    let archives;
+    try {
+      archives = await fetchChessComArchives(username, { fetchImpl: fetch, signal: controller.signal });
+    } catch (err) {
+      if (controller.signal.aborted) {
+        const cancelErr = new Error('cancelled');
+        cancelErr.kind = 'cancelled';
+        throw cancelErr;
+      }
+      if (err instanceof ChessComNotFoundError) {
+        const e = new Error('unknown-user');
+        e.kind = 'unknown-user';
+        throw e;
+      }
+      if (err instanceof ChessComRateLimitError) {
+        const e = new Error('rate-limited');
+        e.kind = 'rate-limited';
+        throw e;
+      }
+      const e = new Error('unreachable');
+      e.kind = 'unreachable';
+      throw e;
+    }
+
+    // Most recent month first -- archives arrives chronological oldest-first
+    // (verified live before this was written; see fetchChessCom.js's own
+    // header comment).
+    const recentArchives = archives.slice(-CHESSCOM_MAX_MONTHS).reverse();
+    const games = [];
+    let cancelled = false;
+
+    for (const archiveUrl of recentArchives) {
+      if (controller.signal.aborted) { cancelled = true; break; }
+      let monthGames;
+      try {
+        // eslint-disable-next-line no-await-in-loop -- intentionally serial, see this function's own header comment
+        monthGames = await fetchChessComArchiveGames(archiveUrl, { fetchImpl: fetch, signal: controller.signal });
+      } catch (err) {
+        if (controller.signal.aborted) { cancelled = true; break; }
+        if (games.length === 0) {
+          // The very first (most recent) month failing means we have
+          // nothing at all -- surface a real error rather than a silent
+          // empty report.
+          if (err instanceof ChessComRateLimitError) {
+            const e = new Error('rate-limited');
+            e.kind = 'rate-limited';
+            throw e;
+          }
+          const e = new Error('unreachable');
+          e.kind = 'unreachable';
+          throw e;
+        }
+        break; // a LATER month failing after we already have some games: keep what was already collected
+      }
+      games.push(...monthGames);
+      updateProgress(Math.min(games.length, MAX_GAMES));
+      if (games.length >= MAX_GAMES) break;
+    }
+
+    return { games, cancelled };
+  }
+
   // -- orchestration ----------------------------------------------------------
 
-  async function runReport(username) {
-    if (!isValidUsername(username)) {
-      renderDesignedState('invalid-username', { username });
+  async function runReport(username, platform = 'lichess') {
+    const isValid = platform === 'chesscom' ? isValidChessComUsername : isValidUsername;
+    if (!isValid(username)) {
+      renderDesignedState('invalid-username', { username, platform });
       return;
     }
     if (activeController) activeController.abort();
@@ -479,30 +608,38 @@ function formatSanLineFromUci(play) {
     setResult('');
 
     let lines = [];
+    let chessComGames = [];
     let cancelled = false;
     try {
-      const streamed = await streamGames(username, controller);
-      lines = streamed.lines;
-      cancelled = streamed.cancelled;
+      if (platform === 'chesscom') {
+        const streamed = await fetchChessComRecentGames(username, controller);
+        chessComGames = streamed.games;
+        cancelled = streamed.cancelled;
+      } else {
+        const streamed = await streamGames(username, controller);
+        lines = streamed.lines;
+        cancelled = streamed.cancelled;
+      }
     } catch (err) {
       if (controller.signal.aborted) {
         cancelled = true;
       } else if (err && err.kind) {
         setStatus('');
-        renderDesignedState(err.kind, { username });
+        renderDesignedState(err.kind, { username, platform });
         return;
       } else {
         setStatus('');
-        renderDesignedState('unreachable', { username });
+        renderDesignedState('unreachable', { username, platform });
         return;
       }
     }
 
     setStatus('<p class="status-message status-message--loading">Analysing your games&hellip;</p>');
 
-    if (cancelled && lines.length === 0) {
+    const fetchedCount = platform === 'chesscom' ? chessComGames.length : lines.length;
+    if (cancelled && fetchedCount === 0) {
       setStatus('');
-      renderDesignedState('cancelled', { username });
+      renderDesignedState('cancelled', { username, platform });
       return;
     }
 
@@ -514,30 +651,39 @@ function formatSanLineFromUci(play) {
       }
     })();
 
-    const result = await buildLeakAnalysis({
-      ndjsonLines: lines,
-      username,
-      band: state.band,
-      pool: state.pool,
-      lookupFn: bandLookup,
-      identifyFn: identifyOpening,
-    });
+    const result = platform === 'chesscom'
+      ? await buildLeakAnalysisFromChessCom({
+        games: chessComGames,
+        username,
+        band: state.band,
+        pool: state.pool,
+        lookupFn: bandLookup,
+        identifyFn: identifyOpening,
+      })
+      : await buildLeakAnalysis({
+        ndjsonLines: lines,
+        username,
+        band: state.band,
+        pool: state.pool,
+        lookupFn: bandLookup,
+        identifyFn: identifyOpening,
+      });
 
     setStatus('');
 
     if (!result.ok) {
       if (result.gamesFetched === 0) {
-        renderDesignedState('no-games', { username });
+        renderDesignedState('no-games', { username, platform });
       } else if (cancelled) {
-        renderDesignedState('cancelled', { username });
+        renderDesignedState('cancelled', { username, platform });
       } else {
-        renderDesignedState('too-few-games', { username, gamesUsable: result.gamesUsable });
+        renderDesignedState('too-few-games', { username, platform, gamesUsable: result.gamesUsable });
       }
       return;
     }
 
     if (result.gamesInCoverage === 0) {
-      renderDesignedState('no-coverage', { username });
+      renderDesignedState('no-coverage', { username, platform });
       return;
     }
 
@@ -582,38 +728,48 @@ function formatSanLineFromUci(play) {
       event.preventDefault();
       const username = usernameInput.value.trim();
       if (!username) return;
+      const platform = currentPlatform();
       const url = new URL(window.location.href);
       url.searchParams.set('username', username);
+      url.searchParams.set('platform', platform);
       window.history.replaceState(null, '', url);
-      runReport(username);
+      runReport(username, platform);
     });
 
     const shared = loadFromShareFragment();
     if (shared) {
       usernameInput.value = shared.username;
-      renderSuccessScreen(shared, [], { cancelled: false });
+      renderSuccessScreen(shared, [], { cancelled: false }); // sets the platform select from shared.platform itself
       return;
     }
 
     const params = new URLSearchParams(window.location.search);
+    // Site-audit item 3 (2026-08-26): a `?platform=` value is untrusted the
+    // same as `?username=` (spec 3.7 N2's own standing rule) -- only the two
+    // real enum values are ever accepted, anything else silently falls back
+    // to 'lichess' rather than being trusted or reflected.
+    const platformParam = params.get('platform') === 'chesscom' ? 'chesscom' : 'lichess';
+    setPlatform(platformParam);
+
     const prefill = params.get('username');
-    if (prefill && isValidUsername(prefill)) {
+    const isValid = platformParam === 'chesscom' ? isValidChessComUsername : isValidUsername;
+    if (prefill && isValid(prefill)) {
       usernameInput.value = prefill;
-      runReport(prefill);
+      runReport(prefill, platformParam);
       return;
     }
     if (prefill) {
       // Present but invalid (spec 3.7 N2's test case) -- render it back as
       // plain text via the designed error state, never build a request or
       // a DOM write from it first.
-      renderDesignedState('invalid-username', { username: prefill });
+      renderDesignedState('invalid-username', { username: prefill, platform: platformParam });
       return;
     }
 
     const saved = loadFromLocalStorage();
     if (saved) {
       usernameInput.value = saved.username;
-      renderSuccessScreen(saved, [], { cancelled: false });
+      renderSuccessScreen(saved, [], { cancelled: false }); // sets the platform select from saved.platform itself
     }
   }
 

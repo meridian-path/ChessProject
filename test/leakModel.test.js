@@ -127,3 +127,32 @@ test('parse: rejects a username outside the Lichess-shaped 2-30 char pattern', (
   assert.equal(parse(validReport({ username: 'a' })).ok, false);
   assert.equal(parse(validReport({ username: '<script>' })).ok, false);
 });
+
+// -- platform (site-audit item 3, 2026-08-26) --------------------------------
+
+test('buildLeakReport: defaults platform to "lichess" when not given', () => {
+  const report = validReport();
+  assert.equal(report.platform, 'lichess');
+});
+
+test('buildLeakReport + parse: a real "chesscom" platform round-trips through JSON', () => {
+  const report = validReport({ platform: 'chesscom' });
+  assert.equal(report.platform, 'chesscom');
+  const result = parse(JSON.stringify(report));
+  assert.equal(result.ok, true);
+  assert.equal(result.report.platform, 'chesscom');
+});
+
+test('parse: a report with no platform field at all (pre-dates this field, e.g. old localStorage) defaults to "lichess", not rejected', () => {
+  const report = validReport();
+  delete report.platform;
+  const result = parse(JSON.stringify(report));
+  assert.equal(result.ok, true);
+  assert.equal(result.report.platform, 'lichess');
+});
+
+test('parse: rejects an unrecognized platform', () => {
+  const result = parse(validReport({ platform: 'stockfish-arena' }));
+  assert.equal(result.ok, false);
+  assert.match(result.error, /platform/);
+});

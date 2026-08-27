@@ -5,12 +5,16 @@ const assert = require('node:assert/strict');
 
 const {
   isValidUsername,
+  isValidChessComUsername,
   isValidGameId,
   buildGameUrl,
   parseGameLine,
+  parseChessComGame,
   extractUserPlies,
+  extractUserPliesFromPgn,
   bandBestMoveOf,
   buildLeakAnalysis,
+  buildLeakAnalysisFromChessCom,
   encodeShareFragment,
   decodeShareFragment,
   MAX_MOVE_STRING_CHARS,
@@ -303,6 +307,188 @@ test('buildLeakAnalysis: a game containing a malformed JSON line and one with an
   // not skipped -- skippedCount here only reflects the one truly unparseable line.
   assert.equal(result.skippedCount, 1);
   assert.equal(result.gamesUsable, 23);
+});
+
+// -- Chess.com integration (site-audit item 3, 2026-08-26) -------------------
+
+test('isValidChessComUsername accepts a plausible Chess.com username', () => {
+  assert.equal(isValidChessComUsername('Hikaru'), true);
+  assert.equal(isValidChessComUsername('only_strong_moves'), true);
+  assert.equal(isValidChessComUsername('a-b'), true);
+  assert.equal(isValidChessComUsername('a'.repeat(25)), true);
+});
+
+test('isValidChessComUsername rejects an XSS-shaped payload, an over-length value, a too-short value, and non-strings', () => {
+  assert.equal(isValidChessComUsername('<img src=x onerror=alert(1)>'), false);
+  assert.equal(isValidChessComUsername('a'.repeat(26)), false);
+  assert.equal(isValidChessComUsername('ab'), false); // below the 3-char floor
+  assert.equal(isValidChessComUsername(''), false);
+  assert.equal(isValidChessComUsername(null), false);
+  assert.equal(isValidChessComUsername(42), false);
+});
+
+// Builds a real, parseable PGN string from a flat SAN move list -- same
+// shape a real Chess.com archive-month game's own `pgn` field has (verified
+// live against a real account, hikaru, 2026-08-26, before this test file was
+// written -- see src/fetchChessCom.js's own header comment).
+function chessComPgn(moves, { white = 'tester', black = 'opponent' } = {}) {
+  const parts = [];
+  for (let i = 0; i < moves.length; i += 2) {
+    const num = i / 2 + 1;
+    parts.push(`${num}. ${moves[i]}${moves[i + 1] ? ` ${moves[i + 1]}` : ''}`);
+  }
+  return `[Event "Live Chess"]\n[White "${white}"]\n[Black "${black}"]\n[Result "*"]\n\n${parts.join(' ')} *\n`;
+}
+
+function chessComGame({
+  white = 'tester', black = 'opponent', moves = ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4'],
+  winner = null, rated = true, rules = 'chess', timeClass = 'blitz',
+} = {}) {
+  return {
+    url: 'https://www.chess.com/game/live/1',
+    pgn: chessComPgn(moves, { white, black }),
+    rated,
+    rules,
+    time_class: timeClass,
+    white: { username: white, rating: 1500, result: winner === 'white' ? 'win' : (winner === 'black' ? 'resigned' : 'agreed') },
+    black: { username: black, rating: 1500, result: winner === 'black' ? 'win' : (winner === 'white' ? 'resigned' : 'agreed') },
+  };
+}
+
+test('parseChessComGame: a well-formed rated blitz/chess game parses', () => {
+  const result = parseChessComGame(chessComGame({ winner: 'white' }));
+  assert.equal(result.ok, true);
+  assert.equal(result.game.white, 'tester');
+  assert.equal(result.game.black, 'opponent');
+  assert.equal(result.game.winner, 'white');
+  assert.match(result.game.pgn, /1\. e4 e5/);
+});
+
+test('parseChessComGame: rejects an unrated game', () => {
+  const result = parseChessComGame(chessComGame({ rated: false }));
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'not-rated');
+});
+
+test('parseChessComGame: rejects a variant (rules !== "chess")', () => {
+  const result = parseChessComGame(chessComGame({ rules: 'chess960' }));
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'not-standard-chess');
+});
+
+test('parseChessComGame: rejects a bullet or daily game, keeps blitz/rapid', () => {
+  assert.equal(parseChessComGame(chessComGame({ timeClass: 'bullet' })).ok, false);
+  assert.equal(parseChessComGame(chessComGame({ timeClass: 'daily' })).ok, false);
+  assert.equal(parseChessComGame(chessComGame({ timeClass: 'blitz' })).ok, true);
+  assert.equal(parseChessComGame(chessComGame({ timeClass: 'rapid' })).ok, true);
+});
+
+test('parseChessComGame: rejects a game with no pgn field', () => {
+  const game = chessComGame();
+  delete game.pgn;
+  assert.equal(parseChessComGame(game).ok, false);
+});
+
+test('parseChessComGame: winner derivation -- exactly one side "win", or neither for a real draw shape', () => {
+  assert.equal(parseChessComGame(chessComGame({ winner: 'white' })).game.winner, 'white');
+  assert.equal(parseChessComGame(chessComGame({ winner: 'black' })).game.winner, 'black');
+  const draw = chessComGame();
+  draw.white.result = 'agreed';
+  draw.black.result = 'agreed';
+  assert.equal(parseChessComGame(draw).game.winner, null);
+});
+
+test('extractUserPliesFromPgn: records only the plies where the visitor (case-insensitive match) was to move, as White', () => {
+  const parsed = parseChessComGame(chessComGame({ white: 'Tester', moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4'] }));
+  const result = extractUserPliesFromPgn(parsed.game, 'tester');
+  assert.equal(result.ok, true);
+  assert.equal(result.color, 'white');
+  assert.deepEqual(result.plies.map((p) => p.san), ['e4', 'Nf3', 'Bc4']);
+});
+
+test('extractUserPliesFromPgn: records only the plies where the visitor was to move, as Black', () => {
+  const parsed = parseChessComGame(chessComGame({ white: 'someoneElse', black: 'tester', moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4'] }));
+  const result = extractUserPliesFromPgn(parsed.game, 'tester');
+  assert.equal(result.ok, true);
+  assert.equal(result.color, 'black');
+  assert.deepEqual(result.plies.map((p) => p.san), ['e5', 'Nc6']);
+});
+
+test('extractUserPliesFromPgn: refuses a game the named user is not a participant in', () => {
+  const parsed = parseChessComGame(chessComGame({ white: 'someoneElse', black: 'anotherPlayer' }));
+  const result = extractUserPliesFromPgn(parsed.game, 'tester');
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'not-a-participant');
+});
+
+test('extractUserPliesFromPgn: resultForUser maps win/draw/loss correctly relative to the visitor\'s colour', () => {
+  const win = extractUserPliesFromPgn(parseChessComGame(chessComGame({ white: 'tester', winner: 'white' })).game, 'tester');
+  assert.equal(win.resultForUser, 'win');
+  const loss = extractUserPliesFromPgn(parseChessComGame(chessComGame({ white: 'tester', winner: 'black' })).game, 'tester');
+  assert.equal(loss.resultForUser, 'loss');
+  const drawGame = chessComGame({ white: 'tester' });
+  drawGame.white.result = 'agreed';
+  drawGame.black.result = 'agreed';
+  const draw = extractUserPliesFromPgn(parseChessComGame(drawGame).game, 'tester');
+  assert.equal(draw.resultForUser, 'draw');
+});
+
+test('extractUserPliesFromPgn: truncates to the first MAX_PLY plies', () => {
+  const longMoves = ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4', 'Bc5', 'O-O', 'Nf6', 'd3', 'd6', 'c3', 'a6', 'b4', 'Ba7', 'Re1', 'O-O', 'Nbd2', 'h6', 'Nf1', 'Re8', 'Ng3', 'Bb6'];
+  const parsed = parseChessComGame(chessComGame({ white: 'tester', moves: longMoves }));
+  const result = extractUserPliesFromPgn(parsed.game, 'tester');
+  assert.equal(result.ok, true);
+  const maxPlyRecorded = Math.max(...result.plies.map((p) => p.ply));
+  assert.ok(maxPlyRecorded < MAX_PLY, `expected all recorded plies below MAX_PLY=${MAX_PLY}, got max ${maxPlyRecorded}`);
+});
+
+test('extractUserPliesFromPgn: an unparseable pgn drops the whole game rather than throwing', () => {
+  const parsed = parseChessComGame(chessComGame({ white: 'tester' }));
+  parsed.game.pgn = 'not a real pgn at all {{{';
+  const result = extractUserPliesFromPgn(parsed.game, 'tester');
+  assert.equal(result.ok, false);
+});
+
+// -- buildLeakAnalysisFromChessCom (same statistical core as buildLeakAnalysis) --
+
+function makeChessComGamesForUser({ count, moves, winner }) {
+  return Array.from({ length: count }, () => chessComGame({ white: 'tester', black: 'opponent', moves, winner }));
+}
+
+test('buildLeakAnalysisFromChessCom: surfaces the same real leak as the Lichess path, tagged platform "chesscom"', async () => {
+  const games = makeChessComGamesForUser({ count: 25, moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4'], winner: 'black' });
+  const result = await buildLeakAnalysisFromChessCom({ games, username: 'tester', band: '1600-1800', pool: 'blitz', lookupFn: fakeLookup(BAND_FIXTURE) });
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(result.gamesUsable, 25);
+  assert.equal(result.report.platform, 'chesscom');
+
+  const revalidated = parseLeakReport(JSON.stringify(result.report));
+  assert.equal(revalidated.ok, true, revalidated.error);
+
+  assert.equal(result.report.leaks.length, 1);
+  const leak = result.report.leaks[0];
+  assert.equal(leak.yourMove.uci, 'f1c4');
+  assert.equal(leak.bandMove.uci, 'f1b5');
+  assert.ok(Math.abs(leak.costPer100 - 5.0) < 1e-9, `expected costPer100 ~5.0, got ${leak.costPer100}`);
+});
+
+test('buildLeakAnalysisFromChessCom: unrated games and non-blitz/rapid games are filtered out, not counted as usable', async () => {
+  const rated = makeChessComGamesForUser({ count: 22, moves: ['e4', 'e5', 'Nf3', 'Nc6', 'Bc4'], winner: 'black' });
+  const unrated = chessComGame({ white: 'tester', rated: false });
+  const bullet = chessComGame({ white: 'tester', timeClass: 'bullet' });
+  const games = [...rated, unrated, bullet];
+  const result = await buildLeakAnalysisFromChessCom({ games, username: 'tester', band: '1600-1800', pool: 'blitz', lookupFn: fakeLookup(BAND_FIXTURE) });
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(result.gamesFetched, 24);
+  assert.equal(result.skippedCount, 2);
+  assert.equal(result.gamesUsable, 22);
+});
+
+test('buildLeakAnalysis (Lichess path) still tags platform "lichess" after the shared-core refactor', async () => {
+  const lines = makeGamesForUser({ count: 25, moves: 'e4 e5 Nf3 Nc6 Bc4', winner: 'black' });
+  const result = await buildLeakAnalysis({ ndjsonLines: lines, username: 'tester', band: '1600-1800', pool: 'blitz', lookupFn: fakeLookup(BAND_FIXTURE) });
+  assert.equal(result.ok, true, result.reason);
+  assert.equal(result.report.platform, 'lichess');
 });
 
 // -- encodeShareFragment / decodeShareFragment (spec 3.7 N3) -----------------
