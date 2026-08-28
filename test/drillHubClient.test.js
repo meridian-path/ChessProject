@@ -31,6 +31,7 @@ const { chromium } = require('playwright');
 const { Chess } = require('chess.js');
 const { renderDrillHubPage } = require('../src/renderDrillHub');
 const { buildDrillHubBundle } = require('../src/buildStatic');
+const { SITE_CSS_SHIPPED, SITE_CSS_FILE } = require('../src/render');
 const { posKeyFor } = require('../src/bandShards');
 const { applyExplorerUci } = require('../src/buildPack');
 const { newCardState } = require('../src/scheduler');
@@ -85,6 +86,16 @@ function startServer() {
       }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(fs.readFileSync(filePath));
+      return;
+    }
+    // Craft-audit item 6: renderDrillHubPage() now links a shared
+    // `/site.css` instead of inlining SITE_CSS (src/render.js's
+    // SITE_CSS_FILE comment) -- without this route the board's real layout
+    // CSS never loads, which risks hanging any Playwright visibility wait
+    // on the board rather than failing fast.
+    if (url === `/${SITE_CSS_FILE}`) {
+      res.writeHead(200, { 'Content-Type': 'text/css' });
+      res.end(SITE_CSS_SHIPPED);
       return;
     }
     res.writeHead(404);

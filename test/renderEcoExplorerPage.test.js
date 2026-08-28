@@ -16,7 +16,6 @@ function baseArgs(overrides = {}) {
     t0CrossLinkMap: { 'Italian Game': 'italian-game.html' },
     reverseLookupUrl: 'eco-reverse-lookup.json',
     topFamilies: [{ family: 'Sicilian Defense', slug: 'sicilian-defense', lineCount: 391, ecoCodes: ['B20', 'B99'] }],
-    allEcoCodes: ['A00', 'B90', 'C50'],
     stats: { totalLines: 3810, totalFamilies: 149 },
     ...overrides,
   };
@@ -98,14 +97,11 @@ test('renderEcoExplorerPage escapes a family name containing HTML-significant ch
   assert.match(html, /&lt;script&gt;/);
 });
 
-test('renderEcoExplorerPage emits a DefinedTermSet JSON-LD block with one term per ECO code, each pointing at its volume page', () => {
+test('renderEcoExplorerPage emits only a BreadcrumbList JSON-LD block, no DefinedTermSet (craft-audit item 5: that 500-code block duplicated the per-volume DefinedTermSet blocks src/renderEcoPages.js already emits, for a type Google does not surface as a rich result)', () => {
   const html = renderEcoExplorerPage(baseArgs());
   const ldMatches = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
   const definedTermSet = ldMatches.find((d) => d['@type'] === 'DefinedTermSet');
-  assert.ok(definedTermSet);
-  assert.equal(definedTermSet.hasDefinedTerm.length, 3);
-  const b90 = definedTermSet.hasDefinedTerm.find((t) => t.termCode === 'B90');
-  assert.equal(b90.url, 'https://repertoire-builder.com/eco-volume-b.html');
+  assert.equal(definedTermSet, undefined, 'this page should no longer emit a DefinedTermSet block');
   const breadcrumb = ldMatches.find((d) => d['@type'] === 'BreadcrumbList');
   assert.ok(breadcrumb);
 });

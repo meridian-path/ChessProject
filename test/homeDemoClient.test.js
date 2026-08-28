@@ -21,6 +21,7 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 
 const { indexPage, buildHomeDemoBundle, buildHomeDemoData } = require('../src/buildStatic');
+const { SITE_CSS_SHIPPED, SITE_CSS_FILE } = require('../src/render');
 const { chromium } = require('playwright');
 
 // Same real-shaped 1600-1800/Black tree data test/buildStatic.test.js's own
@@ -57,6 +58,16 @@ function startServer() {
     if (url === '/home-demo.js') {
       res.writeHead(200, { 'Content-Type': 'application/javascript' });
       res.end(bundle);
+      return;
+    }
+    // Craft-audit item 6: indexPage() now links a shared `/site.css`
+    // instead of inlining SITE_CSS (src/render.js's SITE_CSS_FILE comment)
+    // -- without this route the board's real layout CSS never loads, so
+    // Playwright's #home-demo-board visibility wait hangs until timeout
+    // rather than genuinely failing fast.
+    if (url === `/${SITE_CSS_FILE}`) {
+      res.writeHead(200, { 'Content-Type': 'text/css' });
+      res.end(SITE_CSS_SHIPPED);
       return;
     }
     res.writeHead(404);
