@@ -14,7 +14,7 @@
  * design-standards.md's "conform at the interaction layer" rule.
  */
 
-const { escapeHtml, renderDocumentHead, renderHeader, renderFooter, renderPageHead, wrapTable } = require('./render');
+const { escapeHtml, displayName, renderDocumentHead, renderHeader, renderFooter, renderPageHead, wrapTable } = require('./render');
 const { START_BOARD, applyUciMoves } = require('./chessPosition');
 const { SITE_NAME, BUILD_DATE, absoluteUrl, pageTitle } = require('./site');
 const { breadcrumbJsonLd, itemListJsonLd, definedTermSetJsonLd } = require('./structuredData');
@@ -98,7 +98,7 @@ function ecoRangeLabel(ecoCodes) {
  * convention this row already uses for the eco-chip span.
  */
 function renderLineRow(line, label) {
-  const labelHtml = label ? `<span class="rep-node-label">${escapeHtml(label)}</span>` : '';
+  const labelHtml = label ? `<span class="rep-node-label">${displayName(label)}</span>` : '';
   return `<div class="rep-node-row"><span class="eco-chip">${escapeHtml(line.eco)}</span>${labelHtml}<span>${escapeHtml(formatSanLine(line.plies))}</span></div>`;
 }
 
@@ -119,7 +119,7 @@ function renderLineRow(line, label) {
 function renderVariationTreeNode(node) {
   const rowsHtml = node.lines.length > 0
     ? node.lines.map((line) => renderLineRow(line, node.label)).join('')
-    : `<p class="variation-group-label">${escapeHtml(node.label)}</p>`;
+    : `<p class="variation-group-label">${displayName(node.label)}</p>`;
   const children = [...node.children.values()];
   const childrenHtml = children.length > 0
     ? `<ul class="repertoire-tree">${children.map((c) => `<li>${renderVariationTreeNode(c)}</li>`).join('')}</ul>`
@@ -243,7 +243,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd,
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
       eyebrow: 'ECO family guide',
-      title: `${escapeHtml(family)}: all variations and ECO codes`,
+      title: `${displayName(family)}: all variations and ECO codes`,
       subtitle: `${lineCount} named lines across ${ecoCodes.length} ECO code${ecoCodes.length === 1 ? '' : 's'}
         (${escapeHtml(ecoRangeLabel(ecoCodes))})${volumes.length > 1 ? `, spanning ECO volumes ${volumes.join(', ')}` : ''}.
         Source: the CC0-licensed <a href="https://github.com/lichess-org/chess-openings" rel="noopener noreferrer">lichess.org opening database</a>.`,
@@ -254,17 +254,17 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd,
       ${renderBoard(board, { flip, label: `Position after ${sanLine}` })}
       <figcaption>Position after ${escapeHtml(sanLine)} (${escapeHtml(mainLine.eco)}).
         <a href="${lichessAnalysisUrl(mainLine.plies)}" rel="noopener noreferrer">Open this line on Lichess &rarr;</a> &middot;
-        <a href="${lichessOpeningUrl(mainLine.name)}" rel="noopener noreferrer">${escapeHtml(mainLine.name)} on Lichess</a>
+        <a href="${lichessOpeningUrl(mainLine.name)}" rel="noopener noreferrer">${displayName(mainLine.name)} on Lichess</a>
       </figcaption>
     </figure>
 
     <h2>How the main line scores at your rating</h2>
-    <p>Real Lichess win rates for ${escapeHtml(sanLine)}, playing as ${escapeHtml(mainLineSide)}: the family's
+    <p>Real Lichess win rates for ${escapeHtml(sanLine)}, playing as ${escapeHtml(mainLineSide)}: the family&rsquo;s
        ${ecoCodes.length > 1 || lineCount > 1 ? 'other variations are not separately tracked for win rate yet, ' : ''}main line only.</p>
     ${renderBandsTable({ side: mainLineSide, bands: bandStats.bands })}
 
     <h2>All ${lineCount} named variations</h2>
-    <p class="repertoire-intro">Every named line in the ${escapeHtml(family)} family, from the CC0-licensed ECO
+    <p class="repertoire-intro">Every named line in the ${displayName(family)} family, from the CC0-licensed ECO
        classification: not separately tracked for win rate, but every ECO code and move sequence is real,
        sourced data.</p>
     ${renderVariationTree(familyEntry)}
@@ -322,7 +322,7 @@ function renderEcoVolumeIndexPage({ volume, codeRows, nav }) {
   const rows = codeRows
     .map((r) => {
       const names = r.names
-        .map((n) => (n.href ? `<span><a href="${escapeHtml(n.href)}">${escapeHtml(n.name)}</a></span>` : `<span>${escapeHtml(n.name)}</span>`))
+        .map((n) => (n.href ? `<span><a href="${escapeHtml(n.href)}">${displayName(n.name)}</a></span>` : `<span>${displayName(n.name)}</span>`))
         .join('');
       return `<tr><td><span class="eco-chip">${escapeHtml(r.eco)}</span></td><td class="eco-names">${names}</td><td class="num">${r.lineCount}</td></tr>`;
     })
@@ -405,8 +405,8 @@ function renderEcoIndexPage({ pageFamilies, pageNum, totalPages, stats, nav }) {
     .map((f) => {
       const isT1 = f.lineCount >= 8;
       const nameCell = isT1
-        ? `<a href="${escapeHtml(familyHubFilename(f.slug))}">${escapeHtml(f.family)}</a>`
-        : escapeHtml(f.family);
+        ? `<a href="${escapeHtml(familyHubFilename(f.slug))}">${displayName(f.family)}</a>`
+        : displayName(f.family);
       return `<tr><td>${nameCell}</td><td><span class="eco-chip">${escapeHtml(ecoRangeLabel(f.ecoCodes))}</span></td><td class="num">${f.lineCount}</td></tr>`;
     })
     .join('');

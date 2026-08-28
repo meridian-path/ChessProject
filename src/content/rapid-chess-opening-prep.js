@@ -37,7 +37,7 @@ const meta = {
 };
 
 function render(ctx) {
-  const { entries, escapeHtml, formatPct, formatGamesAbbrev, wrapTable, poolSpeeds, poolDisclosure } = ctx;
+  const { entries, escapeHtml, displayName, formatPct, formatGamesAbbrev, wrapTable, poolSpeeds, poolDisclosure } = ctx;
 
   const defaultBand = entries[0] ? entries[0].model.defaultBand : '1600-1800';
 
@@ -51,7 +51,7 @@ function render(ctx) {
     .slice(0, 8);
 
   const sampleRows = bySample
-    .map((e) => `<tr><td><a href="${escapeHtml(e.slug)}.html">${escapeHtml(e.name)}</a></td><td>${escapeHtml(e.side)}</td><td>${formatGamesAbbrev(e.games)}</td><td>${formatPct(e.score)}%</td></tr>`)
+    .map((e) => `<tr><td><a href="${escapeHtml(e.slug)}.html">${displayName(e.name)}</a></td><td>${escapeHtml(e.side)}</td><td>${formatGamesAbbrev(e.games)}</td><td>${formatPct(e.score)}%</td></tr>`)
     .join('');
 
   const disclosure = poolSpeeds && poolDisclosure ? poolDisclosure(poolSpeeds) : 'blitz games only';
@@ -71,7 +71,7 @@ function render(ctx) {
 
     <h2>A practical rapid prep routine</h2>
     <p>${topPick
-      ? `Pick one opening per color from a shortlist like the one above - <a href="${escapeHtml(topPick.slug)}.html">${escapeHtml(topPick.name)}</a> as ${escapeHtml(topPickSideLabel)} is this build&rsquo;s own top-sample pick at ${escapeHtml(defaultBand)} - and learn it to a fixed, shallow depth: the first 5-8 moves cold, plus one sentence per side on what each is trying to do in the middlegame that follows. That&rsquo;s the ceiling worth spending rapid study time on. Anything past that depth is classical-repertoire work, not rapid prep, and won&rsquo;t come up often enough at rapid time controls to be worth the hours.`
+      ? `Pick one opening per color from a shortlist like the one above - <a href="${escapeHtml(topPick.slug)}.html">${displayName(topPick.name)}</a> as ${escapeHtml(topPickSideLabel)} is this build&rsquo;s own top-sample pick at ${escapeHtml(defaultBand)} - and learn it to a fixed, shallow depth: the first 5-8 moves cold, plus one sentence per side on what each is trying to do in the middlegame that follows. That&rsquo;s the ceiling worth spending rapid study time on. Anything past that depth is classical-repertoire work, not rapid prep, and won&rsquo;t come up often enough at rapid time controls to be worth the hours.`
       : `Pick one opening per color, learn it to a fixed, shallow depth - the first 5-8 moves cold, plus one sentence per side on the middlegame plan that follows - and stop there. That depth is the ceiling rapid time controls actually reward; anything deeper is classical-repertoire work.`}
     None of this is a substitute for reviewing your own actual rapid games to see where you specifically run out of preparation.</p>
 

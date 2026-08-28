@@ -310,6 +310,26 @@ test('checkPublicHygiene scans dist files and reports the offending file', () =>
   assert.match(problems[0], /leak\.html/);
 });
 
+// --- craft-audit instance 8, accepted item 1: dist/site.css was invisible
+// to this gate -- the stylesheet externalization (b0d103b/0d7bb93) moved
+// ~55KB of shipped public bytes out of the .html files this gate scanned
+// into a site.css file it never looked at. Regression guard: a planted
+// offense inside a .css file must be REPORTED, not merely tolerated.
+// Fake decision id, same non-contiguous-literal convention FAKE_ID above uses
+// (this repo's own push-time hygiene gate shape-matches a diff's added lines
+// with no fixture-file exemption, unlike the checker under test here).
+const FAKE_DECISION_ID = 'decision-' + 'ab12cd34-56ef78';
+
+test('checkPublicHygiene scans .css files too (site.css externalization scope gap, instance 8)', () => {
+  const dir = mkTmpDir('hygiene-css-');
+  writeFile(dir, 'site.css', `/* filed as ${FAKE_DECISION_ID} */\n.card { color: red; }\n`);
+  writeFile(dir, 'clean.css', '.card { color: blue; }\n');
+  const problems = checkPublicHygiene(dir);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /site\.css/);
+  assert.ok(problems[0].includes(FAKE_DECISION_ID));
+});
+
 // --- item 2: checkPublicHygieneSource (the tracked-SOURCE mode) ------------------
 // checkPublicHygiene(distDir) above only ever walks BUILT dist/ output --
 // an id leaked into tracked SOURCE that's never emitted into dist/ (a
@@ -363,6 +383,28 @@ test('checkPublicHygieneSource excludes this checker\'s own test-fixture file by
 test('checkPublicHygieneSource does not flag internal series labels or governing-doc filenames in source comments -- deliberately narrower than check 7\'s HYGIENE_PATTERNS', () => {
   const dir = mkTmpDir('hygiene-source-');
   writeFile(dir, 'src/thing.js', '// WS-1 spec 3.4 (task W4): see design-standards.md, Phase 7c, site-audit item 11 -- all ordinary engineering shorthand, no real id here\nmodule.exports = {};\n');
+  assert.deepEqual(checkPublicHygieneSource(dir), []);
+});
+
+// --- craft-audit instance 8, accepted item 2: SOURCE_HYGIENE_DIRS was a
+// hand-picked ALLOWLIST (src/scripts/test/docs/.github/.claude) that
+// excluded the repo ROOT entirely -- exactly how README.md:190 and
+// .gitignore:22, both root-level tracked files, sat unscanned with real
+// leaks. Converted to a denylist walk from repoRoot; these two tests guard
+// the new shape directly rather than just re-running the old fixture set.
+test('checkPublicHygieneSource (denylist walk) reaches a ROOT-LEVEL tracked file the old allowlist never covered', () => {
+  const dir = mkTmpDir('hygiene-source-denylist-');
+  writeFile(dir, 'README.md', `See ${FAKE_ID} for context.\n`);
+  const problems = checkPublicHygieneSource(dir);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /README\.md/);
+});
+
+test('checkPublicHygieneSource (denylist walk) still excludes build/dependency output (node_modules, dist)', () => {
+  const dir = mkTmpDir('hygiene-source-denylist-');
+  writeFile(dir, `node_modules/somepkg/index.js`, `// ${FAKE_ID}\n`);
+  writeFile(dir, 'dist/leak.html', `<p>${FAKE_ID}</p>`);
+  writeFile(dir, 'src/clean.js', '// Repertoire Builder: real chess statistics.\nmodule.exports = {};\n');
   assert.deepEqual(checkPublicHygieneSource(dir), []);
 });
 

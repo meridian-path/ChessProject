@@ -53,7 +53,7 @@ function createPage(side, band) {
   };
 
   function render(ctx) {
-    const { entries, rankOpeningsByScore, escapeHtml, formatPct, formatGamesAbbrev, wrapTable } = ctx;
+    const { entries, rankOpeningsByScore, escapeHtml, displayName, formatPct, formatGamesAbbrev, wrapTable } = ctx;
 
     const { sideEntries, ranked } = rankSide(entries, side, band, rankOpeningsByScore);
     const usedBalanced = ranked.length > 0 && ranked[0].usedBalanced;
@@ -75,9 +75,9 @@ function createPage(side, band) {
         const scoreCell = usedBalanced && r.scoreForSideBalanced != null
           ? `${formatPct(r.scoreForSideBalanced)}% <span class="rep-pct">(${formatPct(r.scoreForSide)}% all games)</span>`
           : `${formatPct(r.scoreForSide)}%`;
-        return `<tr><td>${r.rank}</td><td><a href="${escapeHtml(r.slug)}.html">${escapeHtml(r.name)}</a></td><td>${formatGamesAbbrev(r.games)}</td><td>${scoreCell}</td></tr>`;
+        return `<tr><td>${r.rank}</td><td><a href="${escapeHtml(r.slug)}.html">${displayName(r.name)}</a></td><td>${formatGamesAbbrev(r.games)}</td><td>${scoreCell}</td></tr>`;
       }),
-      ...unranked.map((u) => `<tr><td></td><td><a href="${escapeHtml(u.slug)}.html">${escapeHtml(u.name)}</a></td><td>${formatGamesAbbrev(u.games)}</td><td>n/a</td></tr>`),
+      ...unranked.map((u) => `<tr><td></td><td><a href="${escapeHtml(u.slug)}.html">${displayName(u.name)}</a></td><td>${formatGamesAbbrev(u.games)}</td><td>n/a</td></tr>`),
     ].join('');
 
     // The comparison point for "how this compares to the other side" below --
@@ -108,7 +108,7 @@ function createPage(side, band) {
 
       <h2>How this compares to ${escapeHtml(otherLabel)}</h2>
       <p>${topThis && topOther
-        ? `At ${escapeHtml(band)}, ${escapeHtml(label)}&rsquo;s top-scoring tracked opening is <a href="${escapeHtml(topThis.slug)}.html">${escapeHtml(topThis.name)}</a> at ${formatPct(topThis.scoreForSideBalanced != null ? topThis.scoreForSideBalanced : topThis.scoreForSide)}%, versus <a href="${escapeHtml(topOther.slug)}.html">${escapeHtml(topOther.name)}</a> at ${formatPct(topOther.scoreForSideBalanced != null ? topOther.scoreForSideBalanced : topOther.scoreForSide)}% for ${escapeHtml(otherLabel)}. Scores for the two sides aren&rsquo;t directly comparable (White and Black start from a different position and this site doesn&rsquo;t track every possible opening for either side), so read this as &ldquo;here is each side&rsquo;s own best pick&rdquo;, not a claim that one side has an edge.`
+        ? `At ${escapeHtml(band)}, ${escapeHtml(label)}&rsquo;s top-scoring tracked opening is <a href="${escapeHtml(topThis.slug)}.html">${displayName(topThis.name)}</a> at ${formatPct(topThis.scoreForSideBalanced != null ? topThis.scoreForSideBalanced : topThis.scoreForSide)}%, versus <a href="${escapeHtml(topOther.slug)}.html">${displayName(topOther.name)}</a> at ${formatPct(topOther.scoreForSideBalanced != null ? topOther.scoreForSideBalanced : topOther.scoreForSide)}% for ${escapeHtml(otherLabel)}. Scores for the two sides aren&rsquo;t directly comparable (White and Black start from a different position and this site doesn&rsquo;t track every possible opening for either side), so read this as &ldquo;here is each side&rsquo;s own best pick&rdquo;, not a claim that one side has an edge.`
         : `Not enough band data was available in this build to compare against ${escapeHtml(otherLabel)}&rsquo;s own top pick at ${escapeHtml(band)}.`}</p>
 
       <h2>Why a &ldquo;score&rdquo; isn&rsquo;t the whole story</h2>

@@ -32,7 +32,7 @@
  * Explorer/Openings/ECO Index).
  */
 
-const { escapeHtml, renderDocumentHead, renderHeader, renderFooter } = require('./render');
+const { escapeHtml, displayName, renderDocumentHead, renderHeader, renderFooter } = require('./render');
 const { renderBreadcrumb } = require('./renderContent');
 const { SITE_NAME, BUILD_DATE, absoluteUrl } = require('./site');
 const { breadcrumbJsonLd } = require('./structuredData');
@@ -74,7 +74,7 @@ function renderCompareOpeningsPage(entries, { nav }) {
 
   const optionsHtml = (selectedSlug) =>
     openings
-      .map((o) => `<option value="${escapeHtml(o.slug)}"${o.slug === selectedSlug ? ' selected' : ''}>${escapeHtml(o.name)} (${o.side === 'white' ? 'White' : 'Black'})</option>`)
+      .map((o) => `<option value="${escapeHtml(o.slug)}"${o.slug === selectedSlug ? ' selected' : ''}>${displayName(o.name)} (${o.side === 'white' ? 'White' : 'Black'})</option>`)
       .join('');
 
   const resultsHtml = renderComparisonTable(defaultA, defaultB, DEFAULT_BAND);

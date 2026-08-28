@@ -26,7 +26,7 @@ const meta = {
 };
 
 function render(ctx) {
-  const { entries, rankOpeningsByScore, escapeHtml, formatPct, formatGamesAbbrev, wrapTable, poolSpeeds, poolDisclosure } = ctx;
+  const { entries, rankOpeningsByScore, escapeHtml, displayName, formatPct, formatGamesAbbrev, wrapTable, poolSpeeds, poolDisclosure } = ctx;
 
   const defaultBand = entries[0] ? entries[0].model.defaultBand : '1600-1800';
 
@@ -46,7 +46,7 @@ function render(ctx) {
 
   const sampleRows = bySample
     .map(
-      (e) => `<tr><td><a href="${escapeHtml(e.slug)}.html">${escapeHtml(e.name)}</a></td><td>${escapeHtml(e.side)}</td><td>${formatGamesAbbrev(e.games)}</td><td>${formatPct(e.score)}%</td></tr>`
+      (e) => `<tr><td><a href="${escapeHtml(e.slug)}.html">${displayName(e.name)}</a></td><td>${escapeHtml(e.side)}</td><td>${formatGamesAbbrev(e.games)}</td><td>${formatPct(e.score)}%</td></tr>`
     )
     .join('');
 
@@ -65,7 +65,7 @@ function render(ctx) {
 
     <h2>A practical way to use this</h2>
     <p>${topWhite && topBlack
-      ? `If you mostly play bullet or blitz, lean toward the mainline, high-sample choices above, like <a href="${escapeHtml(topWhite.slug)}.html">${escapeHtml(topWhite.name)}</a> as White or <a href="${escapeHtml(topBlack.slug)}.html">${escapeHtml(topBlack.name)}</a> as Black at ${escapeHtml(defaultBand)} - well-trodden lines mean fewer unfamiliar positions to solve on the clock. If you mostly play rapid or classical, the same rankings are still a reasonable shortlist, but put more of your study time into understanding the resulting middlegame plans rather than just the first several moves, since you&rsquo;ll actually have time at the board to use that understanding.`
+      ? `If you mostly play bullet or blitz, lean toward the mainline, high-sample choices above, like <a href="${escapeHtml(topWhite.slug)}.html">${displayName(topWhite.name)}</a> as White or <a href="${escapeHtml(topBlack.slug)}.html">${displayName(topBlack.name)}</a> as Black at ${escapeHtml(defaultBand)} - well-trodden lines mean fewer unfamiliar positions to solve on the clock. If you mostly play rapid or classical, the same rankings are still a reasonable shortlist, but put more of your study time into understanding the resulting middlegame plans rather than just the first several moves, since you&rsquo;ll actually have time at the board to use that understanding.`
       : `Whatever time control you play most, a mainline choice with a large sample size and a solid score at your rating band (see the table above) is a safer default than a rare line you&rsquo;ve only seen once, precisely because it stays well-tested regardless of how much time either side has.`}
     None of this is a substitute for finding a coach or a stronger player who can watch your actual games and tell you where time pressure specifically costs you points.</p>
 

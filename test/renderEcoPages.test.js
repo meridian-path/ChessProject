@@ -69,6 +69,20 @@ test('renderVariationTree: renders one <li> per line, with an eco-chip, and ever
   assert.match(html, /Najdorf Variation/);
 });
 
+// Craft-audit instance 8, accepted item 3: the ECO family/variation-tree
+// pages (eco-volume-c/d/e.html, kings-gambit-accepted-variations.html, etc.)
+// were the worst offenders in the sitewide straight-vs-curly apostrophe
+// count (up to 53 straight apostrophes on one page) -- every row label here
+// comes straight from the vendored ECO dataset's raw ASCII apostrophe.
+test('renderVariationTree renders an intra-word apostrophe in a family/line label as the typographic character, not escapeHtml\'s straight &#39;', () => {
+  const root = makeLine({ eco: 'C30', name: "King's Gambit", family: "King's Gambit", variation: null, segments: [] });
+  const accepted = makeLine({ eco: 'C33', name: "King's Gambit Accepted", family: "King's Gambit", variation: 'Accepted', segments: ['Accepted'] });
+  const entry = { family: "King's Gambit", slug: 'kings-gambit', lines: [root, accepted] };
+  const html = renderVariationTree(entry);
+  assert.match(html, /King&rsquo;s Gambit/);
+  assert.doesNotMatch(html, /King&#39;s/);
+});
+
 // ---------------------------------------------------------------------------
 // renderFamilyHubPage
 // ---------------------------------------------------------------------------

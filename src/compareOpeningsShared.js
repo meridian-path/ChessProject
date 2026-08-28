@@ -28,6 +28,14 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
+// Typographic-apostrophe normalization for opening DISPLAY NAMES rendered
+// into visible prose only -- see src/render.js's own displayName() for the
+// full rationale (this module stays isomorphic/dependency-free, so it keeps
+// its own copy rather than requiring that heavier module).
+function displayName(s) {
+  return escapeHtml(s).replace(/(\w)&#39;/g, '$1&rsquo;');
+}
+
 function formatPct(n) {
   return typeof n === 'number' ? n.toFixed(1) : '-';
 }
@@ -112,13 +120,13 @@ function renderComparisonTable(openingA, openingB, band) {
   };
 
   const gamesCell = (row) => (row ? row.games.toLocaleString() : '0');
-  const nameCell = (opening) => `<a href="${escapeHtml(opening.slug)}.html">${escapeHtml(opening.name)}</a> <span class="rep-pct">(${opening.side === 'white' ? 'White' : 'Black'})</span>`;
+  const nameCell = (opening) => `<a href="${escapeHtml(opening.slug)}.html">${displayName(opening.name)}</a> <span class="rep-pct">(${opening.side === 'white' ? 'White' : 'Black'})</span>`;
 
   return `
     <p class="table-hint">Scroll to see more &rarr;</p>
     <section class="table-scroll" tabindex="0" aria-label="Opening comparison at ${escapeHtml(band)}">
       <table>
-        <caption class="sr-only">${escapeHtml(openingA.name)} versus ${escapeHtml(openingB.name)} at ${escapeHtml(band)}</caption>
+        <caption class="sr-only">${displayName(openingA.name)} versus ${displayName(openingB.name)} at ${escapeHtml(band)}</caption>
         <thead>
           <tr><th scope="col">Metric</th><th scope="col">${nameCell(openingA)}</th><th scope="col">${nameCell(openingB)}</th></tr>
         </thead>

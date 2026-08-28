@@ -40,7 +40,8 @@ function walk(dir) {
     else if (
       entry.name.endsWith('.html') ||
       entry.name.endsWith('.xml') ||
-      entry.name.endsWith('.js')
+      entry.name.endsWith('.js') ||
+      entry.name.endsWith('.css')
     ) {
       out.push(p);
     }

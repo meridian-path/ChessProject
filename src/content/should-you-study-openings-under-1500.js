@@ -11,7 +11,7 @@ const meta = {
 };
 
 function render(ctx) {
-  const { entries, scoreRangeAcrossBands, escapeHtml, formatPct, wrapTable } = ctx;
+  const { entries, scoreRangeAcrossBands, escapeHtml, displayName, formatPct, wrapTable } = ctx;
 
   const withRange = entries
     .map(({ openingConfig, model }) => ({ slug: openingConfig.slug, name: model.name, side: model.side, range: scoreRangeAcrossBands(model) }))
@@ -24,7 +24,7 @@ function render(ctx) {
 
   const rows = sorted
     .map(
-      (e) => `<tr><td><a href="${escapeHtml(e.slug)}.html">${escapeHtml(e.name)}</a></td><td>${e.range.minBand} (${formatPct(e.range.minScore)}%)</td><td>${e.range.maxBand} (${formatPct(e.range.maxScore)}%)</td><td>${e.range.range} pts</td></tr>`
+      (e) => `<tr><td><a href="${escapeHtml(e.slug)}.html">${displayName(e.name)}</a></td><td>${e.range.minBand} (${formatPct(e.range.minScore)}%)</td><td>${e.range.maxBand} (${formatPct(e.range.maxScore)}%)</td><td>${e.range.range} pts</td></tr>`
     )
     .join('');
 

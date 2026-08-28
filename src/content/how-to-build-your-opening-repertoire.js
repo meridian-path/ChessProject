@@ -30,7 +30,7 @@ function replyScore(m) {
 }
 
 function render(ctx) {
-  const { entries, escapeHtml, formatPct, formatGamesAbbrev, formatSanLine, wrapTable } = ctx;
+  const { entries, escapeHtml, displayName, formatPct, formatGamesAbbrev, formatSanLine, wrapTable } = ctx;
 
   // Step 1's shortlist: every tracked opening with usable default-band data,
   // White choices first, best score first within each side.
@@ -46,7 +46,7 @@ function render(ctx) {
 
   const shortlistRows = shortlist
     .map(
-      (e) => `<tr><td>${escapeHtml(e.side)}</td><td><a href="${escapeHtml(e.slug)}.html">${escapeHtml(e.name)}</a></td><td>${escapeHtml(formatSanLine(e.line))}</td><td>${formatPct(e.band.scoreForSide)}%</td><td>${formatGamesAbbrev(e.band.games)}</td></tr>`
+      (e) => `<tr><td>${escapeHtml(e.side)}</td><td><a href="${escapeHtml(e.slug)}.html">${displayName(e.name)}</a></td><td>${escapeHtml(formatSanLine(e.line))}</td><td>${formatPct(e.band.scoreForSide)}%</td><td>${formatGamesAbbrev(e.band.games)}</td></tr>`
     )
     .join('');
 

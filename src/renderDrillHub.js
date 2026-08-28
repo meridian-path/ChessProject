@@ -24,7 +24,7 @@
  * committed data/rep/ shards), not passed in as a parameter.
  */
 
-const { escapeHtml, formatPct, renderDocumentHead, renderHeader, renderFooter, renderPageHead } = require('./render');
+const { escapeHtml, displayName, formatPct, renderDocumentHead, renderHeader, renderFooter, renderPageHead } = require('./render');
 const { renderBreadcrumb } = require('./renderContent');
 const { DRILL_CSS, CANDIDATE_TABLE_PLACEHOLDER } = require('./renderDrill');
 const { START_BOARD } = require('./chessPosition');
@@ -61,7 +61,7 @@ function renderDrillHubPage({ nav, legalLinks }) {
   const jsonLd = [breadcrumbJsonLd(breadcrumbItems), softwareAppJsonLd].join('\n  ');
 
   const openingOptions = OPENINGS
-    .map((o) => `<option value="${escapeHtml(o.slug)}">${escapeHtml(o.name)} (${o.side})</option>`)
+    .map((o) => `<option value="${escapeHtml(o.slug)}">${displayName(o.name)} (${o.side})</option>`)
     .join('');
 
   // The session board starts painted at the ordinary starting position --
@@ -195,7 +195,7 @@ function renderReferenceBandSection(bandEntry) {
           return `<li class="drill-reference-line">${text}</li>`;
         })
         .join('');
-      return `<h4>${escapeHtml(opening.name)} (${escapeHtml(opening.eco)})</h4><ol>${lineItems}</ol>`;
+      return `<h4>${displayName(opening.name)} (${escapeHtml(opening.eco)})</h4><ol>${lineItems}</ol>`;
     })
     .join('');
   return `<h3>${escapeHtml(bandEntry.band)}</h3>${openingBlocks}`;
