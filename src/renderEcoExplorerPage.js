@@ -37,10 +37,10 @@
 
 const { escapeHtml, renderDocumentHead, renderHeader, renderFooter, renderPageHead } = require('./render');
 const { SITE_NAME, absoluteUrl, pageTitle } = require('./site');
-const { breadcrumbJsonLd, definedTermSetJsonLd } = require('./structuredData');
+const { breadcrumbJsonLd } = require('./structuredData');
 const { spriteDefsHtml, pieceAttributionHtml } = require('./boardSvg');
 const { renderBreadcrumb } = require('./renderContent');
-const { ecoVolumeFilename, ECO_INDEX_FILE } = require('./renderEcoPages');
+const { ECO_INDEX_FILE } = require('./renderEcoPages');
 const { familyHubFilename } = require('./ecoFamilies');
 
 const ECO_EXPLORER_FILE = 'eco-explorer.html';
@@ -78,10 +78,9 @@ function jsonDataScript(id, data) {
  * @param {string} opts.reverseLookupUrl same-origin path the client fetch()es lazily (see this file's header comment)
  * @param {Array<{family:string, slug:string, lineCount:number, ecoCodes:string[]}>} opts.topFamilies
  *   top T1 families by line count, for the no-JS-visible server-rendered list (top ~12)
- * @param {Array<{eco:string}>} opts.allEcoCodes every distinct ECO code (500), sorted, for the DefinedTermSet block
  * @param {{totalLines:number, totalFamilies:number}} opts.stats
  */
-function renderEcoExplorerPage({ nav, lineIndex, t0CrossLinkMap, reverseLookupUrl, topFamilies, allEcoCodes, stats }) {
+function renderEcoExplorerPage({ nav, lineIndex, t0CrossLinkMap, reverseLookupUrl, topFamilies, stats }) {
   const title = pageTitle(EXPLORER_TITLE_BASE);
   let description = `Search all ${stats.totalLines.toLocaleString()} named chess openings by name, ECO code, or move sequence. Play any line on a real board, or paste a FEN or PGN to identify a position.`;
   if (description.length > 160) {
@@ -94,15 +93,19 @@ function renderEcoExplorerPage({ nav, lineIndex, t0CrossLinkMap, reverseLookupUr
     { label: 'Explorer', href: ECO_EXPLORER_FILE },
   ];
 
-  const terms = allEcoCodes.map((code) => ({
-    termCode: code,
-    name: code,
-    url: absoluteUrl(ecoVolumeFilename(code[0])),
-  }));
-  const jsonLd = [
-    breadcrumbJsonLd(breadcrumbItems),
-    definedTermSetJsonLd({ name: 'ECO (Encyclopaedia of Chess Openings) codes', url: canonical, terms }),
-  ].join('\n  ');
+  // No DefinedTermSet block on this page (craft-audit item 5, second half):
+  // this page used to re-emit all 500 ECO codes as one 90,687-byte
+  // DefinedTermSet JSON-LD block, but that is pure duplication -- the same
+  // 500 codes are already emitted, split across the 5 T2 volume index pages
+  // (src/renderEcoPages.js's own definedTermSetJsonLd call, ~100 terms per
+  // volume), each pointing at the same T1 family-hub URLs this block would
+  // have. DefinedTermSet is also not a supported Google rich-result type
+  // (see structuredData.js's own definedTermSetJsonLd docblock) -- so this
+  // page was paying 90 KB per load for a repeat of data already crawlable
+  // elsewhere and no SERP feature either copy could ever win. Dropped
+  // outright rather than trimmed to a subset: a partial repeat of the same
+  // 5 pages' data would be no more useful than the full repeat was.
+  const jsonLd = breadcrumbJsonLd(breadcrumbItems);
 
   const topFamiliesHtml = topFamilies
     .map((f) => `<li><a href="${escapeHtml(familyHubFilename(f.slug))}">${escapeHtml(f.family)}</a>

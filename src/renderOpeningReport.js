@@ -176,7 +176,7 @@ const OPENING_REPORT_CSS = `
     .leak-actions { grid-column: 1 / -1; flex-direction: row; }
   }
 
-  /* Site-audit item 3 (2026-08-26): the platform and username fields each
+  /* The platform and username fields each
      wrap a span label plus their own control in one label.report-field, so
      the pair can never separate across a flex-wrap line break the way two
      bare sibling labels did in an earlier version of this markup (a real

@@ -60,7 +60,6 @@ function buildEcoExplorerPage({
   const reverseLookupJson = JSON.stringify(reverseLookupIndex);
 
   const topFamilies = [...t1].sort((a, b) => b.lineCount - a.lineCount).slice(0, TOP_FAMILIES_COUNT);
-  const allEcoCodes = [...new Set(dataset.lines.map((l) => l.eco))].sort();
 
   const html = renderEcoExplorerPage({
     nav,
@@ -68,7 +67,6 @@ function buildEcoExplorerPage({
     t0CrossLinkMap,
     reverseLookupUrl: REVERSE_LOOKUP_FILE,
     topFamilies,
-    allEcoCodes,
     stats: { totalLines: dataset.stats.totalLines, totalFamilies: familyIndex.length },
   });
 

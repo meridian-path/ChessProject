@@ -33,6 +33,7 @@ const http = require('node:http');
 
 const { buildRepertoireBundle, buildBandHeaderControlBundle, bandPickerHtml } = require('../src/buildStatic');
 const { renderRepertoireExplorerPage } = require('../src/renderRepertoireExplorer');
+const { SITE_CSS_SHIPPED, SITE_CSS_FILE } = require('../src/render');
 const { chromium } = require('playwright');
 
 // Two real-shaped combos (same shape buildRepertoireCombos() produces) --
@@ -90,6 +91,15 @@ function startServer() {
     if (url === '/band-header.js') {
       res.writeHead(200, { 'Content-Type': 'application/javascript' });
       res.end(bandHeaderBundle);
+      return;
+    }
+    // Craft-audit item 6: renderRepertoireExplorerPage() now links a shared
+    // `/site.css` instead of inlining SITE_CSS (src/render.js's
+    // SITE_CSS_FILE comment) -- serve it here too so the page renders the
+    // same as production rather than unstyled.
+    if (url === `/${SITE_CSS_FILE}`) {
+      res.writeHead(200, { 'Content-Type': 'text/css' });
+      res.end(SITE_CSS_SHIPPED);
       return;
     }
     res.writeHead(404);

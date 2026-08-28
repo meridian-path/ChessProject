@@ -1912,10 +1912,28 @@ ${designTokensCss(THEME_ROLES.dark)}
      than a designed panel, so it gets an explicit light well -- literally
      ramp index 1 (var(--color-ink-1)), not the theme's --color-surface-alt
      role (which in dark mode is still dark, ink-7, and would defeat the
-     point). NOTE: this could not be visually verified against a live ad
-     render in this session (no ad inventory renders in a local/static
-     build) -- verify on the real deployed site with ads actually serving
-     before treating this as confirmed. */
+     point).
+
+     Craft-audit item 8 verification (real live site, real Chromium, three
+     separate pages, 2026-08-27): this rule DOES apply correctly on the real
+     deployed site -- toggling dark mode and reading the live ins.
+     adsbygoogle element's computed style confirmed background/border-
+     radius/padding all match this rule's declared values, exactly as
+     intended. What could NOT be confirmed: every real ins.adsbygoogle
+     checked across the homepage, opening-report.html, guides.html, and
+     italian-game-variations.html carried data-ad-status="unfilled" (0x0,
+     no creative) -- Auto Ads is not currently filling any slot on this
+     site for this check to see a real rendered creative against. Real
+     measured Cumulative Layout Shift on the homepage was 0 in this same
+     check, which is the direct, honest consequence of nothing rendering
+     yet, not evidence the eventual real creative will be shift-free. No
+     space-reservation CSS was added for this reason: there is no observed
+     shift to fix, and reserving space for an ad slot that may render at
+     an unknown future size risks its own, different layout problem
+     (a permanent gap when no ad fills) without a real creative to size it
+     against. Re-run this same check once Auto Ads is confirmed filling on
+     this site (.adsbygoogle[data-ad-status] will read "filled") --
+     re-measure CLS at that point and add reservation then if it is real. */
   [data-theme="dark"] .adsbygoogle,
   [data-theme="dark"] .google-auto-placed {
     background: var(--color-ink-1);
@@ -2245,13 +2263,43 @@ function stripCssComments(css) {
 }
 
 // The SHIPPED value -- comment-free -- used everywhere SITE_CSS actually
-// reaches a visitor: the <style> tag in renderDocumentHead() below, AND
-// (via bundleBrowserEntry()'s own post-bundle strip in src/buildStatic.js)
-// every client-side JS bundle that require()s this whole module. The raw,
-// commented SITE_CSS binding above stays SOURCE-only and is never itself
-// exported or referenced past this line, so there is exactly one place the
-// comment text can leak from (a bundler copying this module's source
-// wholesale), not two.
+// reaches a visitor: written once to dist/site.css (src/buildStatic.js) and
+// linked by every page's <link rel="stylesheet"> in renderDocumentHead()
+// below, plus served at the same path by the local dev server
+// (src/server.js's own /site.css route), AND (via bundleBrowserEntry()'s
+// own post-bundle strip in src/buildStatic.js) every client-side JS bundle
+// that require()s this whole module. The raw, commented SITE_CSS binding
+// above stays SOURCE-only and is never itself exported or referenced past
+// this line, so there is exactly one place the comment text can leak from
+// (a bundler copying this module's source wholesale), not two.
+//
+// Craft-audit item 6 (external stylesheet, not inlined per page): SITE_CSS
+// used to ship as an 86,266-byte <style> block duplicated byte-for-byte
+// inside all 125 pages (~10.5 MB of duplicated payload site-wide, none of
+// it cacheable across a navigation since a <style> block lives inside its
+// own document). It is now written ONCE to dist/site.css and every page
+// merely links it, so a repeat visitor's second, third, ... page view pays
+// zero bytes for it (a normal browser HTTP cache on a static asset), at the
+// real cost of one extra render-blocking request on a page's FIRST load
+// this build does not currently mitigate with a critical-CSS inline subset
+// (a legitimate, disclosed follow-up, not attempted here -- see this
+// change's own commit message for the measured trade-off).
+//
+// This deliberately does NOT preserve the site's file:// invariant for
+// VISUAL STYLING specifically: `/site.css` is a root-relative href (same
+// convention already used two lines above by /favicon.svg,
+// /apple-touch-icon.png, and /fonts/fraunces-variable.woff2 -- all three
+// already failed to resolve under a raw file:// open before this change,
+// for the same reason), which does not resolve when a built page is opened
+// directly as a file:// URL rather than served from the site root -- a
+// visitor opening dist/index.html locally (see README's own file://
+// walkthrough) would see the page unstyled. The file:// invariant this
+// project's tests actually enforce (test/buildStatic.test.js, "runs with no
+// global require/module/exports") is about the JS bundles staying
+// self-contained with zero runtime fetch() calls -- that invariant is
+// untouched by this change, since a <link rel="stylesheet"> is a normal
+// browser-resolved asset reference, not a script-driven fetch.
+const SITE_CSS_FILE = 'site.css';
 const SITE_CSS_SHIPPED = stripCssComments(SITE_CSS);
 
 // Default social-share image (1200x630, per Open Graph's recommended size).
@@ -2334,9 +2382,11 @@ const THEME_TOGGLE_SCRIPT = `<script>
  *   canonical or description yet. `jsonLd` (a pre-serialized <script type=
  *   "application/ld+json"> block or blocks) is phase-3 scope; content pages
  *   in this build pass no jsonLd, so nothing changes for them yet. `extraCss`
- *   emits a second <style> block after the shared SITE_CSS one -- only the
- *   drill page (src/renderDrill.js) passes it, so every other page's output
- *   is byte-identical to before. `ogImage` overrides the sitewide
+ *   emits a page-specific <style> block after the shared SITE_CSS
+ *   `<link rel="stylesheet">` (see SITE_CSS_FILE's own comment above for why
+ *   that shared CSS is now a link, not an inline block) -- only the drill
+ *   page (src/renderDrill.js) passes it, so every other page's output is
+ *   unaffected. `ogImage` overrides the sitewide
  *   OG_DEFAULT_IMAGE with a page-specific absolute image URL (only the
  *   Repertoire Pack pages pass this today -- src/renderPackPages.js -- every
  *   other page keeps the shared default unchanged).
@@ -2384,7 +2434,7 @@ function renderDocumentHead(arg) {
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preload" href="/fonts/fraunces-variable.woff2" as="font" type="font/woff2" crossorigin>
   ${THEME_PREPAINT_SCRIPT}
-  <style>${SITE_CSS_SHIPPED}</style>${extraStyleBlock}${jsonLdBlock}
+  <link rel="stylesheet" href="/${SITE_CSS_FILE}">${extraStyleBlock}${jsonLdBlock}
   <script data-goatcounter="https://dylangerrrr.goatcounter.com/count" data-goatcounter-settings='{"allow_query":["utm_source","utm_medium","utm_campaign","utm_content","utm_term","ref"]}' async src="https://gc.zgo.at/count.js"></script>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9767914878112531" crossorigin="anonymous"></script>
 </head>`;
@@ -3187,6 +3237,7 @@ module.exports = {
   formatPct,
   SITE_CSS,
   SITE_CSS_SHIPPED,
+  SITE_CSS_FILE,
   stripCssComments,
   DESIGN_TOKENS,
   THEME_ROLES,

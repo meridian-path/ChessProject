@@ -52,7 +52,7 @@ const path = require('path');
 const esbuild = require('esbuild');
 const { buildRepertoireTree } = require('./buildRepertoire');
 const { RATING_BANDS } = require('./processRepertoire');
-const { renderRedirectStubPage, renderGenericRedirectStub, escapeHtml, formatPct, renderDocumentHead, renderHeader, renderFooter, renderPageHead, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT, stripCssComments } = require('./render');
+const { renderRedirectStubPage, renderGenericRedirectStub, escapeHtml, formatPct, renderDocumentHead, renderHeader, renderFooter, renderPageHead, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT, stripCssComments, SITE_CSS_SHIPPED, SITE_CSS_FILE } = require('./render');
 const { renderRepertoireExplorerPage } = require('./renderRepertoireExplorer');
 const { renderOpeningStatCard, renderMethodologyPage } = require('./renderContent');
 // Board-visibility work (homepage hero demo) -- see
@@ -493,8 +493,8 @@ function buildHomeDemoBundle() {
     ' * captions and their percentages come from the #home-demo-data JSON',
     ' * block already on the page, baked in at build time. No chess.js: move',
     ' * input is restricted to the three UCI moves in that same data block',
-    ' * (spec section 2.3\'s named budget fallback), not general chess',
-    ' * legality. */',
+    ' * (the documented fallback for this bundle\'s size budget), not',
+    ' * general chess legality. */',
   ].join('\n');
   return bundleBrowserEntry(HOME_DEMO_ENTRY, header);
 }
@@ -1216,6 +1216,13 @@ function assertFilenamesUnique(filenames) {
 
 async function buildStatic({ fetchImpl = politeFetch, useCache = true } = {}) {
   fs.mkdirSync(OUT_DIR, { recursive: true });
+
+  // Craft-audit item 6: SITE_CSS is written here ONCE as its own static
+  // asset rather than inlined into every page's own <style> block (see
+  // src/render.js's SITE_CSS_FILE comment for the full reasoning and the
+  // file:// trade-off this makes). Written early, before any page HTML, so
+  // dist/site.css exists by the time a human or a test opens any page.
+  fs.writeFileSync(path.join(OUT_DIR, SITE_CSS_FILE), SITE_CSS_SHIPPED, 'utf8');
 
   // WS-3.2: one repertoire.html (band+color picked client-side, default
   // server-rendered) instead of 8 separate pages, plus the 8 old filenames

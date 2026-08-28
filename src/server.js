@@ -18,7 +18,7 @@ const { buildRepertoireTree } = require('./buildRepertoire');
 const { LichessNotFoundError, LichessRateLimitError } = require('./fetchLichess');
 const { ExplorerRateLimitError, ExplorerApiError } = require('./fetchOpeningExplorer');
 const { RATING_BANDS } = require('./processRepertoire');
-const { escapeHtml, renderRepertoirePage, renderDocumentHead, renderHeader, renderFooter } = require('./render');
+const { escapeHtml, renderRepertoirePage, renderDocumentHead, renderHeader, renderFooter, SITE_CSS_SHIPPED, SITE_CSS_FILE } = require('./render');
 const { SITE_NAME } = require('./site');
 
 const DEFAULT_PORT = 8787;
@@ -88,6 +88,19 @@ ${renderDocumentHead(`Opening repertoire explorer - ${SITE_NAME}`)}
 
 async function requestHandler(req, res) {
   const url = new URL(req.url, 'http://localhost');
+
+  // Craft-audit item 6: renderDocumentHead() now links a shared
+  // `/site.css` instead of inlining SITE_CSS per page (src/render.js's
+  // SITE_CSS_FILE comment) -- this dev server has no static-file
+  // middleware at all, so without this route every page it serves would
+  // load unstyled. Long-ish cache header matches the intent of the real
+  // static build's own cacheable-asset goal, harmless for a localhost-only
+  // dev server that always serves the current in-process value anyway.
+  if (url.pathname === `/${SITE_CSS_FILE}`) {
+    res.writeHead(200, { 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': 'public, max-age=3600' });
+    res.end(SITE_CSS_SHIPPED);
+    return;
+  }
 
   if (url.pathname === '/' ) {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });

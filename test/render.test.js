@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { SITE_CSS, SITE_CSS_SHIPPED, stripCssComments, DESIGN_TOKENS, THEME_ROLES, renderDocumentHead, renderNewsletterSignup, renderFooter, renderHeader, renderRepertoireTree, siteRelativeHref, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT, BAND_CONTROL_PAGES } = require('../src/render');
+const { SITE_CSS, SITE_CSS_SHIPPED, SITE_CSS_FILE, stripCssComments, DESIGN_TOKENS, THEME_ROLES, renderDocumentHead, renderNewsletterSignup, renderFooter, renderHeader, renderRepertoireTree, siteRelativeHref, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT, BAND_CONTROL_PAGES } = require('../src/render');
 const { RATING_BANDS } = require('../src/processRepertoire');
 const { BANDS: BAND_STATE_BANDS, DEFAULT_STATE: BAND_STATE_DEFAULT } = require('../src/browser/bandState.client');
 const { hygieneOffenses } = require('../scripts/verifyAggregates');
@@ -42,11 +42,10 @@ test('SITE_CSS_SHIPPED is comment-free and carries zero hygieneOffenses, even th
   assert.ok(hygieneOffenses(SITE_CSS).length > 0, 'sanity check: the raw, source-only SITE_CSS is expected to carry real engineering-doc references');
 });
 
-test('renderDocumentHead emits the comment-free SITE_CSS_SHIPPED, not the raw commented SITE_CSS', () => {
+test('renderDocumentHead links the shared, comment-free SITE_CSS_SHIPPED as an external stylesheet (craft-audit item 6), not an inline <style> block', () => {
   const html = renderDocumentHead('Test page');
-  const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/);
-  assert.ok(styleMatch, 'expected a <style> block');
-  assert.deepEqual(hygieneOffenses(styleMatch[1]), [], 'the rendered <style> block must carry zero internal-hygiene offenses');
+  assert.match(html, new RegExp(`<link rel="stylesheet" href="/${SITE_CSS_FILE}">`), 'expected a link to the shared stylesheet');
+  assert.doesNotMatch(html, /<style>[\s\S]*--color-accent[\s\S]*<\/style>/, 'SITE_CSS itself must no longer be inlined as a page <style> block');
 });
 
 // Regression coverage: the self-hosted Fraunces
@@ -85,11 +84,13 @@ test('SITE_CSS keeps --font-serif on headings (h1/h2/h3) only, and off body/UI/d
   assert.match(blockquoteRule[0], /font-family:\s*var\(--font-sans\)/);
 });
 
-test('renderDocumentHead preloads the self-hosted woff2 with crossorigin, before the <style> block', () => {
+test('renderDocumentHead preloads the self-hosted woff2 with crossorigin, before the shared stylesheet link', () => {
   const head = renderDocumentHead('Test Page');
   const preloadMatch = head.match(/<link rel="preload" href="\/fonts\/fraunces-variable\.woff2" as="font" type="font\/woff2" crossorigin>/);
   assert.ok(preloadMatch, 'expected a font preload link with as="font", type="font/woff2", and crossorigin');
-  assert.ok(head.indexOf(preloadMatch[0]) < head.indexOf('<style>'), 'the font preload should come before the <style> block so the browser discovers it as early as possible');
+  const styleLinkIndex = head.indexOf(`<link rel="stylesheet" href="/${SITE_CSS_FILE}">`);
+  assert.ok(styleLinkIndex !== -1, 'expected a link to the shared stylesheet');
+  assert.ok(head.indexOf(preloadMatch[0]) < styleLinkIndex, 'the font preload should come before the stylesheet link so the browser discovers it as early as possible');
 });
 
 // Security-standards.md "Headers" section: the CSP and referrer meta tags
