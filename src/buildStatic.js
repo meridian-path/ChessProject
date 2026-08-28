@@ -1557,6 +1557,13 @@ async function buildStatic({ fetchImpl = politeFetch, useCache = true } = {}) {
   // merchant urls land, packWritten's own `noindex` flips false and these
   // rejoin the sitemap on the next build with no further code change.
   const noindexPackFiles = new Set(packWritten.filter((p) => p.noindex).map((p) => p.file));
+  // Same treatment, one tier up: a T1 ECO family hub page whose main line
+  // has too few games at every rating band today (buildEcoPages.js's own
+  // `noindex` -- computed fresh each build from live Explorer data) stays
+  // out of the sitemap until real numbers exist. Not a fixed list: any
+  // family graduates automatically the moment its own game count clears
+  // minGamesForPct at a single band, with no code change here.
+  const noindexEcoFiles = new Set(ecoWritten.filter((e) => e.noindex).map((e) => e.file));
   // WS-1 placeholder pages carry `noindex` themselves (renderDocumentHead's
   // `noindex: true`, set by each renderer while its own module's
   // IS_PLACEHOLDER export is true) -- excluded from the sitemap for the
@@ -1569,7 +1576,7 @@ async function buildStatic({ fetchImpl = politeFetch, useCache = true } = {}) {
     ...(OPENING_REPORT_IS_PLACEHOLDER ? [OPENING_REPORT_FILE] : []),
     ...(DRILL_HUB_IS_PLACEHOLDER ? [DRILL_HUB_FILE, DRILL_REFERENCE_FILE] : []),
   ]);
-  const sitemapFilenames = pageFilenames.filter((f) => !noindexPackFiles.has(f) && !noindexPlaceholderFiles.has(f));
+  const sitemapFilenames = pageFilenames.filter((f) => !noindexPackFiles.has(f) && !noindexPlaceholderFiles.has(f) && !noindexEcoFiles.has(f));
 
   // sitemap.xml / robots.txt (phase 3): generated from the actual list of
   // .html pages just written above, so they can't drift from what's really
@@ -1621,7 +1628,7 @@ async function main() {
     for (const { file } of contentWritten) {
       console.log(`  - ${file}`);
     }
-    console.log(`  - ${ecoWritten.length} ECO pages (T1 family hubs + T2 volume/browse indexes, Phase 7d)`);
+    console.log(`  - ${ecoWritten.length} ECO pages (T1 family hubs + T2 volume/browse indexes, Phase 7d)${ecoWritten.some((e) => e.noindex) ? ` -- ${ecoWritten.filter((e) => e.noindex).length} family hub(s) still noindex (main line has too few games at every rating band)` : ''}`);
     console.log(`  - ${ecoExplorerResult.file} + eco-explorer.js + ${ecoExplorerResult.reverseLookupFile} (interactive ECO explorer, Phase 7e, ${ecoExplorerResult.reverseLookupCount.toLocaleString()} reverse-lookup positions)`);
     console.log('  - compare-openings.html + compare-openings.js (Compare Openings tool, site-audit item 11)');
     console.log('  - privacy.html, about.html, contact.html, ads.txt (compliance pages)');
@@ -1629,7 +1636,7 @@ async function main() {
     for (const { file, noindex } of packWritten) {
       console.log(`  - ${file}${noindex ? ' (noindex)' : ''}`);
     }
-    console.log('  - sitemap.xml, robots.txt (generated from the pages actually written above, noindex pack pages excluded)');
+    console.log('  - sitemap.xml, robots.txt (generated from the pages actually written above, noindex pack pages and ECO family hubs excluded)');
     console.log(`  - ${indexNowKeyFileName()} (IndexNow key-file proof of ownership, src/indexNow.js)`);
     console.log('Verified: no Lichess API token string appears in any generated file.');
     console.log('Verified: no literal "PLACEHOLDER" string appears in any generated file.');

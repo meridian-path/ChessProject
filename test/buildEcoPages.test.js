@@ -99,6 +99,41 @@ test('buildEcoPages: a T1 family hub whose family name matches a T0 opening link
   })
 );
 
+test('buildEcoPages: with healthy Explorer game counts, no T1 hub is noindexed', () =>
+  withTempDist(async (outDir) => {
+    const { fetchImpl } = makeSmartExplorerFetch();
+    const { written } = await buildEcoPages({ fetchImpl, outDir, nav: NAV });
+    const t1Hubs = written.filter((w) => w.file.endsWith('-variations.html'));
+    assert.equal(t1Hubs.length, 64);
+    for (const hub of t1Hubs) {
+      assert.equal(hub.noindex, false, `${hub.file} should not be noindexed`);
+      assert.doesNotMatch(hub.html, /name="robots"/);
+    }
+  })
+);
+
+test('buildEcoPages: a T1 family whose main line has too few games at every rating band is noindexed, its html carries the robots meta tag, and its sibling T2 pages are unaffected', () =>
+  withTempDist(async (outDir) => {
+    // Alekhine's Defense (1.e4 Nf6...) shares no line with any of the 12
+    // curated openings.js T0 openings (findT0CrossLink returns null for it,
+    // asserted above) -- its band requests always fall through to
+    // makeSmartExplorerFetch's fallbackJson branch, so this low count is
+    // guaranteed to apply to it specifically, not routed around it.
+    const { fetchImpl } = makeSmartExplorerFetch({ fallbackJson: { white: 10, draws: 5, black: 5 } });
+    const { written } = await buildEcoPages({ fetchImpl, outDir, nav: NAV });
+    const alekhineHub = written.find((w) => w.file === 'alekhine-defense-variations.html');
+    assert.ok(alekhineHub);
+    assert.equal(alekhineHub.noindex, true);
+    assert.match(alekhineHub.html, /<meta name="robots" content="noindex">/);
+
+    const volumePages = written.filter((w) => w.slug.startsWith('eco-volume-'));
+    assert.equal(volumePages.length, 5);
+    for (const page of volumePages) {
+      assert.doesNotMatch(page.html, /name="robots"/);
+    }
+  })
+);
+
 // ---------------------------------------------------------------------------
 // findT0CrossLink / resolveMainLineSide (via findT0CrossLink's own side data)
 // ---------------------------------------------------------------------------

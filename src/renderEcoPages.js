@@ -165,8 +165,11 @@ function renderVariationTree(familyEntry) {
  *   src/buildEcoPages.js's resolveMainLineSide() passes openings.js's own
  *   curated `side` here for the 8 T0-overlapping families (see that
  *   function's own comment for why the raw heuristic needs one override).
+ * @param {boolean} [opts.noindex] set by src/buildEcoPages.js when this
+ *   family's main line has too few games at every rating band -- see that
+ *   call site's own comment for why.
  */
-function renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink = null, drillCrossLink = null, relatedFamilies = [], mainLineSide = familyEntry.mainLineSide }) {
+function renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink = null, drillCrossLink = null, relatedFamilies = [], mainLineSide = familyEntry.mainLineSide, noindex = false }) {
   const { family, mainLine, ecoCodes, lineCount, volumes } = familyEntry;
   const filename = familyHubFilename(familyEntry.slug);
   const primaryVolume = mainLine.eco[0];
@@ -232,7 +235,7 @@ function renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink = null, 
 
   return `<!DOCTYPE html>
 <html lang="en">
-${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd })}
+${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd, noindex })}
 <body>
 <div class="page">
   ${renderHeader(nav, 'eco')}
