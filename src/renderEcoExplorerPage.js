@@ -12,15 +12,13 @@
  * src/buildEcoExplorer.js exactly like the drill/player-lookup bundles.
  *
  * Two payload strategy (see src/ecoExplorerData.js's own header comment for
- * the full reasoning): the ~53 KB-gzip search index is INLINED here as a
- * baked JSON script block (same pattern as src/renderDrill.js's
- * #drill-data), so search/filter/replay-board needs zero network requests
- * and the file:// invariant holds for that half of the page. The much
- * larger (~170 KB gzip) FEN reverse-lookup table is NOT inlined -- it is
- * fetched lazily by the client only when a visitor actually pastes a
- * FEN/PGN or plays a free move, which is this project's one deliberate,
- * explicitly-declared exception to the file:// invariant (see this
- * project's TESTING.md).
+ * the full reasoning): the ~53 KB-gzip search index (craft-audit item 5,
+ * 2026-08-28) and the ~170 KB-gzip FEN reverse-lookup table are BOTH
+ * external static assets now, fetched by the client -- eagerly for search
+ * (this page's primary feature), lazily for reverse-lookup (only once a
+ * visitor actually pastes a FEN/PGN or plays a free move). Two scoped,
+ * declared exceptions to this project's file:// invariant (see this
+ * project's TESTING.md), not one.
  *
  * No-JS fallback: this page server-renders real prose, a real <h1>, and a
  * genuine list of the top T1 families by line count as plain <a> links
@@ -73,14 +71,14 @@ function jsonDataScript(id, data) {
 /**
  * @param {object} opts
  * @param {object} opts.nav
- * @param {Array} opts.lineIndex src/ecoExplorerData.js's buildExplorerLineIndex() output (baked inline)
- * @param {Record<string,string>} opts.t0CrossLinkMap buildT0CrossLinkMap() output (baked inline)
+ * @param {Record<string,string>} opts.t0CrossLinkMap buildT0CrossLinkMap() output (baked inline -- small, ~64 entries)
+ * @param {string} opts.lineIndexUrl same-origin path the client fetch()es eagerly (see this file's header comment)
  * @param {string} opts.reverseLookupUrl same-origin path the client fetch()es lazily (see this file's header comment)
  * @param {Array<{family:string, slug:string, lineCount:number, ecoCodes:string[]}>} opts.topFamilies
  *   top T1 families by line count, for the no-JS-visible server-rendered list (top ~12)
  * @param {{totalLines:number, totalFamilies:number}} opts.stats
  */
-function renderEcoExplorerPage({ nav, lineIndex, t0CrossLinkMap, reverseLookupUrl, topFamilies, stats }) {
+function renderEcoExplorerPage({ nav, t0CrossLinkMap, lineIndexUrl, reverseLookupUrl, topFamilies, stats }) {
   const title = pageTitle(EXPLORER_TITLE_BASE);
   let description = `Search all ${stats.totalLines.toLocaleString()} named chess openings by name, ECO code, or move sequence. Play any line on a real board, or paste a FEN or PGN to identify a position.`;
   if (description.length > 160) {
@@ -197,9 +195,8 @@ ${renderDocumentHead({ title, description, canonical, jsonLd })}
     <ul class="explorer-top-families">${topFamiliesHtml}</ul>
     <p><a href="${ECO_INDEX_FILE}">All ${stats.totalFamilies} families and ECO volumes &rarr;</a></p>
 
-    ${jsonDataScript('explorer-line-index', lineIndex)}
     ${jsonDataScript('explorer-t0-map', t0CrossLinkMap)}
-    ${jsonDataScript('explorer-config', { reverseLookupUrl })}
+    ${jsonDataScript('explorer-config', { lineIndexUrl, reverseLookupUrl })}
   </main>
   ${renderFooter(`Aggregate position data from <a href="https://github.com/hayatbiralem/eco.json" rel="noopener noreferrer">hayatbiralem/eco.json</a> (MIT) and the CC0-licensed <a href="https://github.com/lichess-org/chess-openings" rel="noopener noreferrer">lichess.org opening database</a>. ${pieceAttributionHtml()}`, ECO_EXPLORER_LEGAL_LINKS)}
   <script src="eco-explorer.js" defer></script>

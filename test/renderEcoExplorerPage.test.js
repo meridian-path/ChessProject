@@ -9,11 +9,8 @@ const NAV = { repertoire: '/', openings: 'openings.html', eco: 'eco-openings.htm
 function baseArgs(overrides = {}) {
   return {
     nav: NAV,
-    lineIndex: [
-      ['B90', 'Sicilian Defense: Najdorf Variation', 'Sicilian Defense', 'e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6', 'sicilian-defense-variations.html'],
-      ['C50', 'Italian Game', 'Italian Game', 'e4 e5 Nf3 Nc6 Bc4', 'italian-game.html'],
-    ],
     t0CrossLinkMap: { 'Italian Game': 'italian-game.html' },
+    lineIndexUrl: 'eco-explorer-lines.json',
     reverseLookupUrl: 'eco-reverse-lookup.json',
     topFamilies: [{ family: 'Sicilian Defense', slug: 'sicilian-defense', lineCount: 391, ecoCodes: ['B20', 'B99'] }],
     stats: { totalLines: 3810, totalFamilies: 149 },
@@ -42,19 +39,15 @@ test('renderEcoExplorerPage meta description stays within the 160-char SEO cap',
   assert.ok(match[1].length <= 160, `description is ${match[1].length} chars`);
 });
 
-test('renderEcoExplorerPage bakes the line index, T0 map, and config as separate escaped JSON script blocks', () => {
+test('renderEcoExplorerPage bakes the T0 map and config as separate escaped JSON script blocks, and no longer bakes a line index (craft-audit item 5, first half: that ~562KB search index is now fetched externally, not inlined)', () => {
   const html = renderEcoExplorerPage(baseArgs());
-  const lineIndexMatch = html.match(/<script type="application\/json" id="explorer-line-index">([\s\S]*?)<\/script>/);
-  assert.ok(lineIndexMatch);
-  const parsed = JSON.parse(lineIndexMatch[1]);
-  assert.equal(parsed.length, 2);
-  assert.equal(parsed[0][0], 'B90');
+  assert.doesNotMatch(html, /id="explorer-line-index"/, 'the line index must no longer be baked inline');
 
   const t0Match = html.match(/<script type="application\/json" id="explorer-t0-map">([\s\S]*?)<\/script>/);
   assert.deepEqual(JSON.parse(t0Match[1]), { 'Italian Game': 'italian-game.html' });
 
   const configMatch = html.match(/<script type="application\/json" id="explorer-config">([\s\S]*?)<\/script>/);
-  assert.deepEqual(JSON.parse(configMatch[1]), { reverseLookupUrl: 'eco-reverse-lookup.json' });
+  assert.deepEqual(JSON.parse(configMatch[1]), { lineIndexUrl: 'eco-explorer-lines.json', reverseLookupUrl: 'eco-reverse-lookup.json' });
 });
 
 test('renderEcoExplorerPage references the eco-explorer.js bundle exactly once, deferred', () => {

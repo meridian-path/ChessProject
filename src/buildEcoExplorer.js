@@ -12,8 +12,10 @@
  * esbuild bundling of this page's browser entry point
  * (src/browser/ecoExplorer.client.js) is wired in src/buildStatic.js
  * itself, alongside the drill/player-lookup bundles it already owns --
- * this module only produces the HTML page and the reverse-lookup JSON
- * asset, both written to disk.
+ * this module only produces the HTML page and its two JSON assets (the
+ * search line-index and the FEN reverse-lookup table, both fetched by the
+ * client rather than inlined -- see src/ecoExplorerData.js's own header
+ * comment), all written to disk.
  */
 
 const fs = require('fs');
@@ -28,6 +30,11 @@ const { extractTitle, extractDescription } = require('./buildContent');
 
 const OUT_DIR = path.join(__dirname, '..', 'dist');
 const REVERSE_LOOKUP_FILE = 'eco-reverse-lookup.json';
+// Craft-audit item 5 (2026-08-28): the search index used to be baked inline
+// into eco-explorer.html (~562 KB raw, re-downloaded uncacheable on every
+// visit); it's now its own static asset, same convention as
+// REVERSE_LOOKUP_FILE above.
+const LINE_INDEX_FILE = 'eco-explorer-lines.json';
 const TOP_FAMILIES_COUNT = 12;
 
 /**
@@ -39,7 +46,8 @@ const TOP_FAMILIES_COUNT = 12;
  * @param {Function} [opts.readFileImpl] injectable, for tests -- defaults to fs.readFileSync (utf8)
  * @param {string} [opts.dataDir] injectable, for tests -- defaults to ecoData.js's own vendored-data path
  * @returns {{file:string, html:string, slug:string, title:string, description:string,
- *   reverseLookupFile:string, reverseLookupCount:number, reverseLookupJson:string}}
+ *   reverseLookupFile:string, reverseLookupCount:number, reverseLookupJson:string,
+ *   lineIndexFile:string, lineIndexCount:number, lineIndexJson:string}}
  */
 function buildEcoExplorerPage({
   dataset,
@@ -53,6 +61,7 @@ function buildEcoExplorerPage({
 
   const t1 = t1Families(familyIndex);
   const lineIndex = buildExplorerLineIndex(dataset.lines, familyIndex);
+  const lineIndexJson = JSON.stringify(lineIndex);
   const t0CrossLinkMap = buildT0CrossLinkMap(OPENINGS);
 
   const sourceB = loadSourceB(readFileImpl, dataDir);
@@ -63,8 +72,8 @@ function buildEcoExplorerPage({
 
   const html = renderEcoExplorerPage({
     nav,
-    lineIndex,
     t0CrossLinkMap,
+    lineIndexUrl: LINE_INDEX_FILE,
     reverseLookupUrl: REVERSE_LOOKUP_FILE,
     topFamilies,
     stats: { totalLines: dataset.stats.totalLines, totalFamilies: familyIndex.length },
@@ -72,6 +81,7 @@ function buildEcoExplorerPage({
 
   fs.writeFileSync(path.join(outDir, ECO_EXPLORER_FILE), html, 'utf8');
   fs.writeFileSync(path.join(outDir, REVERSE_LOOKUP_FILE), reverseLookupJson, 'utf8');
+  fs.writeFileSync(path.join(outDir, LINE_INDEX_FILE), lineIndexJson, 'utf8');
 
   return {
     file: ECO_EXPLORER_FILE,
@@ -82,12 +92,16 @@ function buildEcoExplorerPage({
     reverseLookupFile: REVERSE_LOOKUP_FILE,
     reverseLookupCount: reverseLookupIndex.length,
     reverseLookupJson,
+    lineIndexFile: LINE_INDEX_FILE,
+    lineIndexCount: lineIndex.length,
+    lineIndexJson,
   };
 }
 
 module.exports = {
   ECO_EXPLORER_FILE,
   REVERSE_LOOKUP_FILE,
+  LINE_INDEX_FILE,
   TOP_FAMILIES_COUNT,
   buildEcoExplorerPage,
 };

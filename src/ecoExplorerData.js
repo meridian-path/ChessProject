@@ -13,27 +13,38 @@
  *
  * - `buildExplorerLineIndex()` -- the SEARCH index, one compact array per
  *   line (not an object -- object keys repeated 3,810 times cost real
- *   bytes gzip can't fully undo). Inlined directly into the page's own
- *   HTML at build time (same `<script type="application/json">` pattern
- *   src/renderDrill.js already uses for its baked drill tree), so the
- *   search/filter/replay-board experience needs zero network requests and
- *   the file:// invariant holds for the search half of this page.
+ *   bytes gzip can't fully undo). Craft-audit item 5 (2026-08-28): used to
+ *   be inlined directly into the page's own HTML at build time (the same
+ *   pattern src/renderDrill.js still uses for its much smaller baked drill
+ *   tree) -- at ~562 KB raw / ~53 KB gzip, that meant re-downloading the
+ *   whole index, uncacheable, on every visit. src/buildEcoExplorer.js now
+ *   writes it to its own static asset (dist/eco-explorer-lines.json,
+ *   same convention as the reverse-lookup file below) and
+ *   src/browser/ecoExplorer.client.js fetches it once, eagerly, as soon as
+ *   the script runs (not lazily like the reverse lookup below -- search is
+ *   this page's primary feature, not a secondary one gated on user action).
+ *   A fetch failure (e.g. this page opened directly from disk) degrades to
+ *   an honest status message, same discipline as the reverse-lookup fetch.
  *   Measured: 3,810 rows, ~53 KB gzip -- see this module's own test for the
  *   exact shape.
  *
  * - `buildReverseLookupIndex()` -- the FEN -> opening-name REVERSE lookup,
  *   sourced from hayatbiralem/eco.json (Source B, 12,379 position entries,
  *   ~170 KB gzip even after stripping every field this page doesn't need).
- *   That is too large to justify blocking this page's first paint, so it
- *   is NOT inlined -- src/buildEcoExplorer.js writes it to its own static
- *   asset (dist/eco-reverse-lookup.json) and the browser fetches it lazily,
- *   only the first time a visitor actually pastes a FEN/PGN or makes a
- *   free-play move. This is the one place on this entire site that issues
- *   a runtime `fetch()` for same-origin data outside the player-lookup
- *   page's already-documented live-API exception -- it deliberately trades
- *   away the file:// invariant for T3's FEN-identification feature only,
- *   a scoped, declared exception (see this project's TESTING.md) rather
- *   than something a reader should discover by surprise.
+ *   Also too large to justify blocking first paint, and less urgently
+ *   needed than search -- src/buildEcoExplorer.js writes it to its own
+ *   static asset (dist/eco-reverse-lookup.json) and the browser fetches it
+ *   lazily, only the first time a visitor actually pastes a FEN/PGN or
+ *   makes a free-play move.
+ *
+ * Both payloads now trade away this site's file:// invariant for this one
+ * page's two features (search, FEN identification) -- two scoped, declared
+ * exceptions (see this project's TESTING.md), not something a reader should
+ * discover by surprise. Every other page on the site still holds the
+ * invariant; see src/render.js's SITE_CSS_FILE comment for why an external
+ * `<link rel="stylesheet">` is a different case (a browser-resolved asset
+ * reference, not a script-driven fetch) that does NOT carry the same
+ * exception.
  */
 
 const { familyHubFilename, MIN_T1_LINES } = require('./ecoFamilies');
