@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const { buildEcoExplorerPage, ECO_EXPLORER_FILE, REVERSE_LOOKUP_FILE } = require('../src/buildEcoExplorer');
+const { buildEcoExplorerPage, ECO_EXPLORER_FILE, REVERSE_LOOKUP_FILE, LINE_INDEX_FILE } = require('../src/buildEcoExplorer');
 const { buildEcoDataset } = require('../src/ecoData');
 const { buildFamilyIndex } = require('../src/ecoFamilies');
 
@@ -46,12 +46,20 @@ test('buildEcoExplorerPage writes eco-explorer.html and the reverse-lookup JSON 
   })
 );
 
-test('buildEcoExplorerPage bakes exactly one line-index row per dataset line (all 3,810)', () =>
+test('buildEcoExplorerPage (craft-audit item 5, first half) writes the search line-index as its own external JSON asset, exactly one row per dataset line (all 3,810), and does NOT bake it into the HTML', () =>
   withTempDist(async (outDir) => {
     const result = buildEcoExplorerPage({ dataset, familyIndex, nav: NAV, outDir });
-    const match = result.html.match(/<script type="application\/json" id="explorer-line-index">([\s\S]*?)<\/script>/);
-    const lineIndex = JSON.parse(match[1]);
+    assert.equal(result.lineIndexFile, LINE_INDEX_FILE);
+    assert.ok(fs.existsSync(path.join(outDir, LINE_INDEX_FILE)));
+
+    const writtenJson = fs.readFileSync(path.join(outDir, LINE_INDEX_FILE), 'utf8');
+    assert.equal(writtenJson, result.lineIndexJson);
+    const lineIndex = JSON.parse(writtenJson);
     assert.equal(lineIndex.length, 3810);
+    assert.equal(lineIndex.length, result.lineIndexCount);
+
+    assert.doesNotMatch(result.html, /id="explorer-line-index"/, 'the line index must not be baked into the page HTML');
+    assert.match(result.html, new RegExp(`"lineIndexUrl":"${LINE_INDEX_FILE}"`), 'the page must carry the fetch URL in its baked config block');
   })
 );
 

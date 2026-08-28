@@ -71,7 +71,7 @@ const { packsIndexFilename, packOgImageFilename, PRICE_USD } = require('./render
 const { buildEcoDataset } = require('./ecoData');
 const { buildFamilyIndex, t1Families } = require('./ecoFamilies');
 const { ECO_INDEX_FILE } = require('./renderEcoPages');
-const { buildEcoExplorerPage, ECO_EXPLORER_FILE, REVERSE_LOOKUP_FILE } = require('./buildEcoExplorer');
+const { buildEcoExplorerPage, ECO_EXPLORER_FILE, REVERSE_LOOKUP_FILE, LINE_INDEX_FILE } = require('./buildEcoExplorer');
 const { withExplorerCache } = require('./explorerCache');
 const { renderPrivacyPage, renderAboutPage, renderContactPage, render404Page, adsTxtContent, cloudflareHeadersContent } = require('./renderCompliance');
 const { renderSitemapXml, robotsTxtContent } = require('./sitemap');
@@ -1536,6 +1536,7 @@ async function buildStatic({ fetchImpl = politeFetch, useCache = true } = {}) {
     'eco-explorer.js',
     'compare-openings.js',
     REVERSE_LOOKUP_FILE,
+    LINE_INDEX_FILE,
     'CNAME',
     '_headers',
     'ads.txt',
@@ -1629,7 +1630,7 @@ async function main() {
       console.log(`  - ${file}`);
     }
     console.log(`  - ${ecoWritten.length} ECO pages (T1 family hubs + T2 volume/browse indexes, Phase 7d)${ecoWritten.some((e) => e.noindex) ? ` -- ${ecoWritten.filter((e) => e.noindex).length} family hub(s) still noindex (main line has too few games at every rating band)` : ''}`);
-    console.log(`  - ${ecoExplorerResult.file} + eco-explorer.js + ${ecoExplorerResult.reverseLookupFile} (interactive ECO explorer, Phase 7e, ${ecoExplorerResult.reverseLookupCount.toLocaleString()} reverse-lookup positions)`);
+    console.log(`  - ${ecoExplorerResult.file} + eco-explorer.js + ${ecoExplorerResult.lineIndexFile} + ${ecoExplorerResult.reverseLookupFile} (interactive ECO explorer, Phase 7e, ${ecoExplorerResult.lineIndexCount.toLocaleString()} search rows, ${ecoExplorerResult.reverseLookupCount.toLocaleString()} reverse-lookup positions)`);
     console.log('  - compare-openings.html + compare-openings.js (Compare Openings tool, site-audit item 11)');
     console.log('  - privacy.html, about.html, contact.html, ads.txt (compliance pages)');
     console.log(`  - ${packWritten.length} Repertoire Pack pages (index + detail, M2)${packWritten.some((p) => p.noindex) ? ' -- at least one still noindex (STORE still carries a PLACEHOLDER url, see src/render.js)' : ''}`);

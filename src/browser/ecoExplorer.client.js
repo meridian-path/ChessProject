@@ -21,16 +21,18 @@
  *
  * Two data sources, two different loading strategies (see
  * src/ecoExplorerData.js's header comment for the full reasoning):
- *   - The ~50 KB-gzip search index (#explorer-line-index) is already baked
- *     into this page's own HTML -- read synchronously off the DOM, no
- *     network request, file://-safe.
+ *   - The ~50 KB-gzip search index (craft-audit item 5, 2026-08-28) is
+ *     fetched eagerly, once, as soon as this script runs -- search is this
+ *     page's primary feature, so the fetch starts immediately rather than
+ *     waiting on any user action, and is cached in memory once resolved.
  *   - The ~170 KB-gzip FEN reverse-lookup table is fetched lazily, once,
  *     the first time a visitor actually needs FEN identification (a paste,
- *     or a free-play move) -- this is the one deliberate, declared
- *     exception to this site's file:// invariant (see TESTING.md). A
- *     fetch() failure (e.g. this page opened directly from disk) degrades
- *     to a plain, honest status message rather than a silent no-op or a
- *     thrown error.
+ *     or a free-play move) -- deferred because it is used far less often
+ *     than search and is over 3x the payload.
+ * Both are declared exceptions to this site's file:// invariant (see
+ * TESTING.md). Either fetch() failing (e.g. this page opened directly from
+ * disk) degrades to a plain, honest status message rather than a silent
+ * no-op or a thrown error.
  */
 
 const { mountReplayBoard } = require('../boardWidgetReplay');
@@ -46,19 +48,15 @@ const MAX_RESULTS_RENDERED = 100; // keep the results DOM small regardless of ho
   const app = document.querySelector('[data-explorer-app]');
   if (!app) return; // no explorer markup present -- nothing to wire up (defensive, mirrors drill.client.js's own bail-out pattern)
 
-  const lineIndexEl = document.getElementById('explorer-line-index');
   const t0MapEl = document.getElementById('explorer-t0-map');
   const configEl = document.getElementById('explorer-config');
-  if (!lineIndexEl || !t0MapEl || !configEl) return;
+  if (!t0MapEl || !configEl) return;
 
-  let lineIndex;
   let t0Map;
   let config;
   try {
-    lineIndex = JSON.parse(lineIndexEl.textContent);
     t0Map = JSON.parse(t0MapEl.textContent);
     config = JSON.parse(configEl.textContent);
-    if (!Array.isArray(lineIndex)) throw new Error('explorer-line-index is not an array');
   } catch (err) {
     return; // corrupt baked data -- leave the server-rendered no-JS content as-is
   }
@@ -75,6 +73,25 @@ const MAX_RESULTS_RENDERED = 100; // keep the results DOM small regardless of ho
   const pgnSubmit = document.getElementById('explorer-pgn-submit');
   const pasteErrorEl = document.getElementById('explorer-paste-error');
   if (!boardMount || !searchInput || !resultsEl) return;
+
+  // --- search line index: fetched eagerly (this page's primary feature), cached in memory --
+
+  let lineIndexData = null;
+  let lineIndexFailed = false;
+  const lineIndexPromise = fetch(config.lineIndexUrl)
+    .then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    })
+    .then((data) => {
+      if (!Array.isArray(data)) throw new Error('line index is not an array');
+      lineIndexData = data;
+      return data;
+    })
+    .catch(() => {
+      lineIndexFailed = true;
+      return null;
+    });
 
   // --- reverse-lookup: lazy-fetched once, cached in memory -----------------
 
@@ -284,10 +301,21 @@ const MAX_RESULTS_RENDERED = 100; // keep the results DOM small regardless of ho
     resultsEl.appendChild(table);
   }
 
-  function runSearch() {
+  async function runSearch() {
     const needle = searchInput.value.trim().toLowerCase();
     if (needle.length === 0) {
       renderResults([], 0);
+      return;
+    }
+    if (!lineIndexData && !lineIndexFailed) resultCountEl.textContent = 'Loading search index…';
+    const lineIndex = lineIndexData || (await lineIndexPromise);
+    // The visitor may have kept typing (or cleared the field) while this
+    // awaited -- a newer input event already re-triggered runSearch for
+    // whatever the field holds now, so a stale resolution here must not
+    // clobber that newer render.
+    if (searchInput.value.trim().toLowerCase() !== needle) return;
+    if (!lineIndex) {
+      resultCountEl.textContent = 'Search is unavailable right now (this page was likely opened directly from disk, or the fetch failed) -- try reloading, or browse by family below.';
       return;
     }
     const matched = [];
