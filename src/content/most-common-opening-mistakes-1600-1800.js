@@ -35,7 +35,7 @@ function render(ctx) {
     .join('');
 
   return `
-    <p>Every opening page on this site computes &ldquo;common mistakes&rdquo; the same honest way: a move that&rsquo;s played often enough to matter, but that scores badly for the side playing it, according to real games at that rating band. No engine evaluation, no &ldquo;this loses a piece&rdquo; claims. Just a move&rsquo;s actual result rate compared to how often it gets played. This page pulls those results together across all ${entries.length} openings this site tracks, worst-scoring first.</p>
+    <p>Every opening page on this site computes &ldquo;common mistakes&rdquo; the same honest way: a move that&rsquo;s played often enough to matter, but that scores badly for the side playing it, according to real games at that rating band. No engine evaluation, no &ldquo;this loses a piece&rdquo; claims - an engine can tell you a move is objectively bad, but not whether players at your own level actually get punished for it in a real game. Just a move&rsquo;s actual result rate compared to how often it gets played. This page pulls those results together across all ${entries.length} openings this site tracks, worst-scoring first.</p>
 
     ${all.length === 0
       ? '<p class="empty-note">No qualifying mistakes were found across the tracked openings in this build. That itself is a real result, not a placeholder.</p>'
