@@ -372,6 +372,37 @@ test('checkPublicHygieneSource against the REAL repo tree finds zero leaks (post
   assert.deepEqual(problems, [], `expected zero real internal-id leaks in tracked source, found: ${JSON.stringify(problems)}`);
 });
 
+// --- follow-on hygiene verification task: the REST of this asset's public
+// surface (README, dotfiles, CI workflow comments) beyond the charter files
+// already owned by the separate session-charter-sync migration. Neither
+// check 7 (dist/ output only) nor check 8 (source, but id-SHAPES only, by
+// design -- see that check's own header comment) ever runs the FULL
+// HYGIENE_PATTERNS vocabulary (role names, governing-doc filenames, process
+// phrases) against these reader-facing root files, so a leak here was
+// invisible to every existing gate -- this is exactly how README.md/
+// .gitignore/deploy-pages.yml/ingest-dump.yml leaked in the first place.
+// Regression guard for the two real leaks this instance found and fixed
+// (.gitignore's bare "TESTING.md" pattern, ingest-dump.yml's "decision
+// brief" phrase) and a floor against a future one in the same files.
+test('hygieneOffenses against this repo\'s real reader-facing root files (README, .gitignore, CI workflows) finds zero leaks (post-fix regression guard)', () => {
+  const repoRoot = path.join(__dirname, '..');
+  const readerFacingFiles = [
+    'README.md',
+    '.gitignore',
+    '.htmlvalidate.json',
+    '.nvmrc',
+    'package.json',
+    '.github/workflows/deploy-pages.yml',
+    '.github/workflows/ingest-dump.yml',
+  ];
+  for (const relFile of readerFacingFiles) {
+    const full = path.join(repoRoot, relFile);
+    if (!fs.existsSync(full)) continue;
+    const offenses = hygieneOffenses(fs.readFileSync(full, 'utf8'));
+    assert.deepEqual(offenses, [], `expected ${relFile} clean of internal vocabulary, found: ${JSON.stringify(offenses)}`);
+  }
+});
+
 // --- loadAggregateShards -----------------------------------------------------------
 
 test('loadAggregateShards parses the REAL on-disk shard shape (positions-wrapped, no childKey)', () => {

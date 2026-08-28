@@ -187,7 +187,7 @@ Every origin loaded or called by the live site, and why:
   time for the pre-rendered repertoire pages when `data/aggregates/` isn't
   present locally (masters-database lookups always call it; see
   `src/explorerSource.js`'s header). The separate, run-by-hand
-  `scripts/buildBandShards.js` crawler (WS-1's band-meta shard dataset,
+  `scripts/buildBandShards.js` crawler (the band-meta shard dataset,
   `data/rep/`, copied into `dist/data/rep/` at build time) now REQUIRES
   `data/aggregates/` and refuses to call this API by default -- see that
   script's own header ("DATA SOURCE, FIXED 2026-08-16") for why: it must

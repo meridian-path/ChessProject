@@ -19,10 +19,10 @@ data/aggregates/*
 data/aggregates-*/
 
 # Internal planning/testing docs -- not for the public repo. Kept locally,
-# never pushed. Broad patterns since growth/reviewer passes name these
-# inconsistently (SEO_PLAN.md, SITE_HEALTH_REPORT_2026-08-14.md, etc.) --
+# never pushed. Broad patterns since these get named inconsistently
+# (SEO_PLAN.md, SITE_HEALTH_REPORT_2026-08-14.md, etc.) --
 # catch the naming convention (all-caps root-level .md), not a fixed list.
-TESTING.md
+TESTING*.md
 DISTRIBUTION_DRAFTS_README.md
 DISTRIBUTION_PACKET.md
 draft_*.txt
