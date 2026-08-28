@@ -181,7 +181,7 @@ jobs:
       # live site is unaffected by a new tag simply existing. Once the new
       # tag is verified good and the live site is confirmed serving it,
       # deleting the now-genuinely-stale old release stays a human-executed
-      # action via a fresh decision brief -- no agent delete rights here.
+      # action, decided fresh each time -- no agent delete rights here.
       - name: Create release and upload aggregate asset
         id: release
         env:
