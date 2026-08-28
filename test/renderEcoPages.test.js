@@ -133,6 +133,26 @@ test('renderFamilyHubPage: mainLineSide override changes which side the bands ta
   assert.match(html, /playing as black/);
 });
 
+test('renderFamilyHubPage: noindex defaults to false -- no robots meta tag unless the caller explicitly passes noindex:true', () => {
+  const line = makeLine({ eco: 'B90', name: 'Sicilian Defense: Najdorf', family: 'Sicilian Defense' });
+  const entry = makeFamilyEntry({ lines: [line] });
+  const bandStats = buildFamilyBandStats({ side: entry.mainLineSide, bandResponses: {} });
+  const html = renderFamilyHubPage({ familyEntry: entry, bandStats, nav: NAV });
+  assert.doesNotMatch(html, /name="robots"/);
+});
+
+test('renderFamilyHubPage: noindex:true (src/buildEcoPages.js, main line too few games at every band) renders the noindex robots meta tag', () => {
+  const line = makeLine({ eco: 'D00', name: 'Blackmar-Diemer Gambit Accepted', family: 'Blackmar-Diemer Gambit Accepted' });
+  const entry = makeFamilyEntry({ lines: [line] });
+  const bandStats = buildFamilyBandStats({
+    side: entry.mainLineSide,
+    bandResponses: { '1400-1600': { white: 60, draws: 10, black: 61 } }, // 131 games, under minGamesForPct
+  });
+  assert.ok(bandStats.bands.every((b) => !b.enoughData));
+  const html = renderFamilyHubPage({ familyEntry: entry, bandStats, nav: NAV, noindex: true });
+  assert.match(html, /<meta name="robots" content="noindex">/);
+});
+
 // ---------------------------------------------------------------------------
 // renderEcoVolumeIndexPage
 // ---------------------------------------------------------------------------

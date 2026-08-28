@@ -162,7 +162,7 @@ function buildVolumeCodeRows(lines, volume, familyIndex) {
  * @param {string} [opts.outDir] where to write the generated files
  * @param {object} opts.nav nav object passed to renderHeader
  * @param {string} [opts.aggregatesDir] see src/explorerSource.js's `dir` param.
- * @returns {Promise<{written: Array<{file,html,slug,title,description}>,
+ * @returns {Promise<{written: Array<{file,html,slug,title,description,noindex}>,
  *   familyIndex: Array, t1: Array, stats: object}>}
  */
 async function buildEcoPages({ fetchImpl = fetch, outDir = OUT_DIR, nav, aggregatesDir = AGGREGATES_DIR, drillPages = {} } = {}) {
@@ -183,10 +183,22 @@ async function buildEcoPages({ fetchImpl = fetch, outDir = OUT_DIR, nav, aggrega
     const t0CrossLink = findT0CrossLink(familyEntry);
     const drillCrossLink = findDrillCrossLink(familyEntry, drillPages);
     const relatedFamilies = pickRelatedFamilies(familyEntry, t1);
-    const html = renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink, drillCrossLink, relatedFamilies, mainLineSide });
+    // Noindexed when the main line has fewer than minGamesForPct games at
+    // EVERY rating band: every row of the one table this page exists to
+    // show (renderBandsTable, src/renderContent.js) then reads "Not enough
+    // games at this band yet", while the page's own meta description still
+    // promises "real Lichess win rates" -- a page that delivers none of
+    // what it promises shouldn't count toward how a crawler judges the rest
+    // of the site. The ECO/move data further down the page is still real
+    // and the page stays reachable, just out of the crawl/index set (same
+    // treatment as a still-PLACEHOLDER pack page below). `.every()` on an
+    // empty `bands` array (a test double with no bandResponses) is `true`,
+    // which is the right call too: no data was even attempted.
+    const noindex = bandStats.bands.every((b) => !b.enoughData);
+    const html = renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink, drillCrossLink, relatedFamilies, mainLineSide, noindex });
     const file = familyHubFilename(familyEntry.slug);
     fs.writeFileSync(path.join(outDir, file), html, 'utf8');
-    written.push({ file, html, slug: familyEntry.slug, title: extractTitle(html), description: extractDescription(html) });
+    written.push({ file, html, slug: familyEntry.slug, title: extractTitle(html), description: extractDescription(html), noindex });
   }
 
   // --- T2: ECO volume index pages (A-E) -----------------------------------
