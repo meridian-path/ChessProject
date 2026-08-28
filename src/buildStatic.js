@@ -493,8 +493,8 @@ function buildHomeDemoBundle() {
     ' * captions and their percentages come from the #home-demo-data JSON',
     ' * block already on the page, baked in at build time. No chess.js: move',
     ' * input is restricted to the three UCI moves in that same data block',
-    ' * (spec section 2.3\'s named budget fallback), not general chess',
-    ' * legality. */',
+    ' * (the documented fallback for this bundle\'s size budget), not',
+    ' * general chess legality. */',
   ].join('\n');
   return bundleBrowserEntry(HOME_DEMO_ENTRY, header);
 }
