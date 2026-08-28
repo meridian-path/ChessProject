@@ -39,7 +39,7 @@ const OPENINGS = [
     name: 'Ruy Lopez',
     ecoHint: 'C60',
     side: 'white',
-    strategy: "The bishop on b5 targets the knight defending e5, threatening to trade it off and leave the e-pawn hanging outright. Black almost always answers with a6, forcing White to choose between retreating to a4 to keep that pressure alive or trading on c6 for the bishop pair at the cost of doubled pawns. The middlegames that follow are some of the most studied in chess: slow maneuvering for central and kingside space rather than an early tactical fight.",
+    strategy: "The bishop on b5 targets the knight defending e5, threatening to trade it off and leave the e-pawn hanging outright. Black almost always answers with a6, forcing White to choose between retreating to a4 to keep that pressure alive or trading on c6, giving up the bishop pair to saddle Black with doubled pawns. The middlegames that follow are some of the most studied in chess: slow maneuvering for central and kingside space rather than an early tactical fight.",
     line: [
       { uci: 'e2e4', san: 'e4' },
       { uci: 'e7e5', san: 'e5' },
@@ -78,7 +78,7 @@ const OPENINGS = [
     name: 'French Defense',
     ecoHint: 'C00',
     side: 'black',
-    strategy: "Black prepares d5 without committing the light-squared bishop first, accepting that it may stay boxed in behind its own pawns for a while. After the common continuation d4 d5 e5, White typically gets more space and kingside attacking chances, while Black's plan is to chip at the base of White's pawn chain with c5 and, later, f6, rather than contest the center head-on.",
+    strategy: "Black prepares d5 without committing the light-squared bishop first, accepting that it may stay boxed in behind its own pawns for a while. After the common continuation d4 d5 e5, White typically gets more space and kingside attacking chances, while Black's plan is to attack that pawn chain at both ends - c5 against its base, f6 against its head - rather than contest the center head-on.",
     line: [
       { uci: 'e2e4', san: 'e4' },
       { uci: 'e7e6', san: 'e6' },
