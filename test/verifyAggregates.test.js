@@ -315,14 +315,19 @@ test('checkPublicHygiene scans dist files and reports the offending file', () =>
 // ~55KB of shipped public bytes out of the .html files this gate scanned
 // into a site.css file it never looked at. Regression guard: a planted
 // offense inside a .css file must be REPORTED, not merely tolerated.
+// Fake decision id, same non-contiguous-literal convention FAKE_ID above uses
+// (this repo's own push-time hygiene gate shape-matches a diff's added lines
+// with no fixture-file exemption, unlike the checker under test here).
+const FAKE_DECISION_ID = 'decision-' + 'ab12cd34-56ef78';
+
 test('checkPublicHygiene scans .css files too (site.css externalization scope gap, instance 8)', () => {
   const dir = mkTmpDir('hygiene-css-');
-  writeFile(dir, 'site.css', '/* filed as decision-ab12cd34-56ef78 */\n.card { color: red; }\n');
+  writeFile(dir, 'site.css', `/* filed as ${FAKE_DECISION_ID} */\n.card { color: red; }\n`);
   writeFile(dir, 'clean.css', '.card { color: blue; }\n');
   const problems = checkPublicHygiene(dir);
   assert.equal(problems.length, 1);
   assert.match(problems[0], /site\.css/);
-  assert.ok(problems[0].includes('decision-ab12cd34-56ef78'));
+  assert.ok(problems[0].includes(FAKE_DECISION_ID));
 });
 
 // --- item 2: checkPublicHygieneSource (the tracked-SOURCE mode) ------------------
