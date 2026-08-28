@@ -401,7 +401,17 @@ const SOURCE_HYGIENE_ID_PATTERNS = [
   /\bdecision-[a-z0-9]{8}-[a-f0-9]{6}\b/i,
 ];
 
-const SOURCE_HYGIENE_DIRS = ['src', 'scripts', 'test', 'docs', '.github', '.claude'];
+// Denylist, not allowlist -- see TheOrchestra's docs/HYGIENE_CHECK_TEMPLATE.md
+// for why: a hand-picked allowlist of "the dirs we scan" silently stops
+// covering a new source directory the moment one is added and the list isn't
+// extended (exactly how README.md and .gitignore, both at the repo root, sat
+// unscanned by this check's own prior allowlist while carrying real leaks).
+// A denylist only fails open on a genuinely NEW kind of build/dependency
+// output directory, a much rarer and more visible failure. Extend this list
+// only for real build/dependency output, never turn it back into an allowlist.
+const SOURCE_HYGIENE_DENY_DIRS = new Set([
+  'node_modules', 'dist', 'build', 'out', '.git', 'vendor', '.next', '.cache', 'coverage',
+]);
 
 // This checker's own test file deliberately contains id-shaped fixture
 // strings (a fake "task-XXXXXXXX-XXXXXX"-shaped id, spelled out with X's in
@@ -420,18 +430,32 @@ function sourceIdOffenses(text) {
   return [...found];
 }
 
+// Walks every tracked-shaped directory under repoRoot except
+// SOURCE_HYGIENE_DENY_DIRS, filtering files the same way the prior allowlist
+// walk did (by extension, not by directory membership).
+function listSourceHygieneFiles(dir) {
+  const out = [];
+  if (!fs.existsSync(dir)) return out;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      if (SOURCE_HYGIENE_DENY_DIRS.has(entry.name)) continue;
+      out.push(...listSourceHygieneFiles(path.join(dir, entry.name)));
+    } else if (entry.isFile() && /\.(html|htm|js|mjs|json|xml|md|yml|yaml)$/i.test(entry.name)) {
+      out.push(path.join(dir, entry.name));
+    }
+  }
+  return out;
+}
+
 function checkPublicHygieneSource(repoRoot) {
   const problems = [];
-  for (const relDir of SOURCE_HYGIENE_DIRS) {
-    const dir = path.join(repoRoot, relDir);
-    for (const file of listFiles(dir, (f) => /\.(html|htm|js|mjs|json|xml|md|yml|yaml)$/i.test(f))) {
-      const relFile = path.relative(repoRoot, file).split(path.sep).join('/');
-      if (SOURCE_HYGIENE_EXCLUDE_FILES.includes(relFile)) continue;
-      const text = fs.readFileSync(file, 'utf8');
-      const offenses = sourceIdOffenses(text);
-      if (offenses.length) {
-        problems.push(`${relFile}: internal id leaked into tracked source: ${offenses.join(', ')}`);
-      }
+  for (const file of listSourceHygieneFiles(repoRoot)) {
+    const relFile = path.relative(repoRoot, file).split(path.sep).join('/');
+    if (SOURCE_HYGIENE_EXCLUDE_FILES.includes(relFile)) continue;
+    const text = fs.readFileSync(file, 'utf8');
+    const offenses = sourceIdOffenses(text);
+    if (offenses.length) {
+      problems.push(`${relFile}: internal id leaked into tracked source: ${offenses.join(', ')}`);
     }
   }
   return problems;
@@ -439,7 +463,7 @@ function checkPublicHygieneSource(repoRoot) {
 
 function checkPublicHygiene(distDir) {
   const problems = [];
-  for (const file of listFiles(distDir, (f) => f.endsWith('.html') || f.endsWith('.js') || f.endsWith('.json') || f.endsWith('.xml'))) {
+  for (const file of listFiles(distDir, (f) => f.endsWith('.html') || f.endsWith('.js') || f.endsWith('.json') || f.endsWith('.xml') || f.endsWith('.css'))) {
     const text = fs.readFileSync(file, 'utf8');
     const offenses = hygieneOffenses(text);
     if (offenses.length) {
@@ -728,9 +752,10 @@ module.exports = {
   hygieneOffenses,
   checkPublicHygiene,
   SOURCE_HYGIENE_ID_PATTERNS,
-  SOURCE_HYGIENE_DIRS,
+  SOURCE_HYGIENE_DENY_DIRS,
   SOURCE_HYGIENE_EXCLUDE_FILES,
   sourceIdOffenses,
+  listSourceHygieneFiles,
   checkPublicHygieneSource,
   loadAggregateShards,
   runAll,

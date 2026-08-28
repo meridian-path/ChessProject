@@ -39,7 +39,7 @@ const {
   lichessAnalysisUrl,
   lichessOpeningUrl,
 } = require('./renderContent');
-const { escapeHtml, formatPct, wrapTable } = require('./render');
+const { escapeHtml, displayName, formatPct, wrapTable } = require('./render');
 const { BUILD_DATE } = require('./site');
 
 // Editorial guides (phase 2). Each module exports {meta, render(ctx)} -- see
@@ -451,6 +451,7 @@ function buildGuidePages(entries, { nav, outDir, aggregatesDir = AGGREGATES_DIR 
     lichessAnalysisUrl,
     lichessOpeningUrl,
     escapeHtml,
+    displayName,
     formatPct,
     wrapTable,
     poolSpeeds,
@@ -514,7 +515,7 @@ function buildFaqEntries(entries, { manifest = null } = {}) {
     {
       question: 'What is the best first move for beginners?',
       answerHtml: topBeginner
-        ? `<p>There&rsquo;s no single objectively &ldquo;best&rdquo; first move, but among the openings this site tracks, <a href="${escapeHtml(topBeginner.slug)}.html">${escapeHtml(topBeginner.name)}</a> currently scores highest for its side at the 1400-1600 rating band. See the <a href="best-chess-openings-for-beginners.html">full ranking &rarr;</a> for all of them, and why &ldquo;highest score&rdquo; isn&rsquo;t the whole answer.</p>`
+        ? `<p>There&rsquo;s no single objectively &ldquo;best&rdquo; first move, but among the openings this site tracks, <a href="${escapeHtml(topBeginner.slug)}.html">${displayName(topBeginner.name)}</a> currently scores highest for its side at the 1400-1600 rating band. See the <a href="best-chess-openings-for-beginners.html">full ranking &rarr;</a> for all of them, and why &ldquo;highest score&rdquo; isn&rsquo;t the whole answer.</p>`
         : `<p>There&rsquo;s no single objectively &ldquo;best&rdquo; first move. See the <a href="best-chess-openings-for-beginners.html">beginner openings ranked by score &rarr;</a> for how the openings this site tracks actually compare.</p>`,
     },
     {

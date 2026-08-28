@@ -62,7 +62,7 @@ function createPage(band) {
   };
 
   function render(ctx) {
-    const { entries, aggregateMistakesAcrossOpenings, escapeHtml, formatPct } = ctx;
+    const { entries, aggregateMistakesAcrossOpenings, escapeHtml, displayName, formatPct } = ctx;
     const all = aggregateMistakesAcrossOpenings(entries, band);
 
     const items = all
@@ -73,7 +73,7 @@ function createPage(band) {
               m.punishingReply.winPct != null ? formatPct(m.punishingReply.winPct + m.punishingReply.drawPct / 2) : '?'
             }% for the side punishing it.`
           : '';
-        return `<li class="callout">In the <a href="${escapeHtml(m.slug)}.html">${escapeHtml(m.name)}</a>, <strong>${escapeHtml(m.san)}</strong> is played in ${formatPct(m.playedPct)}% of games at ${escapeHtml(m.band)} but scores only ${formatPct(m.score)}% for ${escapeHtml(m.opponentColor)}.${follow}</li>`;
+        return `<li class="callout">In the <a href="${escapeHtml(m.slug)}.html">${displayName(m.name)}</a>, <strong>${escapeHtml(m.san)}</strong> is played in ${formatPct(m.playedPct)}% of games at ${escapeHtml(m.band)} but scores only ${formatPct(m.score)}% for ${escapeHtml(m.opponentColor)}.${follow}</li>`;
       })
       .join('');
 

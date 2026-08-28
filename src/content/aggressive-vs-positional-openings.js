@@ -47,7 +47,7 @@ const STYLE = {
 const STYLE_LABELS = { aggressive: 'Aggressive', positional: 'Positional', flexible: 'Flexible' };
 
 function render(ctx) {
-  const { entries, escapeHtml, formatPct, formatGamesAbbrev, wrapTable } = ctx;
+  const { entries, escapeHtml, displayName, formatPct, formatGamesAbbrev, wrapTable } = ctx;
   const defaultBand = entries[0] ? entries[0].model.defaultBand : '1600-1800';
 
   const rows = entries
@@ -76,7 +76,7 @@ function render(ctx) {
 
   const tableRows = rows
     .map(
-      (r) => `<tr><td><a href="${escapeHtml(r.slug)}.html">${escapeHtml(r.name)}</a></td><td>${escapeHtml(r.side)}</td><td>${STYLE_LABELS[r.style]}</td><td>${formatGamesAbbrev(r.games)}</td><td>${r.drawPct != null ? `${formatPct(r.drawPct)}%` : 'n/a'}</td><td>${r.scoreForSide != null ? `${formatPct(r.scoreForSide)}%` : 'n/a'}</td></tr>`
+      (r) => `<tr><td><a href="${escapeHtml(r.slug)}.html">${displayName(r.name)}</a></td><td>${escapeHtml(r.side)}</td><td>${STYLE_LABELS[r.style]}</td><td>${formatGamesAbbrev(r.games)}</td><td>${r.drawPct != null ? `${formatPct(r.drawPct)}%` : 'n/a'}</td><td>${r.scoreForSide != null ? `${formatPct(r.scoreForSide)}%` : 'n/a'}</td></tr>`
     )
     .join('');
 
@@ -100,7 +100,7 @@ function render(ctx) {
   const positionalList = rows.filter((r) => r.style === 'positional');
   const flexibleList = rows.filter((r) => r.style === 'flexible');
 
-  const listLinks = (list) => list.map((r) => `<a href="${escapeHtml(r.slug)}.html">${escapeHtml(r.name)}</a>`).join(', ');
+  const listLinks = (list) => list.map((r) => `<a href="${escapeHtml(r.slug)}.html">${displayName(r.name)}</a>`).join(', ');
 
   return `
     <p>&ldquo;Aggressive&rdquo; and &ldquo;positional&rdquo; are the two words players reach for most when picking an opening by feel: do you want direct piece play and forcing lines, or a slower buildup around structure and long-term plans? This page keeps that reputation-based framing separate from what this site can actually measure, then checks the two against each other.</p>
@@ -111,7 +111,7 @@ function render(ctx) {
       ${Object.entries(STYLE).map(([slug, s]) => {
         const entry = entries.find((e) => e.openingConfig.slug === slug);
         const name = entry ? entry.model.name : slug;
-        return `<li><strong>${escapeHtml(name)}</strong> (${STYLE_LABELS[s.label]}): ${escapeHtml(s.blurb)}.</li>`;
+        return `<li><strong>${displayName(name)}</strong> (${STYLE_LABELS[s.label]}): ${escapeHtml(s.blurb)}.</li>`;
       }).join('')}
     </ul>
 

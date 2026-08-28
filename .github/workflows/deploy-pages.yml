@@ -93,8 +93,8 @@ jobs:
       # workflow's own history, and run 31906005148). Extracting the
       # published shards here is the fix: with them on disk, only two kinds
       # of live call remain --
-      #   1. the masters-database lookup (spec section 1.8's one narrow,
-      #      named exception: real grandmaster games, no equivalent in the
+      #   1. the masters-database lookup (one narrow, named exception:
+      #      real grandmaster games, no equivalent in the
       #      dump pipeline) -- one call per opening page, unchanged by this
       #      step, still needs LICHESS_API_TOKEN;
       #   2. a same-position retry for the disclosed, currently-permanent
@@ -185,7 +185,7 @@ jobs:
             node scripts/verifyAggregates.js dist --skip-aggregates
           fi
 
-      # WS-1 band-meta shards (dist/data/rep/, scripts/buildBandShards.js) --
+      # Band-meta shards (dist/data/rep/, scripts/buildBandShards.js) --
       # a separate, run-by-hand dataset from data/aggregates/ above, checked
       # the same way. A genuinely missing dist/data/rep/manifest.json is a
       # non-gating WARN (the crawler hasn't been run/committed yet), same

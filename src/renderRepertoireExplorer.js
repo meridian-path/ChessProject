@@ -23,7 +23,7 @@
  * render.js itself must never require() this file or boardSvg.js.
  */
 
-const { escapeHtml, renderDocumentHead, renderHeader, renderFooter, renderPageHead, renderRepertoireTree } = require('./render');
+const { escapeHtml, displayName, renderDocumentHead, renderHeader, renderFooter, renderPageHead, renderRepertoireTree } = require('./render');
 const { spriteDefsHtml, pieceAttributionHtml } = require('./boardSvg');
 
 /**
@@ -53,7 +53,7 @@ function renderRepertoireExplorerPage({ combos, defaultBand, defaultColor, bandP
   }
 
   const totalGames = defaultCombo.totals ? defaultCombo.totals.white + defaultCombo.totals.draws + defaultCombo.totals.black : null;
-  const openingNote = defaultCombo.opening ? ` - starting from ${escapeHtml(defaultCombo.opening.name)} (${escapeHtml(defaultCombo.opening.eco)})` : '';
+  const openingNote = defaultCombo.opening ? ` - starting from ${displayName(defaultCombo.opening.name)} (${escapeHtml(defaultCombo.opening.eco)})` : '';
   const totalsNote = defaultCombo.totals
     ? `<p id="repertoire-totals" class="summary-line">${totalGames.toLocaleString()} games played from the starting position in this rating band
         (${defaultCombo.totals.white.toLocaleString()}W / ${defaultCombo.totals.draws.toLocaleString()}D / ${defaultCombo.totals.black.toLocaleString()}L).</p>`

@@ -33,7 +33,7 @@
  * duplicating ~400 KB of markup nobody would read.
  */
 
-const { escapeHtml, renderDocumentHead, renderHeader, renderFooter, renderPageHead } = require('./render');
+const { escapeHtml, displayName, renderDocumentHead, renderHeader, renderFooter, renderPageHead } = require('./render');
 const { SITE_NAME, absoluteUrl, pageTitle } = require('./site');
 const { breadcrumbJsonLd } = require('./structuredData');
 const { spriteDefsHtml, pieceAttributionHtml } = require('./boardSvg');
@@ -106,7 +106,7 @@ function renderEcoExplorerPage({ nav, t0CrossLinkMap, lineIndexUrl, reverseLooku
   const jsonLd = breadcrumbJsonLd(breadcrumbItems);
 
   const topFamiliesHtml = topFamilies
-    .map((f) => `<li><a href="${escapeHtml(familyHubFilename(f.slug))}">${escapeHtml(f.family)}</a>
+    .map((f) => `<li><a href="${escapeHtml(familyHubFilename(f.slug))}">${displayName(f.family)}</a>
       <span class="explorer-family-meta">${f.lineCount} lines, ECO ${escapeHtml(f.ecoCodes[0])}${f.ecoCodes.length > 1 ? `–${escapeHtml(f.ecoCodes[f.ecoCodes.length - 1])}` : ''}</span></li>`)
     .join('');
 

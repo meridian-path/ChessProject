@@ -44,7 +44,7 @@ const TRANSITIONS = [
 ];
 
 function render(ctx) {
-  const { entries, rankOpeningsByScore, scoreRangeAcrossBands, escapeHtml, formatPct, wrapTable } = ctx;
+  const { entries, rankOpeningsByScore, scoreRangeAcrossBands, escapeHtml, displayName, formatPct, wrapTable } = ctx;
 
   // Real check #1: does the TOP-ranked tracked opening for each side change
   // as you move up through the bands, or does the same one stay on top the
@@ -62,7 +62,7 @@ function render(ctx) {
 
   const topRows = topBySideAndBand
     .flatMap(({ side, perBand }) =>
-      perBand.map(({ band, top }) => `<tr><td>${escapeHtml(side)}</td><td>${escapeHtml(band)}</td><td>${top ? `<a href="${escapeHtml(top.slug)}.html">${escapeHtml(top.name)}</a> (${formatPct(top.usedBalanced && top.scoreForSideBalanced != null ? top.scoreForSideBalanced : top.scoreForSide)}%)` : 'not enough data'}</td></tr>`)
+      perBand.map(({ band, top }) => `<tr><td>${escapeHtml(side)}</td><td>${escapeHtml(band)}</td><td>${top ? `<a href="${escapeHtml(top.slug)}.html">${displayName(top.name)}</a> (${formatPct(top.usedBalanced && top.scoreForSideBalanced != null ? top.scoreForSideBalanced : top.scoreForSide)}%)` : 'not enough data'}</td></tr>`)
     )
     .join('');
 

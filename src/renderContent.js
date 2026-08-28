@@ -18,7 +18,7 @@
  * only what that same page already renders visibly, never anything extra.
  */
 
-const { escapeHtml, formatPct, renderDocumentHead, renderHeader, renderFooter, wrapTable, renderPageHead, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT } = require('./render');
+const { escapeHtml, displayName, formatPct, renderDocumentHead, renderHeader, renderFooter, wrapTable, renderPageHead, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT } = require('./render');
 const { START_BOARD, applyUciMoves } = require('./chessPosition');
 const { SITE_NAME, SITE_AUTHOR, BUILD_DATE, absoluteUrl, pageTitle } = require('./site');
 const { breadcrumbJsonLd, articleJsonLd, faqPageJsonLd, datasetJsonLd } = require('./structuredData');
@@ -135,8 +135,8 @@ function renderBreadcrumb(items) {
     .map((item, i) => {
       const isLast = i === items.length - 1;
       return isLast || !item.href
-        ? `<li aria-current="page">${escapeHtml(item.label)}</li>`
-        : `<li><a href="${escapeHtml(item.href)}">${escapeHtml(item.label)}</a></li>`;
+        ? `<li aria-current="page">${displayName(item.label)}</li>`
+        : `<li><a href="${escapeHtml(item.href)}">${displayName(item.label)}</a></li>`;
     })
     .join('<li class="breadcrumb-sep" aria-hidden="true">/</li>');
   return `<nav class="breadcrumb" aria-label="Breadcrumb"><ol>${parts}</ol></nav>`;
@@ -149,8 +149,8 @@ function renderRelated(items, heading = 'Related') {
   if (!items || items.length === 0) return '';
   const cards = items
     .map(
-      (i) => `<div class="card card--nav"><h3><a href="${escapeHtml(i.href)}">${escapeHtml(i.label)}</a></h3>${
-        i.note ? `<p>${escapeHtml(i.note)}</p>` : ''
+      (i) => `<div class="card card--nav"><h3><a href="${escapeHtml(i.href)}">${displayName(i.label)}</a></h3>${
+        i.note ? `<p>${displayName(i.note)}</p>` : ''
       }</div>`
     )
     .join('');
@@ -232,11 +232,11 @@ function renderOpeningStatCard(openingConfig, model, extraClass = '', { showScor
     const hasData = band && band.enoughData && band.scoreForSide != null && band.whitePct != null;
     const classes = ['card', hasData ? 'card--stat' : 'card--nav', extraClass].filter(Boolean).join(' ');
     if (!hasData) {
-      return `<div class="${classes}"><h3><a href="${href}">${escapeHtml(model.name)}</a></h3><p>${escapeHtml(model.eco)}, playing as ${escapeHtml(model.side)}</p></div>`;
+      return `<div class="${classes}"><h3><a href="${href}">${displayName(model.name)}</a></h3><p>${escapeHtml(model.eco)}, playing as ${escapeHtml(model.side)}</p></div>`;
     }
     const scoreLine = scoreLineFor(band, '1600-1800');
     return `<div class="${classes}">
-    <h3><a href="${href}">${escapeHtml(model.name)}</a></h3>
+    <h3><a href="${href}">${displayName(model.name)}</a></h3>
     <div class="card-wdl-row">${wdlBar(band.whitePct, band.drawPct, band.blackPct, `White/draw/black at 1600-1800: ${formatPct(band.whitePct)}% / ${formatPct(band.drawPct)}% / ${formatPct(band.blackPct)}%`)}</div>${scoreLine}
   </div>`;
   }
@@ -254,7 +254,7 @@ function renderOpeningStatCard(openingConfig, model, extraClass = '', { showScor
   const anyBandHasData = (model.bands || []).some((b) => b.enoughData && b.scoreForSide != null && b.whitePct != null);
   if (!anyBandHasData) {
     const classes = ['card', 'card--nav', extraClass].filter(Boolean).join(' ');
-    return `<div class="${classes}"><h3><a href="${href}">${escapeHtml(model.name)}</a></h3><p>${escapeHtml(model.eco)}, playing as ${escapeHtml(model.side)}</p></div>`;
+    return `<div class="${classes}"><h3><a href="${href}">${displayName(model.name)}</a></h3><p>${escapeHtml(model.eco)}, playing as ${escapeHtml(model.side)}</p></div>`;
   }
   const classes = ['card', 'card--stat', extraClass].filter(Boolean).join(' ');
   const panels = HEADER_BAND_OPTIONS.map((bandName) => {
@@ -270,7 +270,7 @@ function renderOpeningStatCard(openingConfig, model, extraClass = '', { showScor
     </div>`;
   }).join('\n    ');
   return `<div class="${classes}" data-stat-card="${escapeHtml(openingConfig.slug)}">
-    <h3><a href="${href}">${escapeHtml(model.name)}</a></h3>
+    <h3><a href="${href}">${displayName(model.name)}</a></h3>
     ${panels}
   </div>`;
 }
@@ -390,7 +390,7 @@ function renderTopRepliesTable(model) {
   }
   const rows = model.topReplies
     .map((m) => {
-      const label = m.opening ? ` <span class="rep-pct">(${escapeHtml(m.opening.name)})</span>` : '';
+      const label = m.opening ? ` <span class="rep-pct">(${displayName(m.opening.name)})</span>` : '';
       const bar = wdlBar(m.winPct, m.drawPct, m.lossPct, `${m.san} win/draw/loss`, {
         ci: {
           games: m.games, winCI: m.winCI, drawCI: m.drawCI, lossCI: m.lossCI,
@@ -565,7 +565,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd:
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
       eyebrow: 'Opening guide',
-      title: `${escapeHtml(model.name)} (${escapeHtml(model.eco)}): win rates at club level`,
+      title: `${displayName(model.name)} (${escapeHtml(model.eco)}): win rates at club level`,
       subtitle: `${escapeHtml(sanLine)}, playing as ${escapeHtml(model.side)}. ${totalGamesNote[0].toUpperCase()}${totalGamesNote.slice(1)}.`,
     })}
 
@@ -574,7 +574,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd:
       ${renderBoard(board, { flip, label: `Position after ${sanLine}` })}
       <figcaption>Position after ${escapeHtml(sanLine)}.
         <a href="${lichessAnalysisUrl(line)}" rel="noopener noreferrer">Open this line on Lichess &rarr;</a> &middot;
-        <a href="${lichessOpeningUrl(model.name)}" rel="noopener noreferrer">${escapeHtml(model.name)} on Lichess</a>
+        <a href="${lichessOpeningUrl(model.name)}" rel="noopener noreferrer">${displayName(model.name)} on Lichess</a>
       </figcaption>
     </figure>
 
@@ -718,7 +718,7 @@ function renderOpeningsHub(entries, { nav, ecoIndexLink = null, ranked = null })
           : 'n/a';
       return `<tr>
         ${rankCell}
-        <td><a href="${escapeHtml(openingConfig.slug)}.html">${escapeHtml(model.name)}</a></td>
+        <td><a href="${escapeHtml(openingConfig.slug)}.html">${displayName(model.name)}</a></td>
         <td>${escapeHtml(model.eco)}</td>
         <td>${escapeHtml(formatSanLine(openingConfig.line))}</td>
         <td class="num">${band ? band.games.toLocaleString() : '–'}</td>

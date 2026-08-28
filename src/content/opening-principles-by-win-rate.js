@@ -50,7 +50,7 @@ function scoreOf(reply) {
 }
 
 function render(ctx) {
-  const { entries, scoreRangeAcrossBands, escapeHtml, formatPct, wrapTable } = ctx;
+  const { entries, scoreRangeAcrossBands, escapeHtml, displayName, formatPct, wrapTable } = ctx;
 
   const classified = [];
   for (const { openingConfig, model } of entries) {
@@ -90,7 +90,7 @@ function render(ctx) {
     .slice(0, 12)
     .map(
       (m) =>
-        `<tr><td><a href="${escapeHtml(m.slug)}.html">${escapeHtml(m.name)}</a></td><td>${escapeHtml(m.san)}</td><td>${CATEGORIES.find((c) => c.key === m.category).label}</td><td>${formatPct(m.playedPct)}%</td><td>${formatPct(m.score)}%</td></tr>`
+        `<tr><td><a href="${escapeHtml(m.slug)}.html">${displayName(m.name)}</a></td><td>${escapeHtml(m.san)}</td><td>${CATEGORIES.find((c) => c.key === m.category).label}</td><td>${formatPct(m.playedPct)}%</td><td>${formatPct(m.score)}%</td></tr>`
     )
     .join('');
 
@@ -117,7 +117,7 @@ function render(ctx) {
     .sort((a, b) => b.range.range - a.range.range)
     .map(
       (e) =>
-        `<tr><td><a href="${escapeHtml(e.slug)}.html">${escapeHtml(e.name)}</a></td><td>${e.matchCount}</td><td>${e.range.minBand} (${formatPct(e.range.minScore)}%)</td><td>${e.range.maxBand} (${formatPct(e.range.maxScore)}%)</td><td>${e.range.range} pts</td></tr>`
+        `<tr><td><a href="${escapeHtml(e.slug)}.html">${displayName(e.name)}</a></td><td>${e.matchCount}</td><td>${e.range.minBand} (${formatPct(e.range.minScore)}%)</td><td>${e.range.maxBand} (${formatPct(e.range.maxScore)}%)</td><td>${e.range.range} pts</td></tr>`
     )
     .join('');
 

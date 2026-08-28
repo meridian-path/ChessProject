@@ -52,7 +52,7 @@ const path = require('path');
 const esbuild = require('esbuild');
 const { buildRepertoireTree } = require('./buildRepertoire');
 const { RATING_BANDS } = require('./processRepertoire');
-const { renderRedirectStubPage, renderGenericRedirectStub, escapeHtml, formatPct, renderDocumentHead, renderHeader, renderFooter, renderPageHead, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT, stripCssComments, SITE_CSS_SHIPPED, SITE_CSS_FILE } = require('./render');
+const { renderRedirectStubPage, renderGenericRedirectStub, escapeHtml, displayName, formatPct, renderDocumentHead, renderHeader, renderFooter, renderPageHead, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT, stripCssComments, SITE_CSS_SHIPPED, SITE_CSS_FILE } = require('./render');
 const { renderRepertoireExplorerPage } = require('./renderRepertoireExplorer');
 const { renderOpeningStatCard, renderMethodologyPage } = require('./renderContent');
 // Board-visibility work (homepage hero demo) -- see
@@ -653,7 +653,7 @@ function dataStripHtml(contentEntries) {
     const fillPct = Math.max(0, Math.min(100, ((best.score - domainLo) / (domainHi - domainLo)) * 100));
     return `<div class="data-strip-col">
       <span class="data-strip-band">${escapeHtml(bandName)}</span>
-      <span class="data-strip-opening">${escapeHtml(best.name)}</span>
+      <span class="data-strip-opening">${displayName(best.name)}</span>
       <span class="data-strip-score">${formatPct(best.score)}%<span class="data-strip-meta"> for ${escapeHtml(best.side)}, ${best.games.toLocaleString()} games</span></span>
       <svg class="data-strip-bar" viewBox="0 0 100 12" preserveAspectRatio="none" role="img" aria-hidden="true"><title>${escapeHtml(best.name)} scores ${formatPct(best.score)}% at ${escapeHtml(bandName)}</title><rect class="data-strip-bar-track" x="0" y="0" width="100" height="12"></rect><rect class="data-strip-bar-fill" x="0" y="0" width="${fillPct}" height="12"></rect></svg>
     </div>`;

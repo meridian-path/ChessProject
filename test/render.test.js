@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { SITE_CSS, SITE_CSS_SHIPPED, SITE_CSS_FILE, stripCssComments, DESIGN_TOKENS, THEME_ROLES, renderDocumentHead, renderNewsletterSignup, renderFooter, renderHeader, renderRepertoireTree, siteRelativeHref, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT, BAND_CONTROL_PAGES } = require('../src/render');
+const { SITE_CSS, SITE_CSS_SHIPPED, SITE_CSS_FILE, stripCssComments, DESIGN_TOKENS, THEME_ROLES, renderDocumentHead, renderNewsletterSignup, renderFooter, renderHeader, renderRepertoireTree, siteRelativeHref, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT, BAND_CONTROL_PAGES, escapeHtml, displayName, displayNameText } = require('../src/render');
 const { RATING_BANDS } = require('../src/processRepertoire');
 const { BANDS: BAND_STATE_BANDS, DEFAULT_STATE: BAND_STATE_DEFAULT } = require('../src/browser/bandState.client');
 const { hygieneOffenses } = require('../scripts/verifyAggregates');
@@ -46,6 +46,47 @@ test('renderDocumentHead links the shared, comment-free SITE_CSS_SHIPPED as an e
   const html = renderDocumentHead('Test page');
   assert.match(html, new RegExp(`<link rel="stylesheet" href="/${SITE_CSS_FILE}">`), 'expected a link to the shared stylesheet');
   assert.doesNotMatch(html, /<style>[\s\S]*--color-accent[\s\S]*<\/style>/, 'SITE_CSS itself must no longer be inlined as a page <style> block');
+});
+
+// --- craft-audit instance 8, accepted item 3: sitewide straight-vs-curly
+// apostrophe mix (433 straight/71 pages), root-caused to escapeHtml()
+// applied to data-derived opening/family display names. displayName()/
+// displayNameText() normalize any apostrophe preceded by a word character
+// (Queen's, King's, Bird's, and a bare trailing possessive like Reynolds',
+// Adams') to the typographic form, without touching escapeHtml() itself --
+// see src/render.js's own doc comment for why that separation matters
+// (attribute values, SVG title text, and JSON-LD all still need the plain
+// ASCII apostrophe).
+
+test('displayName converts a word-preceded apostrophe to &rsquo; while still escaping HTML-unsafe characters', () => {
+  assert.equal(displayName("Queen's Gambit"), 'Queen&rsquo;s Gambit');
+  assert.equal(displayName("King's Indian Defense"), 'King&rsquo;s Indian Defense');
+  assert.equal(displayName('Bird\'s Opening & <Test>'), 'Bird&rsquo;s Opening &amp; &lt;Test&gt;');
+});
+
+test('displayName also converts a bare trailing possessive apostrophe (Reynolds\', Adams\') -- real opening names, not just the Queen\'s-shape', () => {
+  assert.equal(displayName("Reynolds' Variation"), 'Reynolds&rsquo; Variation');
+  assert.equal(displayName("Adams' Gambit"), 'Adams&rsquo; Gambit');
+});
+
+test('displayName leaves a non-apostrophe string and ordinary escapeHtml output untouched', () => {
+  assert.equal(displayName('Sicilian Defense'), escapeHtml('Sicilian Defense'));
+  assert.equal(displayName(''), '');
+});
+
+test('displayNameText converts an intra-word apostrophe to the literal curly character, matching escapeHtmlText\'s no-quote-escaping contract', () => {
+  assert.equal(displayNameText("Queen's Gambit (D06): Win Rates by Rating"), 'Queen’s Gambit (D06): Win Rates by Rating');
+  assert.equal(displayNameText('A & B'), 'A &amp; B');
+});
+
+// Regression guard for the specific <title> bug instance 8 found: escapeHtmlText()
+// never escapes quotes at all (by design, for the html-validate title-length reason
+// documented on that function), so a raw ASCII apostrophe used to reach <title> as a
+// literal, straight character -- one of the audit's "58 raw ASCII apostrophes".
+test('renderDocumentHead renders an intra-word apostrophe in <title> as the typographic character, not a straight one', () => {
+  const html = renderDocumentHead("Queen's Gambit (D06): Win Rates by Rating");
+  assert.match(html, /<title>Queen’s Gambit \(D06\): Win Rates by Rating<\/title>/);
+  assert.doesNotMatch(html, /<title>[^<]*Queen's/);
 });
 
 // Regression coverage: the self-hosted Fraunces

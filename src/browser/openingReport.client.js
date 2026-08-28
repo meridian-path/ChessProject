@@ -55,7 +55,7 @@ const {
 } = require('../fetchChessCom');
 const { summarizeRatingHistory, summarizeGames } = require('../process');
 const {
-  renderRatingTable, escapeHtml, formatPct, wrapTable,
+  renderRatingTable, escapeHtml, displayName, formatPct, wrapTable,
 } = require('../render');
 const { readBandState } = require('./bandState.client');
 
@@ -207,7 +207,7 @@ function formatSanLineFromUci(play) {
 
   function renderLeakRow(leak, index) {
     const detailId = `leak-detail-${index}`;
-    const openingLabel = leak.opening && leak.opening.name ? escapeHtml(leak.opening.name) : 'this position';
+    const openingLabel = leak.opening && leak.opening.name ? displayName(leak.opening.name) : 'this position';
     const openingLink = leak.links.opening
       ? `<a href="${escapeHtml(leak.links.opening)}">${openingLabel}</a>`
       : openingLabel;
@@ -374,7 +374,7 @@ function formatSanLineFromUci(play) {
     setPlatform(platform);
     const top = report.leaks[0];
     const verdict = top
-      ? `Your biggest opening leak is ${escapeHtml(top.yourMove.san)}${top.opening && top.opening.name ? ` in the ${escapeHtml(top.opening.name)}` : ''}. It costs you about ${top.costPer100.toFixed(1)} points per 100 games.`
+      ? `Your biggest opening leak is ${escapeHtml(top.yourMove.san)}${top.opening && top.opening.name ? ` in the ${displayName(top.opening.name)}` : ''}. It costs you about ${top.costPer100.toFixed(1)} points per 100 games.`
       : 'No leak cleared our statistical floor - your play is close to what your rating band recommends at the positions we could compare.';
     const platformLabel = platform === 'chesscom' ? ' (Chess.com)' : '';
     const provenance = `${report.gamesUsable.toLocaleString()} games analysed (${report.gamesFetched.toLocaleString()} fetched, ${report.gamesInCoverage.toLocaleString()} reached data we have coverage for), ${escapeHtml(report.band)} band, ${escapeHtml(report.pool)}${platformLabel}, retrieved ${escapeHtml(new Date(report.generated).toISOString().slice(0, 10))}.${cancelled ? ' (You cancelled the fetch early - this is based on the games already retrieved.)' : ''}`;

@@ -9,7 +9,7 @@ const os = require('os');
 const { buildContentPages, fetchLineWithValidation, GUIDES } = require('../src/buildContent');
 const { buildOpeningModel, rankOpeningsByScore } = require('../src/processOpenings');
 const { renderOpeningPage, renderOpeningsHub, renderGuidesHub, formatGamesAbbrev } = require('../src/renderContent');
-const { escapeHtml, formatPct, wrapTable } = require('../src/render');
+const { escapeHtml, displayName, formatPct, wrapTable } = require('../src/render');
 const { OPENINGS } = require('../src/openings');
 const { makeSmartExplorerFetch, fakeResponse } = require('./helpers/fakeExplorer');
 
@@ -369,10 +369,10 @@ test('the time-control strategy guide discloses the real pool this build drew fr
     // Degenerate direct render (no entries, ctx missing poolSpeeds/poolDisclosure
     // entirely): falls back to an honest default rather than crashing.
     const guide = require('../src/content/opening-strategy-by-time-control');
-    const { escapeHtml, formatPct, wrapTable } = require('../src/render');
+    const { escapeHtml, displayName, formatPct, wrapTable } = require('../src/render');
     const { formatGamesAbbrev } = require('../src/renderContent');
     const { rankOpeningsByScore } = require('../src/processOpenings');
-    const emptyHtml = guide.render({ entries: [], rankOpeningsByScore, escapeHtml, formatPct, formatGamesAbbrev, wrapTable });
+    const emptyHtml = guide.render({ entries: [], rankOpeningsByScore, escapeHtml, displayName, formatPct, formatGamesAbbrev, wrapTable });
     assert.match(emptyHtml, /empty-note/);
     assert.doesNotMatch(emptyHtml, /NaN|undefined/);
   })
@@ -398,9 +398,9 @@ test('the aggressive-vs-positional style guide covers every tracked opening, sor
     // Degenerate direct render (no entries): falls back to honest empty
     // states rather than crashing.
     const guide = require('../src/content/aggressive-vs-positional-openings');
-    const { escapeHtml, formatPct, wrapTable } = require('../src/render');
+    const { escapeHtml, displayName, formatPct, wrapTable } = require('../src/render');
     const { formatGamesAbbrev } = require('../src/renderContent');
-    const emptyHtml = guide.render({ entries: [], escapeHtml, formatPct, formatGamesAbbrev, wrapTable });
+    const emptyHtml = guide.render({ entries: [], escapeHtml, displayName, formatPct, formatGamesAbbrev, wrapTable });
     assert.match(emptyHtml, /empty-note/);
     assert.doesNotMatch(emptyHtml, /NaN|undefined/);
   })
@@ -426,9 +426,9 @@ test('the upgrade-your-repertoire guide computes its top-by-band and score-range
     // Degenerate direct render (no entries): falls back to honest empty
     // states rather than crashing.
     const guide = require('../src/content/upgrade-your-repertoire-as-you-improve');
-    const { escapeHtml, formatPct, wrapTable } = require('../src/render');
+    const { escapeHtml, displayName, formatPct, wrapTable } = require('../src/render');
     const { rankOpeningsByScore, scoreRangeAcrossBands } = require('../src/processOpenings');
-    const emptyHtml = guide.render({ entries: [], rankOpeningsByScore, scoreRangeAcrossBands, escapeHtml, formatPct, wrapTable });
+    const emptyHtml = guide.render({ entries: [], rankOpeningsByScore, scoreRangeAcrossBands, escapeHtml, displayName, formatPct, wrapTable });
     assert.match(emptyHtml, /empty-note/);
     assert.doesNotMatch(emptyHtml, /NaN|undefined/);
   })
@@ -524,9 +524,9 @@ test('the repertoire how-to guide computes its worked examples from entries and 
     // Degenerate build (no entries at all): every worked example falls back
     // to an honest empty-note instead of crashing or printing NaN/undefined.
     const guide = require('../src/content/how-to-build-your-opening-repertoire');
-    const { escapeHtml, formatPct, wrapTable } = require('../src/render');
+    const { escapeHtml, displayName, formatPct, wrapTable } = require('../src/render');
     const { formatSanLine, formatGamesAbbrev } = require('../src/renderContent');
-    const emptyHtml = guide.render({ entries: [], escapeHtml, formatPct, wrapTable, formatSanLine, formatGamesAbbrev });
+    const emptyHtml = guide.render({ entries: [], escapeHtml, displayName, formatPct, wrapTable, formatSanLine, formatGamesAbbrev });
     assert.match(emptyHtml, /empty-note/);
     assert.doesNotMatch(emptyHtml, /NaN|undefined/);
   })
@@ -663,7 +663,7 @@ test('best-chess-openings-for-beginners: an opening excluded from `ranked` for i
     makeEntry('under-sampled-opening', 'Under-Sampled Opening', 'black', 518, false), // real King's Indian count, 2026-08 aggregate dataset
   ];
 
-  const html = guide.render({ entries, rankOpeningsByScore, escapeHtml, formatPct, formatGamesAbbrev, wrapTable });
+  const html = guide.render({ entries, rankOpeningsByScore, escapeHtml, displayName, formatPct, formatGamesAbbrev, wrapTable });
 
   assert.match(html, /among the 2 openings this site tracks/, 'intro paragraph counts every entry, not just ranked ones');
   assert.match(html, /href="under-sampled-opening\.html"/, 'the under-sampled opening must still be a real link in the table');

@@ -13,7 +13,7 @@ const meta = {
 const LOWER_BAND = '1400-1600';
 
 function render(ctx) {
-  const { entries, rankOpeningsByScore, escapeHtml, formatPct, formatGamesAbbrev, wrapTable } = ctx;
+  const { entries, rankOpeningsByScore, escapeHtml, displayName, formatPct, formatGamesAbbrev, wrapTable } = ctx;
   const ranked = rankOpeningsByScore(entries, LOWER_BAND);
   const usedBalanced = ranked.length > 0 && ranked[0].usedBalanced;
 
@@ -47,9 +47,9 @@ function render(ctx) {
       const scoreCell = usedBalanced && r.scoreForSideBalanced != null
         ? `${formatPct(r.scoreForSideBalanced)}% <span class="rep-pct">(${formatPct(r.scoreForSide)}% all games)</span>`
         : `${formatPct(r.scoreForSide)}%`;
-      return `<tr><td>${r.rank}</td><td><a href="${escapeHtml(r.slug)}.html">${escapeHtml(r.name)}</a></td><td>${escapeHtml(r.side)}</td><td>${formatGamesAbbrev(r.games)}</td><td>${scoreCell}</td></tr>`;
+      return `<tr><td>${r.rank}</td><td><a href="${escapeHtml(r.slug)}.html">${displayName(r.name)}</a></td><td>${escapeHtml(r.side)}</td><td>${formatGamesAbbrev(r.games)}</td><td>${scoreCell}</td></tr>`;
     }),
-    ...unranked.map((u) => `<tr><td></td><td><a href="${escapeHtml(u.slug)}.html">${escapeHtml(u.name)}</a></td><td>${escapeHtml(u.side)}</td><td>${formatGamesAbbrev(u.games)}</td><td>n/a</td></tr>`),
+    ...unranked.map((u) => `<tr><td></td><td><a href="${escapeHtml(u.slug)}.html">${displayName(u.name)}</a></td><td>${escapeHtml(u.side)}</td><td>${formatGamesAbbrev(u.games)}</td><td>n/a</td></tr>`),
   ].join('');
 
   return `

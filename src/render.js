@@ -51,6 +51,39 @@ function escapeHtmlText(str) {
 }
 
 /**
+ * Typographic-apostrophe normalization for opening/family DISPLAY NAMES
+ * rendered into visible prose -- craft-audit instance 8's fix for the
+ * sitewide straight-vs-curly apostrophe mix (433 straight/71 pages).
+ *
+ * Deliberately NOT a change to escapeHtml() itself: that function's output
+ * also feeds attribute values, SVG <title> text, and (via
+ * structuredData.js's own decode step) JSON-LD, all of which must keep the
+ * plain ASCII apostrophe -- see that file's own comment. Converts an
+ * apostrophe immediately preceded by a word character (Queen's, King's,
+ * Bird's -- and also a bare trailing possessive like Reynolds', Adams',
+ * where nothing follows the apostrophe but a word boundary) from
+ * escapeHtml()'s &#39; to the typographic &rsquo; design-standards.md's
+ * craft floor requires in prose -- the right single quote glyph is the
+ * correct typographic form for both shapes. Call sites for attributes, SVG
+ * title text, or non-display-name data keep plain escapeHtml().
+ */
+function displayName(str) {
+  return escapeHtml(str).replace(/(\w)&#39;/g, '$1&rsquo;');
+}
+
+/**
+ * Same normalization as displayName() above, for the one call site
+ * (renderDocumentHead's <title>) that uses escapeHtmlText() instead of
+ * escapeHtml() -- escapeHtmlText() never escapes a quote at all (see its
+ * own comment), so a straight apostrophe reaches <title> as a literal
+ * ASCII character rather than an &#39; entity, and needs the literal-
+ * character form of this same swap.
+ */
+function displayNameText(str) {
+  return escapeHtmlText(str).replace(/(\w)'/g, '$1’');
+}
+
+/**
  * Render-time formatter for a win/draw/loss (or any other) percentage
  * value. The data layer (src/process.js, src/processOpenings.js,
  * src/processRepertoire.js) stores Number(x.toFixed(1)) so values stay
@@ -2429,7 +2462,7 @@ function renderDocumentHead(arg) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="${THEME_COLOR_LIGHT}" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="${THEME_COLOR_DARK}" media="(prefers-color-scheme: dark)">
-  <title>${escapeHtmlText(title)}</title>${metaDescription}${canonicalLink}${robotsMeta}${og}${feedLink}
+  <title>${displayNameText(title)}</title>${metaDescription}${canonicalLink}${robotsMeta}${og}${feedLink}
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="preload" href="/fonts/fraunces-variable.woff2" as="font" type="font/woff2" crossorigin>
@@ -3106,7 +3139,7 @@ function renderRepertoireTree(tree) {
  */
 function renderRepertoirePage({ ratingBand, color, opening, totals, tree, nav = { player: '/', repertoire: '/repertoire' }, legalLinks, canonical, description }) {
   const totalGames = totals ? totals.white + totals.draws + totals.black : null;
-  const openingNote = opening ? ` - starting from ${escapeHtml(opening.name)} (${escapeHtml(opening.eco)})` : '';
+  const openingNote = opening ? ` - starting from ${displayName(opening.name)} (${escapeHtml(opening.eco)})` : '';
   const totalsNote = totals
     ? `<p class="summary-line">${totalGames.toLocaleString()} games played from the starting position in this rating band
         (${totals.white.toLocaleString()}W / ${totals.draws.toLocaleString()}D / ${totals.black.toLocaleString()}L).</p>`
@@ -3234,6 +3267,8 @@ module.exports = {
   renderRatingTable,
   escapeHtml,
   escapeHtmlText,
+  displayName,
+  displayNameText,
   formatPct,
   SITE_CSS,
   SITE_CSS_SHIPPED,
