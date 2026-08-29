@@ -48,13 +48,13 @@ const IS_PLACEHOLDER = false;
  * never by a colour ramp.
  */
 const OPENING_REPORT_CSS = `
-  /* A strong result card, not a mega-display headline (site-audit item:
-     this used to share --type-display -- the exact same size as h1.page-
-     title -- so a long verdict sentence visibly out-ranked the page's own
-     title, failing both design-standards.md's h1-dominance rule and the
-     squint test). --type-section-lead is one step down from page-title,
-     still bold serif and genuinely emphasized, plus a surface/padding
-     treatment (same recipe .fetch-progress below already uses) so it reads
+  /* A strong result card, not a mega-display headline: this used to share
+     --type-display -- the exact same size as h1.page-title -- so a long
+     verdict sentence visibly out-ranked the page's own title, failing both
+     the h1-dominance rule and the squint test. --type-section-lead is one
+     step down from page-title, still bold serif and genuinely emphasized,
+     plus a surface/padding treatment (same recipe .fetch-progress below
+     already uses) so it reads
      as a bordered result card rather than a bare oversized paragraph. */
   .report-verdict {
     font: var(--type-section-lead);
