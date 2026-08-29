@@ -71,8 +71,6 @@ const PACKS_DIR = path.join(__dirname, '..', 'packs');
 const PACK_CATALOGUE = [
   { id: 'white-1400-1600', title: 'White at 1400-1600', color: 'white', band: '1400-1600', firstMoveUci: 'e2e4' },
   { id: 'black-vs-e4-1400-1600', title: 'Black vs 1.e4 at 1400-1600', color: 'black', band: '1400-1600', firstMoveUci: 'e2e4' },
-  { id: 'white-1600-1800', title: 'White at 1600-1800', color: 'white', band: '1600-1800', firstMoveUci: 'e2e4' },
-  { id: 'black-vs-e4-1600-1800', title: 'Black vs 1.e4 at 1600-1800', color: 'black', band: '1600-1800', firstMoveUci: 'e2e4' },
 ];
 
 const SAMPLE_LINE_COUNT = 47; // spec 1.6.3, matches scripts/buildPacks.js's own SAMPLE_LINE_COUNT
