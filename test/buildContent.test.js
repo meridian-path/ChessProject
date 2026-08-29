@@ -239,6 +239,55 @@ test('buildOpeningModel + renderOpeningPage handle a realistic full-shape fixtur
   assert.equal(h1Matches.length, 1);
 });
 
+// AdSense low-value-content fix, part 1: every
+// opening page now renders real strategy commentary, not just data tables.
+test('renderOpeningPage renders a real "The idea" section with the opening\'s own strategy commentary, apostrophes typographic not straight', () => {
+  const openingConfig = OPENINGS.find((o) => o.slug === 'queens-gambit');
+  const model = buildOpeningModel({
+    openingConfig,
+    bandResponses: {},
+    mastersResponse: null,
+    defaultBand: '1600-1800',
+    minGamesForPct: 1000,
+  });
+  const html = renderOpeningPage({
+    model,
+    openingConfig,
+    nav: { repertoire: 'index.html', openings: 'openings.html', player: 'player.html' },
+    related: [],
+    repertoireLinks: {},
+  });
+  assert.match(html, /<h2>The idea<\/h2>/);
+  assert.match(html, /isn&rsquo;t a real sacrifice/, 'expected this opening\'s own real strategy text to appear, apostrophes typographic');
+  assert.match(html, /Queen&rsquo;s Gambit Accepted/, 'strategy prose must go through displayName, not escapeHtml, for its apostrophes');
+  assert.doesNotMatch(html, /Queen&#39;s Gambit Accepted/);
+});
+
+test('every real opening in OPENINGS renders its own distinct strategy paragraph on its own page (no shared template leaking across openings)', () => {
+  const seenParagraphs = new Set();
+  for (const openingConfig of OPENINGS) {
+    const model = buildOpeningModel({
+      openingConfig,
+      bandResponses: {},
+      mastersResponse: null,
+      defaultBand: '1600-1800',
+      minGamesForPct: 1000,
+    });
+    const html = renderOpeningPage({
+      model,
+      openingConfig,
+      nav: { repertoire: 'index.html', openings: 'openings.html', player: 'player.html' },
+      related: [],
+      repertoireLinks: {},
+    });
+    const match = html.match(/<h2>The idea<\/h2>\s*<p>([\s\S]*?)<\/p>/);
+    assert.ok(match, `${openingConfig.slug}: expected a rendered "The idea" paragraph`);
+    assert.ok(match[1].length > 100, `${openingConfig.slug}: rendered strategy paragraph looks too short`);
+    assert.ok(!seenParagraphs.has(match[1]), `${openingConfig.slug}: strategy paragraph duplicates another opening's`);
+    seenParagraphs.add(match[1]);
+  }
+});
+
 test('renderOpeningPage: omitting drillFile is byte-identical to no drill CTA; passing it adds exactly one drill-cta section', () => {
   const openingConfig = OPENINGS.find((o) => o.slug === 'italian-game');
   const model = buildOpeningModel({

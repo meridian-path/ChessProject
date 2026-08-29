@@ -49,3 +49,29 @@ test('getOpening finds a known slug and returns null for an unknown one', () => 
 test('assertOpeningsWellFormed passes for the real config', () => {
   assert.equal(assertOpeningsWellFormed(), true);
 });
+
+// AdSense low-value-content fix, part 1: every
+// opening page must carry real, opening-specific strategy commentary, not
+// just data tables -- these are floor/regression checks, not a substitute
+// for a human judging the writing is actually good.
+test('every opening has real strategy commentary, not a placeholder or an empty string', () => {
+  for (const o of OPENINGS) {
+    assert.ok(typeof o.strategy === 'string' && o.strategy.trim().length >= 120, `${o.slug}: missing or too-short strategy commentary`);
+  }
+});
+
+test('no two openings share the exact same strategy text (each is genuinely opening-specific, not a copy-pasted template)', () => {
+  const texts = OPENINGS.map((o) => o.strategy);
+  assert.equal(new Set(texts).size, texts.length);
+});
+
+test('assertOpeningsWellFormed rejects an entry with missing/too-short strategy commentary', () => {
+  const { assertOpeningsWellFormed: freshAssert } = require('../src/openings');
+  const original = OPENINGS[0].strategy;
+  OPENINGS[0].strategy = 'Too short.';
+  try {
+    assert.throws(() => freshAssert(), /missing real strategy commentary/);
+  } finally {
+    OPENINGS[0].strategy = original;
+  }
+});

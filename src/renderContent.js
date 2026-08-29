@@ -578,6 +578,9 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd:
       </figcaption>
     </figure>
 
+    <h2>The idea</h2>
+    <p>${displayName(openingConfig.strategy)}</p>
+
     ${drillCtaHtml}<h2>How it scores at your rating</h2>
     ${renderBandsTable(model)}
 
