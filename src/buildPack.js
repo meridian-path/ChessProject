@@ -410,6 +410,33 @@ function flattenPositions(root) {
   return out;
 }
 
+/**
+ * The pack owner's own first real move, in SAN -- e.g. "e4" for a White
+ * pack, "g6" for a Black-vs-1.e4 pack. Site-audit item (2026-08-29): the
+ * pack's own first move was never stated anywhere on its sales page,
+ * "only inferable from the board thumbnail". Not the same field for both
+ * colors: `root.uci` is always fixed to the pack's defining scenario move
+ * (buildPackTree()'s own firstMoveUci), which for a White pack IS the
+ * owner's own first move (root.isOurMove is true there), but for a Black
+ * pack is the OPPONENT's forced first move (root.isOurMove is false) --
+ * the owner's real first move is root's own single child instead (a real
+ * repertoire has exactly one chosen reply at every one of the owner's own
+ * decision points, per buildPackTree()'s own "our move: pick the single
+ * best" branch, confirmed structurally, not assumed: the very first ply
+ * after a fixed opponent move can only ever have the one real position to
+ * choose from). Handles both shapes with the same one check rather than a
+ * per-color branch, so a future third pack color/shape doesn't need a new
+ * case here.
+ * @param {object} tree buildPackTree()'s own `result.tree` (the root node).
+ * @returns {string|null} the SAN, or null if the tree is somehow empty.
+ */
+function ownFirstMoveSan(tree) {
+  if (!tree) return null;
+  if (tree.isOurMove) return tree.san;
+  const child = tree.children && tree.children[0];
+  return child ? child.san : null;
+}
+
 /** All root-to-leaf paths, each as an array of nodes (root included). */
 function collectLeafPaths(root) {
   const out = [];
@@ -579,6 +606,7 @@ module.exports = {
   countPositions,
   flattenPositions,
   collectLeafPaths,
+  ownFirstMoveSan,
   pruneToTopLines,
   pgnFromTree,
   packJsonFromResult,

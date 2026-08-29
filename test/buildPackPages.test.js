@@ -83,6 +83,39 @@ test('buildOnePackBundle produces a bundle whose line/position counts match pack
   assert.equal(bundle.noindex, false);
 });
 
+// Site-audit item (2026-08-29): a pack's sample-link copy said "first 47
+// lines" (SAMPLE_LINE_COUNT, the fixed pruneToTopLines() input) regardless
+// of how many lines the pack itself actually has - the real, live
+// black-vs-e4 pack has only 2 real lines, so its own sales page claimed
+// "2 lines" in the h1/buy box and "first 47 lines" in the sample link, on
+// the SAME page. This fixture naturally produces a small (well under 47)
+// real line count, the exact shape that exposed the bug.
+test('buildOnePackBundle: sampleLineCount reflects the REAL number of lines in the sample, never the fixed 47 input when the pack has fewer', async () => {
+  const def = { id: 'white-1400-1600', title: 'White at 1400-1600', color: 'white', band: '1400-1600', firstMoveUci: 'e2e4' };
+  const bundle = await buildOnePackBundle(def, { fetchImpl: fixtureFetch(), retrieved: '2026-08-15' });
+
+  assert.ok(bundle.lineCount < 47, `fixture should produce well under 47 real lines, got ${bundle.lineCount}`);
+  assert.equal(bundle.sampleLineCount, bundle.lineCount, 'sampleLineCount must equal the real line count when the pack has fewer than SAMPLE_LINE_COUNT lines, not the fixed 47');
+});
+
+test('buildOnePackBundle: ownFirstMoveSan is set on the returned bundle (the pack\'s own first move, for the sales copy)', async () => {
+  const whiteDef = { id: 'white-1400-1600', title: 'White at 1400-1600', color: 'white', band: '1400-1600', firstMoveUci: 'e2e4' };
+  const whiteBundle = await buildOnePackBundle(whiteDef, { fetchImpl: fixtureFetch(), retrieved: '2026-08-15' });
+  assert.equal(whiteBundle.ownFirstMoveSan, 'e4');
+
+  const blackDef = { id: 'black-vs-e4-1400-1600', title: 'Black vs 1.e4 at 1400-1600', color: 'black', band: '1400-1600', firstMoveUci: 'e2e4' };
+  const blackBundle = await buildOnePackBundle(blackDef, { fetchImpl: fixtureFetch(), retrieved: '2026-08-15' });
+  // Our own move is chosen by score lower bound, not raw frequency (see
+  // buildPack.js's own "picks our move by score lower bound" test) -- e5
+  // is the real choice this fixture produces, empirically confirmed, not
+  // assumed from which candidate has more games. The real assertion this
+  // test exists for: it must NOT equal firstMoveSan (the fixed
+  // opponent-defined scenario move, "e4") -- that would be the exact bug
+  // (re-reporting the opponent's move as if it were our own).
+  assert.equal(blackBundle.ownFirstMoveSan, 'e5');
+  assert.notEqual(blackBundle.ownFirstMoveSan, blackBundle.firstMoveSan, 'ownFirstMoveSan (our own move) must differ from firstMoveSan (the opponent-defined scenario move) for a Black pack');
+});
+
 test('buildPackPages writes the index + one detail page + one sample.pgn per catalogue pack, all under repertoire-packs/', async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lichess-pack-pages-test-'));
   try {

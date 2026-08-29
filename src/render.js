@@ -2114,6 +2114,7 @@ ${designTokensCss(THEME_ROLES.dark)}
   .pack-row-freq { color: var(--color-muted); font-size: var(--text-xs); }
   .pack-row-score { color: var(--color-accent-dark); font-weight: var(--weight-bold); font-size: var(--text-sm); }
   .pack-row-ci { color: var(--color-muted); font-size: var(--text-xs); }
+  .pack-row-transposition-note { display: block; color: var(--color-muted); font-size: var(--text-xs); font-style: italic; }
   .pack-row-distribution {
     padding: var(--space-3) var(--space-4) var(--space-4);
     border-top: 1px solid var(--color-border);

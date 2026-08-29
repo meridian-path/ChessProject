@@ -10,6 +10,7 @@ const {
   packOgImageFilename,
   boardFromFen,
   collectContentsRows,
+  packPreviewHtml,
   renderPacksIndexPage,
   renderPackDetailPage,
   renderLeakReportUpsell,
@@ -356,5 +357,77 @@ test('the free guarantee and non-influence statements ship verbatim-in-substance
   for (const html of [detail, index]) {
     assert.ok(html.includes('have no paid tier'));
     assert.ok(html.includes('Buying a pack changes nothing on this site') || html.includes('Buying this pack changes nothing'));
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Site-audit items (2026-08-29): the pack never stated its own first move,
+// a nested-n contradiction read as broken arithmetic, and edge-flush layout.
+// ---------------------------------------------------------------------------
+
+test('renderPackDetailPage: the h1 states the pack\'s own first move when ownFirstMoveSan is set', () => {
+  const withMove = makePack({ ownFirstMoveSan: 'g6' });
+  const html = renderPackDetailPage({ pack: withMove, otherPacks: [], nav: NAV });
+  assert.match(html, /<h1[^>]*>White at 1400-1600: a finished repertoire starting 1\.g6, 391 lines<\/h1>/);
+});
+
+test('renderPackDetailPage: a Black pack states its own first move with the "1..." prefix, never the White-move "1." prefix', () => {
+  const blackPack = makePack({ id: 'black-vs-e4-1400-1600', title: 'Black vs 1.e4 at 1400-1600', color: 'black', ownFirstMoveSan: 'g6' });
+  const html = renderPackDetailPage({ pack: blackPack, otherPacks: [], nav: NAV });
+  assert.match(html, /starting 1\.\.\.g6/);
+  assert.doesNotMatch(html, /starting 1\.g6/, 'must never emit the White-move "1." prefix for a Black pack\'s own move');
+});
+
+test('renderPackDetailPage: omitting ownFirstMoveSan renders the h1 exactly as before (no "starting" clause, no "undefined")', () => {
+  const pack = makePack({}); // makePack() does not set ownFirstMoveSan
+  const html = renderPackDetailPage({ pack, otherPacks: [], nav: NAV });
+  assert.match(html, /<h1[^>]*>White at 1400-1600: a finished repertoire, 391 lines<\/h1>/);
+  assert.doesNotMatch(html, /undefined/);
+});
+
+test('renderPackDetailPage: a reply whose own n exceeds the branch it sits inside gets an explanatory note, not silence', () => {
+  // The real bug shape (site audit: "d4 (n=861) -> Bg7 (n=989)"): our own
+  // reply's n set HIGHER than the opponent move's n it sits under.
+  const higherN = ourNode({ n: 989 });
+  const c5 = opponentNode({ n: 861, children: [higherN] });
+  const root = { fen: STARTING_FEN, ply: 0, side: 'white', san: 'e4', uci: 'e2e4', n: null, score: null, wilson: null, reach: 1, isOurMove: true, children: [c5] };
+  const pack = makePack({ tree: root });
+  const html = renderPackDetailPage({ pack, otherPacks: [], nav: NAV });
+  assert.match(html, /n is higher here because other move orders reach this same position too/);
+});
+
+test('renderPackDetailPage: a normal reply (our n does not exceed the opponent move\'s n) gets no transposition note', () => {
+  const pack = makePack({}); // makePack()'s own default tree: opponent n=40000, our n=15000 -- normal
+  const html = renderPackDetailPage({ pack, otherPacks: [], nav: NAV });
+  assert.doesNotMatch(html, /other move orders reach this same position too/);
+});
+
+test('packPreviewHtml: prepends a real leading chip for the pack\'s own first move, and the caption no longer claims "start to finish"', () => {
+  const pack = makePack({ ownFirstMoveSan: 'g6', color: 'black' });
+  const html = packPreviewHtml(pack, 3);
+  assert.doesNotMatch(html, /start to finish/, 'a partial, count-limited preview must never claim to show the finish');
+  // The leading chip renders before the first real contents-table row --
+  // makePack()'s own default tree's first real row is the opponent move
+  // "c5" (opponentNode()'s own default san).
+  const chipIndex = html.indexOf('>g6<');
+  const firstRealRowIndex = html.indexOf('>c5<');
+  assert.ok(chipIndex > -1, 'the own-first-move chip must appear at all');
+  assert.ok(chipIndex < firstRealRowIndex, 'the own-first-move chip must appear BEFORE the first real contents-table row');
+});
+
+test('packPreviewHtml: omitting ownFirstMoveSan renders no leading chip and no "undefined"', () => {
+  const pack = makePack({}); // no ownFirstMoveSan
+  const html = packPreviewHtml(pack, 3);
+  assert.doesNotMatch(html, /undefined/);
+});
+
+test('renderPackDetailPage / renderPacksIndexPage: both page types wrap content in the shared .page.page--wide container, never the dead "layout--wide" body class', () => {
+  const pack = makePack({});
+  const detail = renderPackDetailPage({ pack, otherPacks: [], nav: NAV });
+  const index = renderPacksIndexPage({ packs: [pack], nav: NAV });
+  for (const html of [detail, index]) {
+    assert.doesNotMatch(html, /layout--wide/, 'this class matches no real CSS rule -- it is what caused the edge-flush layout bug');
+    assert.match(html, /<body>\s*<div class="page page--wide">/);
+    assert.match(html, /<\/div>\s*<\/body>/);
   }
 });

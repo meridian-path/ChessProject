@@ -48,6 +48,7 @@ const {
   pruneToTopLines,
   pgnFromTree,
   fenAfter,
+  ownFirstMoveSan,
 } = require('./buildPack');
 const { STORE, isPlaceholderStoreUrl } = require('./render');
 const {
@@ -157,6 +158,7 @@ async function buildOnePackBundle(def, { fetchImpl, retrieved, aggregatesDir }) 
     band: def.band,
     firstMoveUci: def.firstMoveUci,
     firstMoveSan: result.tree.san,
+    ownFirstMoveSan: ownFirstMoveSan(result.tree),
     rootFen,
     tree: result.tree,
     lineCount: packJson.line_count,
@@ -165,7 +167,7 @@ async function buildOnePackBundle(def, { fetchImpl, retrieved, aggregatesDir }) 
     ruleVersion: packJson.rule_version,
     speeds,
     retrieved,
-    sampleLineCount: SAMPLE_LINE_COUNT,
+    sampleLineCount: Math.min(SAMPLE_LINE_COUNT, packJson.line_count),
     storeUrl,
     noindex,
     fileSizes: readFileSizesIfPresent(def.id),
