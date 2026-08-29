@@ -48,14 +48,9 @@ function fixtureFetch() {
   };
 }
 
-test('PACK_CATALOGUE includes the launch catalogue (spec 1.1) plus the 1600-1800 candidate packs', () => {
-  assert.equal(PACK_CATALOGUE.length, 4);
-  assert.deepEqual(PACK_CATALOGUE.map((p) => p.id).sort(), [
-    'black-vs-e4-1400-1600',
-    'black-vs-e4-1600-1800',
-    'white-1400-1600',
-    'white-1600-1800',
-  ]);
+test('PACK_CATALOGUE matches the launch catalogue (exactly two packs, spec 1.1)', () => {
+  assert.equal(PACK_CATALOGUE.length, 2);
+  assert.deepEqual(PACK_CATALOGUE.map((p) => p.id).sort(), ['black-vs-e4-1400-1600', 'white-1400-1600']);
 });
 
 test('formatBytes renders a human-readable size', () => {
@@ -91,17 +86,17 @@ test('buildOnePackBundle produces a bundle whose line/position counts match pack
 test('buildPackPages writes the index + one detail page + one sample.pgn per catalogue pack, all under repertoire-packs/', async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lichess-pack-pages-test-'));
   try {
-    // Route every catalogue def through the same small fixture -- all four
+    // Route BOTH catalogue defs through the same small fixture -- both
     // currently share firstMoveUci 'e2e4' (PACK_CATALOGUE), so one fixture
-    // set covers all of them without duplicating it.
+    // set covers both without duplicating it.
     const { written, packs } = await buildPackPages({
       fetchImpl: fixtureFetch(),
       outDir: tmpDir,
       nav: { home: '/', repertoire: 'repertoire.html', packs: packsIndexFilename() },
     });
 
-    assert.equal(packs.length, 4);
-    assert.equal(written.length, 5); // index + 4 detail pages
+    assert.equal(packs.length, 2);
+    assert.equal(written.length, 3); // index + 2 detail pages
 
     const indexPath = path.join(tmpDir, packsIndexFilename());
     assert.ok(fs.existsSync(indexPath), 'packs index page should be written');
@@ -115,24 +110,10 @@ test('buildPackPages writes the index + one detail page + one sample.pgn per cat
       assert.ok(sampleContent.includes('(free sample)'));
     }
 
-    // STORE only carries real Gumroad urls for the two 1400-1600 launch
-    // packs -- the two 1600-1800 candidate packs added alongside them have
-    // no STORE entry yet (pending a human creating those Gumroad listings),
-    // so their own detail pages are honestly noindexed while the packs
-    // index itself stays indexable (not every pack on it is a placeholder).
-    // No written file anywhere renders the literal sentinel string either way.
-    const noindexById = {
-      'white-1400-1600': false,
-      'black-vs-e4-1400-1600': false,
-      'white-1600-1800': true,
-      'black-vs-e4-1600-1800': true,
-    };
+    // STORE now carries real Gumroad urls, so every written .html file is
+    // indexable (not noindex), and none renders the literal sentinel string.
     for (const w of written) {
-      if (w.slug === 'repertoire-packs') {
-        assert.equal(w.noindex, false, 'index page stays indexable while at least one pack has a real store url');
-      } else {
-        assert.equal(w.noindex, noindexById[w.slug], `unexpected noindex for ${w.slug}`);
-      }
+      assert.equal(w.noindex, false);
       assert.ok(!w.html.includes('PLACEHOLDER'));
     }
   } finally {
