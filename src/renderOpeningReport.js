@@ -48,10 +48,30 @@ const IS_PLACEHOLDER = false;
  * never by a colour ramp.
  */
 const OPENING_REPORT_CSS = `
+  /* A strong result card, not a mega-display headline: this used to share
+     --type-display -- the exact same size as h1.page-title -- so a long
+     verdict sentence visibly out-ranked the page's own title, failing both
+     the h1-dominance rule and the squint test. --type-section-lead is one
+     step down from page-title, still bold serif and genuinely emphasized,
+     plus a surface/padding treatment (same recipe .fetch-progress below
+     already uses) so it reads
+     as a bordered result card rather than a bare oversized paragraph. */
   .report-verdict {
-    font: var(--type-display);
-    letter-spacing: var(--type-display-tracking);
-    margin: 0 0 var(--space-2);
+    font: var(--type-section-lead);
+    letter-spacing: var(--type-section-lead-tracking);
+    background: var(--color-surface-alt);
+    border-radius: var(--radius-md);
+    padding: var(--space-4) var(--space-5);
+    margin: 0 0 var(--space-3);
+  }
+  .report-band-warning {
+    font: var(--type-body);
+    letter-spacing: var(--type-body-tracking);
+    background: var(--color-surface-alt);
+    border: var(--border-hairline) solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    margin: 0 0 var(--space-3);
   }
   .report-provenance {
     font: var(--type-metadata);
@@ -222,8 +242,8 @@ const OPENING_REPORT_CSS = `
  * @returns {string} a full, standalone HTML document.
  */
 function renderOpeningReportPage({ nav, legalLinks = OPENING_REPORT_LEGAL_LINKS }) {
-  const title = pageTitle('Your Lichess opening leak report');
-  const description = 'Enter your Lichess username to see the five biggest gaps between what you play and what wins more at your rating band, ranked by cost per 100 games.';
+  const title = pageTitle('Your opening leak report');
+  const description = 'Enter your Lichess or Chess.com username to see the five biggest gaps between what you play and what wins more at your rating band, ranked by cost per 100 games.';
   const canonical = absoluteUrl(OPENING_REPORT_FILE);
 
   const breadcrumbItems = [
@@ -242,7 +262,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd, extraCss: OPENING_
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
       title: 'Find your five biggest opening leaks',
-      subtitle: 'Enter a Lichess username. We compare what you actually play against what your rating band actually plays, and rank the gaps by how many points per 100 games each one costs.',
+      subtitle: 'Enter a Lichess or Chess.com username. We compare what you actually play against what your rating band actually plays, and rank the gaps by how many points per 100 games each one costs.',
     })}
 
     <form class="lookup-form" id="report-form">

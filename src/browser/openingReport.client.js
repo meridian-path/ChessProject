@@ -43,12 +43,12 @@
 
 const {
   isValidUsername, isValidChessComUsername, buildGameUrl, buildLeakAnalysis, buildLeakAnalysisFromChessCom,
-  encodeShareFragment, decodeShareFragment,
+  encodeShareFragment, decodeShareFragment, inferRatingForPool, bandRangeFor,
 } = require('../leakAnalysis');
 const { parse: parseLeakReport } = require('../leakModel');
 const { lookup: bandLookup } = require('./bandData.client');
 const { FILES, RANKS, START_BOARD, applyUciMoves } = require('../chessPosition');
-const { fetchRatingHistory, fetchRecentGames } = require('../fetchLichess');
+const { fetchRatingHistory, fetchRecentGames, fetchUserProfile } = require('../fetchLichess');
 const {
   fetchArchives: fetchChessComArchives, fetchArchiveGames: fetchChessComArchiveGames,
   ChessComNotFoundError, ChessComRateLimitError,
@@ -57,7 +57,7 @@ const { summarizeRatingHistory, summarizeGames } = require('../process');
 const {
   renderRatingTable, escapeHtml, displayName, formatPct, wrapTable,
 } = require('../render');
-const { readBandState } = require('./bandState.client');
+const { readBandState, writeBandState } = require('./bandState.client');
 
 const GAMES_ENDPOINT_BASE = 'https://lichess.org/api/games/user/';
 const MAX_GAMES = 300;
@@ -297,27 +297,56 @@ function formatSanLineFromUci(play) {
       </table>`, 'Recent games');
   }
 
+  // Site-audit item, live-reproduced twice (once succeeding, once not, same
+  // account, same code): "Ratings by variant - No rating history found."
+  // rendered for an account with years of real Lichess rating history,
+  // while Recent games (a separate fetch) populated fine in the same
+  // section -- an empty-state message presenting an intermittent fetch
+  // problem as a settled fact. Two real fixes, not a root-cause guess (the
+  // real cause -- an occasional truncated/empty response from Lichess's own
+  // API under this page's concurrent request load -- is outside this site's
+  // control):
+  // 1. Promise.allSettled, not Promise.all -- the two fetches are
+  //    independent data (ratings-by-variant vs. recent games), so one
+  //    failing must not blank out the other; a prior version lost BOTH on
+  //    either one failing.
+  // 2. A resolved-but-empty rating-history array is only trustworthy as a
+  //    genuine "no history" when the account also has zero recent games --
+  //    a real recent RATED game (which the sibling fetch already confirms)
+  //    necessarily implies a rating exists for at least one variant, so an
+  //    empty array alongside real recent games is treated as a likely
+  //    silent failure (GOV.UK error-honesty pattern: say "couldn't load",
+  //    never "none found", when a failure is plausible over a genuine
+  //    empty state).
   async function renderPlayerHistorySection(username) {
-    try {
-      const [history, games] = await Promise.all([
-        fetchRatingHistory(username),
-        fetchRecentGames(username, { max: 15 }),
-      ]);
-      const ratingRows = summarizeRatingHistory(history);
-      const gameSummary = summarizeGames(games, username);
-      return `<section>
-        <h2>Rating history and recent games</h2>
-        <h3>Ratings by variant</h3>
-        ${renderRatingTable(ratingRows)}
-        <h3>Recent games</h3>
-        ${renderRecentGamesTable(gameSummary, games)}
-      </section>`;
-    } catch (err) {
-      // Non-fatal: the leak report is the headline feature; this secondary
-      // section degrading to a plain note (never a stack trace, never
-      // silently blank) is an acceptable, honest fallback.
-      return `<section><h2>Rating history and recent games</h2><p class="empty-note">Could not load rating history and recent games right now.</p></section>`;
+    const [historyResult, gamesResult] = await Promise.allSettled([
+      fetchRatingHistory(username),
+      fetchRecentGames(username, { max: 15 }),
+    ]);
+
+    const gameSummary = gamesResult.status === 'fulfilled' ? summarizeGames(gamesResult.value, username) : summarizeGames([], username);
+    const gamesHtml = gamesResult.status === 'fulfilled'
+      ? renderRecentGamesTable(gameSummary, gamesResult.value)
+      : '<p class="empty-note">Could not load recent games right now.</p>';
+
+    let ratingHtml;
+    if (historyResult.status !== 'fulfilled') {
+      ratingHtml = '<p class="empty-note">Could not load rating history right now.</p>';
+    } else {
+      const ratingRows = summarizeRatingHistory(historyResult.value);
+      const likelySilentFailure = ratingRows.length === 0 && gameSummary.totalGames > 0;
+      ratingHtml = likelySilentFailure
+        ? '<p class="empty-note">Could not load rating history right now.</p>'
+        : renderRatingTable(ratingRows);
     }
+
+    return `<section>
+      <h2>Rating history and recent games</h2>
+      <h3>Ratings by variant</h3>
+      ${ratingHtml}
+      <h3>Recent games</h3>
+      ${gamesHtml}
+    </section>`;
   }
 
   function wireLeakToggles(container) {
@@ -368,8 +397,31 @@ function formatSanLineFromUci(play) {
     });
   }
 
+  // The band-mismatch warning's own "Switch to the closer band" link:
+  // updates the site-wide band selector (writeBandState() also notifies the
+  // header's own dropdown across bundles, so it stays in sync without this
+  // function touching that DOM directly) and re-runs the report against the
+  // corrected band, rather than just telling the visitor to go find the
+  // selector themselves.
+  function wireBandWarningFix(container, correctBand, report) {
+    const link = container.querySelector('[data-band-warning-fix]');
+    if (!link) return;
+    link.addEventListener('click', (evt) => {
+      evt.preventDefault();
+      const current = (() => {
+        try {
+          return readBandState();
+        } catch (err) {
+          return { band: correctBand, pool: 'blitz', color: 'white' };
+        }
+      })();
+      writeBandState({ band: correctBand, pool: current.pool, color: current.color });
+      runReport(report.username, report.platform === 'chesscom' ? 'chesscom' : 'lichess');
+    });
+  }
+
   function renderSuccessScreen(report, watchList, opts = {}) {
-    const { cancelled = false } = opts;
+    const { cancelled = false, bandWarning = null } = opts;
     const platform = report.platform === 'chesscom' ? 'chesscom' : 'lichess';
     setPlatform(platform);
     const top = report.leaks[0];
@@ -377,9 +429,25 @@ function formatSanLineFromUci(play) {
       ? `Your biggest opening leak is ${escapeHtml(top.yourMove.san)}${top.opening && top.opening.name ? ` in the ${displayName(top.opening.name)}` : ''}. It costs you about ${top.costPer100.toFixed(1)} points per 100 games.`
       : 'No leak cleared our statistical floor - your play is close to what your rating band recommends at the positions we could compare.';
     const platformLabel = platform === 'chesscom' ? ' (Chess.com)' : '';
-    const provenance = `${report.gamesUsable.toLocaleString()} games analysed (${report.gamesFetched.toLocaleString()} fetched, ${report.gamesInCoverage.toLocaleString()} reached data we have coverage for), ${escapeHtml(report.band)} band, ${escapeHtml(report.pool)}${platformLabel}, retrieved ${escapeHtml(new Date(report.generated).toISOString().slice(0, 10))}.${cancelled ? ' (You cancelled the fetch early - this is based on the games already retrieved.)' : ''}`;
+    // Ordered to match the real pipeline (fetched -> usable for analysis ->
+    // reached band-data coverage), so two close-but-different numbers (e.g.
+    // 241 usable, 240 in coverage) read as "almost all, minus the odd one
+    // out" instead of a contradiction (site-audit item: "caption math reads
+    // contradictory").
+    const provenance = `${report.gamesFetched.toLocaleString()} games fetched, ${report.gamesUsable.toLocaleString()} usable for analysis, ${report.gamesInCoverage.toLocaleString()} of those reached data we have coverage for. ${escapeHtml(report.band)} band, ${escapeHtml(report.pool)}${platformLabel}, retrieved ${escapeHtml(new Date(report.generated).toISOString().slice(0, 10))}.${cancelled ? ' (You cancelled the fetch early - this is based on the games already retrieved.)' : ''}`;
 
     const leakRows = report.leaks.map((leak, i) => renderLeakRow(leak, i)).join('');
+
+    // Site-audit item: the report has always compared the visitor's moves
+    // against whichever band the header selector holds, with no check
+    // against their own real rating. A real, resolved mismatch (see
+    // profilePromise in runReport()) renders as a prominent callout right
+    // above the verdict, never silently -- but never blocks the report
+    // itself, since comparing against a different band on purpose is a
+    // legitimate use (a 1200 player curious what 2000+ looks like).
+    const bandWarningHtml = bandWarning
+      ? `<p class="report-band-warning" role="alert">Heads up: your real ${escapeHtml(bandWarning.pool.replace('_', '/'))} rating looks like <strong>${bandWarning.rating.toLocaleString()}</strong>, but this report compares your play against the <strong>${escapeHtml(bandWarning.band)}</strong> band. <a href="#" data-band-warning-fix>Switch to the closer band</a> for a report that actually matches your level.</p>`
+      : '';
 
     // Rating history/recent games (renderPlayerHistorySection below) hits
     // Lichess-only endpoints (src/fetchLichess.js) -- Chess.com reports get
@@ -392,6 +460,7 @@ function formatSanLineFromUci(play) {
 
     setResult(`
       <section>
+        ${bandWarningHtml}
         <p class="report-verdict">${verdict}</p>
         <p class="report-provenance">${provenance}</p>
         <ul class="leak-list">${leakRows}</ul>
@@ -400,6 +469,7 @@ function formatSanLineFromUci(play) {
       ${renderWatchList(watchList)}
       ${historySection}
     `);
+    if (bandWarning) wireBandWarningFix(resultEl, bandWarning.band, report);
     wireLeakToggles(resultEl);
     wireShareButton(resultEl, report);
 
@@ -607,6 +677,16 @@ function formatSanLineFromUci(play) {
     setStatus('<p class="status-message status-message--loading">Starting&hellip;</p>');
     setResult('');
 
+    // Kicked off now, in parallel with the (much heavier) game fetch below,
+    // and only awaited once we know a report is actually coming -- one
+    // lightweight profile call, used solely to warn if the header's
+    // selected band doesn't match the visitor's own real rating (site-audit
+    // item: a silent band mismatch on the report's core flow). Lichess-only,
+    // same restriction renderPlayerHistorySection's rating-history section
+    // already uses; a failed fetch (network hiccup, a genuinely rating-less
+    // account) degrades to no warning rather than blocking the report.
+    const profilePromise = platform === 'chesscom' ? Promise.resolve(null) : fetchUserProfile(username).catch(() => null);
+
     let lines = [];
     let chessComGames = [];
     let cancelled = false;
@@ -651,6 +731,12 @@ function formatSanLineFromUci(play) {
       }
     })();
 
+    // A real macrotask boundary (site-audit item, live-reproduced: a warm
+    // lookupCache turns the analysis loop into a chain of already-resolved
+    // awaits, which never yields to rendering on its own -- see
+    // aggregateAndRank()'s own comment in src/leakAnalysis.js for why).
+    const yieldToRender = () => new Promise((resolve) => { setTimeout(resolve, 0); });
+
     const result = platform === 'chesscom'
       ? await buildLeakAnalysisFromChessCom({
         games: chessComGames,
@@ -659,6 +745,7 @@ function formatSanLineFromUci(play) {
         pool: state.pool,
         lookupFn: bandLookup,
         identifyFn: identifyOpening,
+        yieldFn: yieldToRender,
       })
       : await buildLeakAnalysis({
         ndjsonLines: lines,
@@ -667,6 +754,7 @@ function formatSanLineFromUci(play) {
         pool: state.pool,
         lookupFn: bandLookup,
         identifyFn: identifyOpening,
+        yieldFn: yieldToRender,
       });
 
     setStatus('');
@@ -702,7 +790,19 @@ function formatSanLineFromUci(play) {
       // renders for this page view even if it can't be remembered.
     }
 
-    renderSuccessScreen(result.report, result.watchList, { cancelled });
+    const profile = await profilePromise;
+    const bandWarning = (() => {
+      if (!profile || !profile.perfs) return null;
+      const rating = inferRatingForPool(profile.perfs, result.report.pool);
+      if (rating == null) return null;
+      const range = bandRangeFor(result.report.band);
+      if (!range) return null;
+      const [min, max] = range;
+      if (rating >= min && rating < max) return null; // real match -- no warning
+      return { rating, band: result.report.band, pool: result.report.pool };
+    })();
+
+    renderSuccessScreen(result.report, result.watchList, { cancelled, bandWarning });
   }
 
   function loadFromLocalStorage() {

@@ -17,6 +17,8 @@ const {
   buildLeakAnalysisFromChessCom,
   encodeShareFragment,
   decodeShareFragment,
+  inferRatingForPool,
+  bandRangeFor,
   MAX_MOVE_STRING_CHARS,
   MAX_PLY,
 } = require('../src/leakAnalysis');
@@ -561,4 +563,79 @@ test('encodeShareFragment: reports too-large rather than silently truncating a r
   const encoded = encodeShareFragment(huge);
   assert.equal(encoded.ok, false);
   assert.equal(encoded.reason, 'too-large');
+});
+
+// -- site-audit item (2026-08-29): band-mismatch detection -------------------
+// The report has always compared the visitor's moves against whichever band
+// the header selector holds, with no check against the visitor's own real
+// rating (reproduced live with a ~3000-rated Lichess account measured
+// against the default 1400-1600 band). These two pure functions turn a real
+// Lichess profile's `perfs` object and the site's own band-label strings
+// into a rating and a numeric range the caller can compare.
+
+test('inferRatingForPool: bullet/blitz read their own single perf key directly', () => {
+  const perfs = { bullet: { rating: 3243, games: 9583 }, blitz: { rating: 3153, games: 606 } };
+  assert.equal(inferRatingForPool(perfs, 'bullet'), 3243);
+  assert.equal(inferRatingForPool(perfs, 'blitz'), 3153);
+});
+
+test('inferRatingForPool: rapid_classical prefers whichever of rapid/classical has more recorded games', () => {
+  const moreRapid = { rapid: { rating: 1800, games: 500 }, classical: { rating: 1650, games: 12 } };
+  assert.equal(inferRatingForPool(moreRapid, 'rapid_classical'), 1800);
+  const moreClassical = { rapid: { rating: 1800, games: 3 }, classical: { rating: 1650, games: 200 } };
+  assert.equal(inferRatingForPool(moreClassical, 'rapid_classical'), 1650);
+});
+
+test('inferRatingForPool: returns null when the player has no recorded games in any perf key the pool covers', () => {
+  assert.equal(inferRatingForPool({ bullet: { rating: 1500, games: 10 } }, 'blitz'), null);
+  assert.equal(inferRatingForPool({}, 'rapid_classical'), null);
+  assert.equal(inferRatingForPool(null, 'blitz'), null);
+});
+
+test('bandRangeFor: parses every real band label the site actually offers', () => {
+  assert.deepEqual(bandRangeFor('1400-1600'), [1400, 1600]);
+  assert.deepEqual(bandRangeFor('1600-1800'), [1600, 1800]);
+  assert.deepEqual(bandRangeFor('1800-2000'), [1800, 2000]);
+  assert.deepEqual(bandRangeFor('2000+'), [2000, Infinity]);
+});
+
+test('bandRangeFor: returns null for an unrecognized string rather than throwing', () => {
+  assert.equal(bandRangeFor('not-a-band'), null);
+  assert.equal(bandRangeFor(''), null);
+});
+
+test('inferRatingForPool + bandRangeFor together: DrNykterstein-shaped reproduction -- a ~3243-rated bullet player against the default 1600-1800 band is a real mismatch', () => {
+  const rating = inferRatingForPool({ bullet: { rating: 3243, games: 9583 } }, 'bullet');
+  const [min, max] = bandRangeFor('1600-1800');
+  assert.ok(rating < min || rating >= max, 'expected a real mismatch, matching the live-reproduced case');
+});
+
+test('inferRatingForPool + bandRangeFor together: a real match inside the band range produces no mismatch', () => {
+  const rating = inferRatingForPool({ blitz: { rating: 1650, games: 400 } }, 'blitz');
+  const [min, max] = bandRangeFor('1600-1800');
+  assert.ok(rating >= min && rating < max, 'expected a real match, not a false-positive warning');
+});
+
+// -- site-audit item (2026-08-29): main-thread-block mitigation --------------
+// A warm lookupCache turns aggregateAndRank()'s analysis loop into a chain
+// of already-resolved awaits, which schedules microtasks only and never
+// yields to rendering on its own (live-reproduced: a CDP screenshot timed
+// out mid-analysis). yieldFn exists to break that chain periodically.
+
+test('buildLeakAnalysis: calls yieldFn every YIELD_EVERY_GAMES games, and omitting it entirely changes nothing else', async () => {
+  const lines = makeGamesForUser({ count: 45, moves: 'e4 e5 Nf3 Nc6 Bc4', winner: 'black' });
+  const calls = [];
+  const withYield = await buildLeakAnalysis({
+    ndjsonLines: lines, username: 'tester', band: '1600-1800', pool: 'blitz', lookupFn: fakeLookup(BAND_FIXTURE),
+    yieldFn: async () => { calls.push(Date.now()); },
+  });
+  assert.equal(withYield.ok, true, withYield.reason);
+  // 45 games, yielding every 20 (at i=20 and i=40, never at i=0) -> exactly 2 calls.
+  assert.equal(calls.length, 2);
+
+  const withoutYield = await buildLeakAnalysis({
+    ndjsonLines: lines, username: 'tester', band: '1600-1800', pool: 'blitz', lookupFn: fakeLookup(BAND_FIXTURE),
+  });
+  assert.equal(withoutYield.ok, true);
+  assert.deepEqual(withoutYield.report.leaks, withYield.report.leaks);
 });

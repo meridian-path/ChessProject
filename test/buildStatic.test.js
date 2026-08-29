@@ -232,7 +232,7 @@ test('repertoire.html carries a canonical link, a title ending in the site suffi
     // noindex assertions updated accordingly; see this file's sitemap-count
     // test below for the matching indexed-page-count update.
     const openingReportHtml = fs.readFileSync(path.join(outDir, 'opening-report.html'), 'utf8');
-    assert.match(openingReportHtml, /<title>Your Lichess opening leak report \| Repertoire Builder<\/title>/);
+    assert.match(openingReportHtml, /<title>Your opening leak report \| Repertoire Builder<\/title>/);
     assert.match(openingReportHtml, /<link rel="canonical" href="https:\/\/repertoire-builder\.com\/opening-report\.html">/);
     assert.doesNotMatch(openingReportHtml, /<meta name="robots" content="noindex">/, 'opening-report.html is real now, not a placeholder, and must be indexable');
   })
