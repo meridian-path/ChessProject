@@ -167,6 +167,31 @@ test('renderFamilyHubPage: noindex:true (src/buildEcoPages.js, main line too few
   assert.match(html, /<meta name="robots" content="noindex">/);
 });
 
+// AdSense content-depth fix, part 2 (src/ecoFamilyStrategy.js): every T1
+// family hub gets its own "The idea" section, same heading src/openings.js's
+// T0 pages use, but describing the FAMILY's own major branches rather than
+// one specific line -- see that module's own header comment for why.
+test('renderFamilyHubPage: renders the strategy paragraph under an "The idea" heading, escaped and curly-quoted like any other prose', () => {
+  const line = makeLine({ eco: 'C50', name: 'Italian Game', family: 'Italian Game' });
+  const entry = makeFamilyEntry({ lines: [line] });
+  const bandStats = buildFamilyBandStats({ side: entry.mainLineSide, bandResponses: {} });
+  const html = renderFamilyHubPage({
+    familyEntry: entry,
+    bandStats,
+    nav: NAV,
+    strategy: "The family's branches split on how quickly White's own bishop trade resolves.",
+  });
+  assert.match(html, /<h2>The idea<\/h2>\s*<p>The family&rsquo;s branches split on how quickly White&rsquo;s own bishop trade resolves\.<\/p>/);
+});
+
+test('renderFamilyHubPage: omitting strategy renders an empty paragraph, never the literal word "undefined"', () => {
+  const line = makeLine({ eco: 'C50', name: 'Italian Game', family: 'Italian Game' });
+  const entry = makeFamilyEntry({ lines: [line] });
+  const bandStats = buildFamilyBandStats({ side: entry.mainLineSide, bandResponses: {} });
+  const html = renderFamilyHubPage({ familyEntry: entry, bandStats, nav: NAV });
+  assert.doesNotMatch(html, /undefined/);
+});
+
 // ---------------------------------------------------------------------------
 // renderEcoVolumeIndexPage
 // ---------------------------------------------------------------------------
@@ -193,6 +218,25 @@ test('renderEcoVolumeIndexPage: an unlinked code name renders as plain text, nev
   const html = renderEcoVolumeIndexPage({ volume: 'A', codeRows, nav: NAV });
   assert.ok(!html.includes('<a href="">'));
   assert.match(html, /Some Obscure Line/);
+});
+
+// AdSense content-depth fix, part 2: every ECO volume page gets its own
+// differentiating strategy paragraph under "What sets this volume apart".
+test('renderEcoVolumeIndexPage: renders the strategy paragraph under a "What sets this volume apart" heading', () => {
+  const codeRows = [{ eco: 'B20', names: [{ name: 'Sicilian Defense', href: 'sicilian-defense-variations.html' }], lineCount: 4 }];
+  const html = renderEcoVolumeIndexPage({
+    volume: 'B',
+    codeRows,
+    nav: NAV,
+    strategy: "Volume B's own openings all share one asymmetrical reply to White's first move.",
+  });
+  assert.match(html, /<h2>What sets this volume apart<\/h2>\s*<p>Volume B&rsquo;s own openings all share one asymmetrical reply to White&rsquo;s first move\.<\/p>/);
+});
+
+test('renderEcoVolumeIndexPage: omitting strategy renders an empty paragraph, never the literal word "undefined"', () => {
+  const codeRows = [{ eco: 'A99', names: [{ name: 'Some Obscure Line', href: null }], lineCount: 1 }];
+  const html = renderEcoVolumeIndexPage({ volume: 'A', codeRows, nav: NAV });
+  assert.doesNotMatch(html, /undefined/);
 });
 
 // ---------------------------------------------------------------------------

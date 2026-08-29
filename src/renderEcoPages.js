@@ -169,7 +169,7 @@ function renderVariationTree(familyEntry) {
  *   family's main line has too few games at every rating band -- see that
  *   call site's own comment for why.
  */
-function renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink = null, drillCrossLink = null, relatedFamilies = [], mainLineSide = familyEntry.mainLineSide, noindex = false }) {
+function renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink = null, drillCrossLink = null, relatedFamilies = [], mainLineSide = familyEntry.mainLineSide, noindex = false, strategy = '' }) {
   const { family, mainLine, ecoCodes, lineCount, volumes } = familyEntry;
   const filename = familyHubFilename(familyEntry.slug);
   const primaryVolume = mainLine.eco[0];
@@ -249,6 +249,9 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd,
         Source: the CC0-licensed <a href="https://github.com/lichess-org/chess-openings" rel="noopener noreferrer">lichess.org opening database</a>.`,
     })}
 
+    <h2>The idea</h2>
+    <p>${displayName(strategy)}</p>
+
     <h2>The main line</h2>
     <figure class="board-figure">
       ${renderBoard(board, { flip, label: `Position after ${sanLine}` })}
@@ -293,7 +296,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd,
  * @param {Array<{eco:string, names:Array<{name:string, href:string|null}>, lineCount:number}>} opts.codeRows sorted by eco code
  * @param {object} opts.nav
  */
-function renderEcoVolumeIndexPage({ volume, codeRows, nav }) {
+function renderEcoVolumeIndexPage({ volume, codeRows, nav, strategy = '' }) {
   const label = VOLUME_LABELS[volume];
   const filename = ecoVolumeFilename(volume);
   const totalLines = codeRows.reduce((sum, r) => sum + r.lineCount, 0);
@@ -339,6 +342,9 @@ ${renderDocumentHead({ title, description, canonical, jsonLd })}
     <h1 class="page-title">ECO Volume ${escapeHtml(volume)}: ${escapeHtml(label)}</h1>
     <p class="subtitle">${codeRows.length} ECO codes, ${totalLines.toLocaleString()} named lines. Linked names have
        their own family guide on this site; unlinked names are listed for reference only.</p>
+
+    <h2>What sets this volume apart</h2>
+    <p>${displayName(strategy)}</p>
 
     <h2>All codes in Volume ${escapeHtml(volume)}</h2>
     ${wrapTable(`
