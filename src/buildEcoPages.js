@@ -22,6 +22,7 @@ const path = require('path');
 
 const { buildEcoDataset } = require('./ecoData');
 const { buildFamilyIndex, t1Families, familyHubFilename } = require('./ecoFamilies');
+const { FAMILY_STRATEGY, VOLUME_STRATEGY, assertFamilyStrategyComplete } = require('./ecoFamilyStrategy');
 const { buildFamilyBandStats } = require('./processEcoFamilies');
 const { RATING_BANDS, DEFAULT_SPEEDS } = require('./processRepertoire');
 const { fetchMoves, AGGREGATES_DIR } = require('./explorerSource');
@@ -171,6 +172,7 @@ async function buildEcoPages({ fetchImpl = fetch, outDir = OUT_DIR, nav, aggrega
   const dataset = buildEcoDataset();
   const familyIndex = buildFamilyIndex(dataset.lines);
   const t1 = t1Families(familyIndex);
+  assertFamilyStrategyComplete(t1.map((f) => f.slug), Object.keys(VOLUME_LABELS));
 
   const written = [];
 
@@ -195,7 +197,8 @@ async function buildEcoPages({ fetchImpl = fetch, outDir = OUT_DIR, nav, aggrega
     // empty `bands` array (a test double with no bandResponses) is `true`,
     // which is the right call too: no data was even attempted.
     const noindex = bandStats.bands.every((b) => !b.enoughData);
-    const html = renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink, drillCrossLink, relatedFamilies, mainLineSide, noindex });
+    const strategy = FAMILY_STRATEGY[familyEntry.slug];
+    const html = renderFamilyHubPage({ familyEntry, bandStats, nav, t0CrossLink, drillCrossLink, relatedFamilies, mainLineSide, noindex, strategy });
     const file = familyHubFilename(familyEntry.slug);
     fs.writeFileSync(path.join(outDir, file), html, 'utf8');
     written.push({ file, html, slug: familyEntry.slug, title: extractTitle(html), description: extractDescription(html), noindex });
@@ -204,7 +207,7 @@ async function buildEcoPages({ fetchImpl = fetch, outDir = OUT_DIR, nav, aggrega
   // --- T2: ECO volume index pages (A-E) -----------------------------------
   for (const volume of Object.keys(VOLUME_LABELS)) {
     const codeRows = buildVolumeCodeRows(dataset.lines, volume, familyIndex);
-    const html = renderEcoVolumeIndexPage({ volume, codeRows, nav });
+    const html = renderEcoVolumeIndexPage({ volume, codeRows, nav, strategy: VOLUME_STRATEGY[volume] });
     const file = ecoVolumeFilename(volume);
     fs.writeFileSync(path.join(outDir, file), html, 'utf8');
     written.push({ file, html, slug: `eco-volume-${volume.toLowerCase()}`, title: extractTitle(html), description: extractDescription(html) });
