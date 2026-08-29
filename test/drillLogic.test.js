@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { normalizeMoveInput, gradeMove, pickReply, applyRoundResult } = require('../src/drillLogic');
+const { normalizeMoveInput, gradeMove, pickReply, applyRoundResult, advanceDelayMs, ADVANCE_BASE_MS, ADVANCE_MAX_MS } = require('../src/drillLogic');
 
 function makeNode() {
   return {
@@ -112,4 +112,31 @@ test('pickReply with an injected constant rand is deterministic and only ever re
 
 test('pickReply throws on an empty replies array', () => {
   assert.throws(() => pickReply([], 0.5), /non-empty array/);
+});
+
+// UX audit finding: a flat 1200ms auto-advance was too fast to read the
+// longer offmeta/unknown feedback messages. advanceDelayMs() scales with
+// the real feedback text length instead.
+test('advanceDelayMs: a short message resolves near the base delay', () => {
+  const delay = advanceDelayMs('e5 - correct.');
+  assert.equal(delay, ADVANCE_BASE_MS + 'e5 - correct.'.length * 15);
+  assert.ok(delay < 900, `expected a short message to stay fast, got ${delay}ms`);
+});
+
+test('advanceDelayMs: a long offmeta/unknown-shaped message gets meaningfully more time than a short one', () => {
+  const short = advanceDelayMs('e5 - correct.');
+  const long = advanceDelayMs('Nf6 - a real move, but not the band-typical one here. The band-typical move is Bc4.');
+  assert.ok(long > short, `expected the longer message (${long}ms) to get more time than the shorter one (${short}ms)`);
+  assert.ok(long - short >= 500, `expected a real difference, not a rounding artifact: short=${short}ms long=${long}ms`);
+});
+
+test('advanceDelayMs: delay is capped so an arbitrarily long message never blocks the session indefinitely', () => {
+  const veryLong = 'x'.repeat(1000);
+  assert.equal(advanceDelayMs(veryLong), ADVANCE_MAX_MS);
+});
+
+test('advanceDelayMs: empty/missing feedback text falls back to the base delay, never throws or returns NaN', () => {
+  assert.equal(advanceDelayMs(''), ADVANCE_BASE_MS);
+  assert.equal(advanceDelayMs(undefined), ADVANCE_BASE_MS);
+  assert.equal(advanceDelayMs(null), ADVANCE_BASE_MS);
 });
