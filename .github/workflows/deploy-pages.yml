@@ -126,15 +126,23 @@ jobs:
       # 2026-07 under ingest-dump.yml's new versioned-tag collision handling
       # (data-2026-07-2, published alongside the original data-2026-07
       # rather than replacing it -- see that workflow's own ROOT-CAUSE NOTE).
-      # data-2026-07 stays published as the rollback until this bump is
-      # verified live, then gets deleted via a separate, human-approved
+      # data-2026-07 stayed published as the rollback until that bump was
+      # verified live, then was deleted via a separate, human-approved
       # decision, per the standing rule that the site never has zero
-      # working releases on purpose.
+      # working releases on purpose -- which freed the bare data-2026-07 tag
+      # name for reuse below.
+      #
+      # BUMPED 2026-08-29: data-2026-07-2 -> data-2026-07. Routine re-ingest,
+      # not chasing a specific coverage gap -- games=1,800,000 (up from
+      # 1,400,000), published under the now-free bare data-2026-07 tag (see
+      # note above). data-2026-07-2 stays published as the rollback until
+      # this bump is verified live, then gets deleted via a separate,
+      # human-approved decision, same standing rule as above.
       - name: Download aggregate data release
         id: aggregate_data
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          AGGREGATE_DATA_TAG: data-2026-07-2
+          AGGREGATE_DATA_TAG: data-2026-07
         run: |
           if gh release view "$AGGREGATE_DATA_TAG" >/dev/null 2>&1; then
             gh release download "$AGGREGATE_DATA_TAG" \
