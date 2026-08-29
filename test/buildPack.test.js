@@ -17,6 +17,7 @@ const {
   flattenPositions,
   collectLeafPaths,
   pruneToTopLines,
+  ownFirstMoveSan,
   pgnFromTree,
   packJsonFromResult,
   readmeText,
@@ -224,6 +225,33 @@ test('buildPackTree walks opponent branches by cumulative frequency and picks ou
 
   // Terminates: 'e2e4,c7c5,c2c3' fixture has only 200 games (< MIN_N).
   assert.deepEqual(ourMove.children, []);
+});
+
+// -- site-audit item (2026-08-29): the pack's own first move was never
+// stated on its sales page. ownFirstMoveSan() has to handle White and
+// Black packs differently -- root itself IS the White pack's own first
+// move (isOurMove true there), but for a Black pack root is the fixed
+// OPPONENT move and the owner's real first move is root's own single
+// child instead.
+test('ownFirstMoveSan: a White pack returns root.san directly (root is our own forced first move)', async () => {
+  const { fetchImpl } = mainScenarioFetch();
+  const result = await buildPackTree({ ratingBand: '1400-1600', color: 'white', firstMoveUci: 'e2e4', fetchImpl, aggregatesDir: EMPTY_AGGREGATES_DIR });
+  assert.equal(result.tree.isOurMove, true);
+  assert.equal(ownFirstMoveSan(result.tree), 'e4');
+});
+
+test('ownFirstMoveSan: a Black pack returns root.children[0].san (root is the fixed opponent move)', async () => {
+  const { fetchImpl } = mainScenarioFetch();
+  const result = await buildPackTree({ ratingBand: '1400-1600', color: 'black', firstMoveUci: 'e2e4', fetchImpl, aggregatesDir: EMPTY_AGGREGATES_DIR });
+  assert.equal(result.tree.isOurMove, false);
+  assert.equal(result.tree.children.length, 1, 'a real repertoire has exactly one chosen reply at every one of the owner\'s own decision points');
+  assert.equal(ownFirstMoveSan(result.tree), result.tree.children[0].san);
+});
+
+test('ownFirstMoveSan: returns null for an empty/missing tree rather than throwing', () => {
+  assert.equal(ownFirstMoveSan(null), null);
+  assert.equal(ownFirstMoveSan({ isOurMove: false, children: [] }), null);
+  assert.equal(ownFirstMoveSan({ isOurMove: false, children: null }), null);
 });
 
 test('buildPackTree result is deterministic (byte-identical) for byte-identical input', async () => {

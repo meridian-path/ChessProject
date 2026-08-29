@@ -285,6 +285,18 @@ function contentsRowHtml(row, distId) {
     : '';
   const opponentSide = sideAtPly(row.ply);
   const ourSide = opponentSide === 'white' ? 'black' : 'white';
+  // Site-audit item (2026-08-29): a reply can carry a HIGHER n than the
+  // branch it sits inside (e.g. "d4 (n=861) -> Bg7 (n=989)") - not broken
+  // arithmetic, but Opening Explorer transposition merging: our own move's
+  // n is queried at the resulting POSITION, which other move orders can
+  // also reach, while the opponent move's n is scoped to this one specific
+  // path (this pack's own limitations section already discloses it is not
+  // transposition-aware). Presented bare this reads as an error to exactly
+  // the numerate audience the site courts - a one-line note, not a
+  // silently "corrected" (and possibly wrong) number.
+  const transpositionNote = (row.ourN != null && row.ourN > row.opponentN)
+    ? '<span class="pack-row-transposition-note">n is higher here because other move orders reach this same position too</span>'
+    : '';
   return `<li class="pack-row-item" data-pack-row>
       <details class="pack-row" data-dist-id="${distId}">
         <summary class="pack-row-summary">
@@ -293,7 +305,7 @@ function contentsRowHtml(row, distId) {
           <span class="pack-row-arrow" aria-hidden="true">&rarr;</span>
           ${row.ourSan ? `<span class="move-chip move-chip--${ourSide}">${escapeHtml(row.ourSan)}</span>
           <span class="pack-row-score">${scoreText}</span>
-          <span class="pack-row-ci">${ciText} (n=${row.ourN != null ? row.ourN.toLocaleString() : '-'})</span>` : '<span class="pack-row-ci">Pack ends here (not enough games to extend further)</span>'}
+          <span class="pack-row-ci">${ciText} (n=${row.ourN != null ? row.ourN.toLocaleString() : '-'})</span>${transpositionNote}` : '<span class="pack-row-ci">Pack ends here (not enough games to extend further)</span>'}
         </summary>
         <div class="pack-row-distribution" data-pack-row-distribution>
           <noscript>See every reply this pack tracked at this position in the downloadable pack.json, or in the printed study guide.</noscript>
@@ -457,9 +469,22 @@ function previewRowHtml(row) {
 function packPreviewHtml(pack, count = 3) {
   const rows = collectContentsRows(pack.tree).slice(0, count);
   if (rows.length === 0) return '';
-  const items = rows.map(previewRowHtml).join('');
+  // Site-audit item (2026-08-29): collectContentsRows() deliberately
+  // excludes the pack's own first move (it's the page's own H1/board
+  // identity on the detail page - see that function's own comment), but
+  // this preview has no separate H1/board to carry it, so the chip list
+  // used to open mid-game (White's SECOND move for a Black pack) under a
+  // caption claiming "start to finish" - neither true. Prepends a real
+  // leading chip for the pack's own actual first move (ownFirstMoveSan(),
+  // src/buildPack.js) rather than reusing collectContentsRows()'s own
+  // detail-page-specific exclusion, and the caption no longer claims an
+  // ending this is a partial (count-limited) preview never shows.
+  const openingChip = pack.ownFirstMoveSan
+    ? `<li class="pack-preview-row"><span class="move-chip move-chip--${pack.color === 'white' ? 'white' : 'black'}">${escapeHtml(pack.ownFirstMoveSan)}</span></li>`
+    : '';
+  const items = openingChip + rows.map(previewRowHtml).join('');
   return `<div class="pack-preview">
-      <p class="pack-preview-label">A real line from this pack, start to finish:</p>
+      <p class="pack-preview-label">How this pack opens:</p>
       <ul class="pack-preview-list">${items}</ul>
     </div>`;
 }
@@ -545,6 +570,16 @@ function generationRuleHtml(pack) {
  * @param {object} nav
  * @param {object} [legalLinks]
  */
+// Site-audit item (2026-08-29): the pack's own first move was never stated
+// on its sales page ("only inferable from the board thumbnail"). White's
+// own move is "1.e4"; Black's own reply (buildPack.js's ownFirstMoveSan())
+// is still move 1, prefixed "1..." per this site's own established
+// convention (see src/ecoFamilyStrategy.js's "1...e5" usage).
+function ownFirstMoveNotation(pack) {
+  if (!pack.ownFirstMoveSan) return null;
+  return pack.color === 'white' ? `1.${pack.ownFirstMoveSan}` : `1...${pack.ownFirstMoveSan}`;
+}
+
 function renderPackDetailPage({ pack, otherPacks = [], nav, legalLinks }) {
   const breadcrumbItems = [
     { label: 'Home', href: '/' },
@@ -605,12 +640,13 @@ function renderPackDetailPage({ pack, otherPacks = [], nav, legalLinks }) {
   const html = `<!DOCTYPE html>
 <html lang="en">
 ${renderDocumentHead({ title: pageTitle(`${pack.title} repertoire pack`), description, canonical, jsonLd, ogImage, noindex: pack.noindex })}
-<body class="layout--wide">
+<body>
+<div class="page page--wide">
   ${renderHeader(nav, 'packs')}
   <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
-      title: `${escapeHtml(pack.title)}: a finished repertoire, ${pack.lineCount.toLocaleString()} lines`,
+      title: `${escapeHtml(pack.title)}: a finished repertoire${ownFirstMoveNotation(pack) ? ` starting ${escapeHtml(ownFirstMoveNotation(pack))}` : ''}, ${pack.lineCount.toLocaleString()} lines`,
       subtitle: `Every move picked by one rule, printed below, from Lichess games in your band. Sample size and score range next to each one. PGN, a printable study guide, and a drill file that loads into the trainer on this site.`,
     })}
 
@@ -636,6 +672,7 @@ ${renderDocumentHead({ title: pageTitle(`${pack.title} repertoire pack`), descri
     <p class="source-list">Data: <a href="https://database.lichess.org" rel="noopener noreferrer">Lichess</a>, released under CC0. This pack is a derived work; it is not affiliated with or endorsed by Lichess. ${pieceAttributionHtml()}</p>
   </main>
   ${renderFooter(`Repertoire pack data source: <a href="https://database.lichess.org" rel="noopener noreferrer">Lichess</a> (CC0), via the Opening Explorer aggregate cache.`, legalLinks)}
+</div>
 </body>
 </html>
 `;
@@ -685,7 +722,8 @@ function renderPacksIndexPage({ packs, nav, legalLinks }) {
   const html = `<!DOCTYPE html>
 <html lang="en">
 ${renderDocumentHead({ title: pageTitle('Repertoire packs'), description, canonical, jsonLd, noindex: allNoindex })}
-<body class="layout--wide">
+<body>
+<div class="page page--wide">
   ${renderHeader(nav, 'packs')}
   <main id="main-content">
     ${renderPageHead({
@@ -713,6 +751,7 @@ ${renderDocumentHead({ title: pageTitle('Repertoire packs'), description, canoni
     </section>
   </main>
   ${renderFooter('Repertoire pack data source: <a href="https://database.lichess.org" rel="noopener noreferrer">Lichess</a> (CC0), via the Opening Explorer aggregate cache.', legalLinks)}
+</div>
 </body>
 </html>
 `;
