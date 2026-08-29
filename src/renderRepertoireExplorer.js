@@ -23,7 +23,7 @@
  * render.js itself must never require() this file or boardSvg.js.
  */
 
-const { escapeHtml, displayName, renderDocumentHead, renderHeader, renderFooter, renderPageHead, renderRepertoireTree } = require('./render');
+const { escapeHtml, displayName, renderDocumentHead, renderHeader, renderFooter, renderPageHead, renderBreadcrumb, renderRepertoireTree } = require('./render');
 const { spriteDefsHtml, pieceAttributionHtml } = require('./boardSvg');
 
 /**
@@ -60,6 +60,11 @@ function renderRepertoireExplorerPage({ combos, defaultBand, defaultColor, bandP
     : '<p id="repertoire-totals" class="summary-line" hidden></p>';
   const title = 'Opening repertoire explorer, by rating band | Repertoire Builder';
 
+  const breadcrumbItems = [
+    { label: 'Home', href: nav.home },
+    { label: 'Repertoire', href: nav.repertoire },
+  ];
+
   const payload = { default: { band: defaultBand, color: defaultColor }, combos };
 
   return `<!DOCTYPE html>
@@ -70,7 +75,7 @@ ${renderDocumentHead({ title, description, canonical })}
   ${renderHeader(nav, 'repertoire')}
   <main id="main-content">
     ${renderPageHead({
-      eyebrow: 'Repertoire',
+      breadcrumb: renderBreadcrumb(breadcrumbItems),
       title: 'Opening repertoire explorer',
       subtitle: `<span id="repertoire-subtitle-text">Rating band ${escapeHtml(defaultCombo.ratingBand)}, playing as ${escapeHtml(defaultCombo.color)}${openingNote}</span>`,
       meta: totalsNote,
