@@ -44,7 +44,17 @@ function formatPct(n) {
 // spec 3.2) -- duplicated as a plain constant rather than imported, since
 // importing renderContent.js here would pull in board-diagram/JSON-LD code
 // this isomorphic module has no business depending on.
-const WIDE_INTERVAL_THRESHOLD_PP = 1.0;
+//
+// Site-audit fix (2026-08-29): 1.0pp fired on rows the site's own homepage
+// presents with no caveat at all (e.g. n=7,493, +/-1.1pp) -- a half-width
+// this small doesn't change the reading, so calling it "wide" was simply
+// false, and firing on nearly every row trained readers to ignore the note
+// entirely, burying the rows that actually deserve it (e.g. n=192,
+// +/-7.0pp). 3.0pp is the real dividing line: at typical opening-page score
+// rates (~45-55%), that's roughly where a band's row starts trading places
+// with a neighboring band under repeated sampling -- i.e. where the caution
+// is factually earned, not just present.
+const WIDE_INTERVAL_THRESHOLD_PP = 3.0;
 
 /**
  * @param {number|null} halfWidthPct

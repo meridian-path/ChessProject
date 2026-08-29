@@ -30,7 +30,18 @@ const { formatInterval } = require('./stats');
 // row also gets a visible "wide interval, small sample" note, not just the
 // .ci figure, since a technically-present-but-visually-ignorable interval
 // is disclosure theatre (the spec's own words).
-const WIDE_INTERVAL_THRESHOLD_PP = 1.0;
+//
+// Site-audit fix (2026-08-29): 1.0pp fired on rows the site's own homepage
+// presents with no caveat at all (e.g. n=7,493, +/-1.1pp) -- a half-width
+// this small doesn't change the reading, so calling it "wide" was simply
+// false, and firing on nearly every row trained readers to ignore the note
+// entirely, burying the rows that actually deserve it (e.g. n=192,
+// +/-7.0pp). 3.0pp is the real dividing line: at typical opening-page score
+// rates (~45-55%), that's roughly where a band's row starts trading places
+// with a neighboring band under repeated sampling -- i.e. where the caution
+// is factually earned, not just present. Keep this in sync with
+// compareOpeningsShared.js's own copy of the same constant.
+const WIDE_INTERVAL_THRESHOLD_PP = 3.0;
 
 /**
  * The exact markup spec section 3.2 requires for a rate/score with a
@@ -316,7 +327,12 @@ function wdlBar(winPct, drawPct, lossPct, title, opts = {}) {
   const winCI = c ? renderCI({ halfWidthPct: c.winCI, srLabel: 'Win rate', lowPct: c.winLow, highPct: c.winHigh, sampleSize: c.games }) : '';
   const drawCI = c ? renderCI({ halfWidthPct: c.drawCI, srLabel: 'Draw rate', lowPct: c.drawLow, highPct: c.drawHigh, sampleSize: c.games }) : '';
   const lossCI = c ? renderCI({ halfWidthPct: c.lossCI, srLabel: 'Loss rate', lowPct: c.lossLow, highPct: c.lossHigh, sampleSize: c.games }) : '';
-  const wideNote = c ? wideIntervalNote(Math.max(c.winCI || 0, c.drawCI || 0, c.lossCI || 0)) : '';
+  // suppressWideNote: renderBandsTable's row has a SECOND CI figure
+  // (scoreForSide, not part of win/draw/loss) and needs to fold both into
+  // one combined once-per-row note rather than this bar rendering its own
+  // -- see that function's own comment. Every other caller (e.g.
+  // renderTopRepliesTable) has no second figure, so leaves this default.
+  const wideNote = c && !opts.suppressWideNote ? wideIntervalNote(Math.max(c.winCI || 0, c.drawCI || 0, c.lossCI || 0)) : '';
   return `<svg class="${barClass}" viewBox="0 0 100 12" preserveAspectRatio="none" role="img"><title>${escapeHtml(title)}</title><rect class="wdl-seg--win" x="0" y="0" width="${winPct}" height="12"></rect><rect class="wdl-seg--draw" x="${drawX}" y="0" width="${drawPct}" height="12"></rect><rect class="wdl-seg--loss" x="${lossX}" y="0" width="${lossPct}" height="12"></rect></svg>
     <span class="wdl-label">${formatPct(winPct)}%${winCI} / ${formatPct(drawPct)}%${drawCI} / ${formatPct(lossPct)}%${lossCI}</span>${wideNote}`;
 }
@@ -340,6 +356,7 @@ function renderBandsTable(model) {
       const blackLH = bandLowHigh(b.blackPct, b.blackCI);
       const bar = wdlBar(b.whitePct, b.drawPct, b.blackPct, `White/draw/black: ${formatPct(b.whitePct)}% / ${formatPct(b.drawPct)}% / ${formatPct(b.blackPct)}%`, {
         large: true,
+        suppressWideNote: true,
         ci: {
           games: b.games, winCI: b.whiteCI, drawCI: b.drawCI, lossCI: b.blackCI,
           winLow: whiteLH.low, winHigh: whiteLH.high, drawLow: drawLH.low, drawHigh: drawLH.high, lossLow: blackLH.low, lossHigh: blackLH.high,
@@ -351,11 +368,16 @@ function renderBandsTable(model) {
         highPct: b.scoreForSideCI != null ? Number((b.scoreForSide + b.scoreForSideCI).toFixed(1)) : null,
         sampleSize: b.games,
       });
+      // One combined note per row (site-audit fix, 2026-08-29), not one
+      // under the bar AND another under the score -- folds in every CI this
+      // row displays (white/draw/black from the bar, plus scoreForSide),
+      // so the row is flagged if ANY of its own figures is genuinely wide.
+      const wideNote = wideIntervalNote(Math.max(b.whiteCI || 0, b.drawCI || 0, b.blackCI || 0, b.scoreForSideCI || 0));
       return `<tr>
         <td>${escapeHtml(b.band)}</td>
         <td class="num">${b.games.toLocaleString()}</td>
         <td>${bar}</td>
-        <td class="num">${formatPct(b.scoreForSide)}%${scoreCI}${wideIntervalNote(b.scoreForSideCI)}</td>
+        <td class="num">${formatPct(b.scoreForSide)}%${scoreCI}${wideNote}</td>
       </tr>`;
     })
     .join('');
@@ -1120,4 +1142,11 @@ module.exports = {
   // two different ways.
   wdlBar,
   renderBandsTable,
+  // Exported for direct unit tests (site-audit fix, 2026-08-29): both were
+  // previously private-to-this-file, only exercised indirectly through a
+  // full renderOpeningPage() call, which made it easy for the
+  // once-per-row/real-threshold regression this fix corrects to go
+  // unnoticed by the test suite in the first place.
+  renderTopRepliesTable,
+  wideIntervalNote,
 };
