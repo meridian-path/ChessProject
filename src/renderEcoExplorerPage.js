@@ -119,7 +119,6 @@ ${renderDocumentHead({ title, description, canonical, jsonLd })}
   <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
-      eyebrow: 'Interactive tool',
       title: 'ECO opening explorer',
       subtitle: `Search all ${stats.totalLines.toLocaleString()} named lines across ${stats.totalFamilies} families and every ECO code, A&ndash;E. Play any
         line on the board, or paste a FEN or PGN below to identify a position. Source: the

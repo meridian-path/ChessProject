@@ -242,7 +242,6 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd,
   <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
-      eyebrow: 'ECO family guide',
       title: `${displayName(family)}: all variations and ECO codes`,
       subtitle: `${lineCount} named lines across ${ecoCodes.length} ECO code${ecoCodes.length === 1 ? '' : 's'}
         (${escapeHtml(ecoRangeLabel(ecoCodes))})${volumes.length > 1 ? `, spanning ECO volumes ${volumes.join(', ')}` : ''}.

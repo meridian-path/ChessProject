@@ -1535,16 +1535,6 @@ ${designTokensCss(THEME_ROLES.dark)}
   }
   .home-band-picker .band-pill:hover { background: var(--color-hover); color: var(--color-text); transform: none; }
 
-  /* Eyebrow label above an h1, shared by renderPageHead(). */
-  .page-eyebrow {
-    font-size: var(--text-xs);
-    font-weight: var(--weight-bold);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--color-accent);
-    margin: 0 0 var(--space-2);
-  }
-
   .callout {
     background: var(--color-surface-alt);
     border-left: 4px solid var(--color-accent);
@@ -2890,43 +2880,51 @@ function renderFooter(innerHtml, legalLinks) {
 }
 
 /**
+ * @param {Array<{label:string, href?:string}>} items the last item should
+ *   have no `href` (it's the current page). The same `items` array a caller
+ *   also feeds to structuredData.js's breadcrumbJsonLd(), so the visible
+ *   trail and the BreadcrumbList JSON-LD can never drift out of sync.
+ */
+function renderBreadcrumb(items) {
+  const parts = items
+    .map((item, i) => {
+      const isLast = i === items.length - 1;
+      return isLast || !item.href
+        ? `<li aria-current="page">${displayName(item.label)}</li>`
+        : `<li><a href="${escapeHtml(item.href)}">${displayName(item.label)}</a></li>`;
+    })
+    .join('<li class="breadcrumb-sep" aria-hidden="true">/</li>');
+  return `<nav class="breadcrumb" aria-label="Breadcrumb"><ol>${parts}</ol></nav>`;
+}
+
+/**
  * One shared page-head component used by every template that has a
- * breadcrumb/eyebrow/h1/subtitle -- so the four page types (homepage,
- * opening guide, drill, repertoire) all open the same way instead of each
- * hand-rolling its own markup order. Deliberately dumb: `breadcrumb` is
- * passed through UNCHANGED (built by renderContent.js's renderBreadcrumb()
- * from the same `items` array a caller also feeds to structuredData.js's
- * breadcrumbJsonLd()), so the visible trail and the BreadcrumbList JSON-LD
- * can never drift out of sync just because this function exists.
- * `eyebrow`/`title`/`subtitle`/`meta` are pre-built HTML/text fragments the
- * caller is responsible for escaping, same convention every other
- * render*.js function already uses for h1/subtitle content -- this
- * function does not call escapeHtml() itself. `eyebrow` is on-page text
- * ONLY: it is never concatenated into a caller's <title>, since callers set
- * that separately via renderDocumentHead's own `title` option (the value
- * buildContent.js's assertPageMetadata length-checks) -- this function
- * never touches <head> at all. Fixed eyebrow vocabulary across the site:
- * "Opening guide" / "Repertoire" / "Drill" / "Guide" / "FAQ" /
- * "Player lookup" / "Not found".
- * @param {{breadcrumb?: string, eyebrow?: string, title: string,
- *   subtitle?: string, meta?: string}} opts
+ * breadcrumb/h1/subtitle -- so every page type (homepage, opening guide,
+ * drill, repertoire) opens the same way instead of each hand-rolling its
+ * own markup order. Deliberately dumb: `breadcrumb` is passed through
+ * UNCHANGED (built by this module's own renderBreadcrumb()). `title`/
+ * `subtitle`/`meta` are pre-built HTML/text fragments the caller is
+ * responsible for escaping, same convention every other render*.js
+ * function already uses for h1/subtitle content -- this function does not
+ * call escapeHtml() itself, and never touches <head> at all.
+ * @param {{breadcrumb?: string, title: string, subtitle?: string,
+ *   meta?: string}} opts
  * @returns {string}
  */
-function renderPageHead({ breadcrumb = '', eyebrow = '', title, subtitle = '', meta = '' }) {
+function renderPageHead({ breadcrumb = '', title, subtitle = '', meta = '' }) {
   // Built as a list of only the PRESENT blocks, joined with '\n    ' --
   // never a leading or trailing newline, and never a blank/whitespace-only
   // line for an omitted optional field. The previous version always
   // emitted "    ${eyebrow ? ... : ''}" etc. as its own template line
   // (and, whenever `breadcrumb` was also falsy, started its whole return
-  // value with a bare newline), so any omitted breadcrumb/eyebrow/subtitle/
-  // meta left a line containing only the 4-space indent -- exactly what
+  // value with a bare newline), so any omitted breadcrumb/subtitle/meta
+  // left a line containing only the 4-space indent -- exactly what
   // html-validate's no-trailing-whitespace rule flags (a text node matching
   // /^[\t ]+\r?\n$/). `meta` in particular defaults to '' and most callers
   // never pass it, so this was the single largest source of that gate's
   // ~2270 total errors.
   const parts = [];
   if (breadcrumb) parts.push(breadcrumb);
-  if (eyebrow) parts.push(`<p class="page-eyebrow">${eyebrow}</p>`);
   parts.push(`<h1 class="page-title">${title}</h1>`);
   if (subtitle) parts.push(`<p class="subtitle">${subtitle}</p>`);
   if (meta) parts.push(meta);
@@ -3154,7 +3152,6 @@ ${renderDocumentHead({ title, description, canonical })}
   ${renderHeader(nav, 'repertoire')}
   <main id="main-content">
     ${renderPageHead({
-      eyebrow: 'Repertoire',
       title: 'Opening repertoire explorer',
       subtitle: `Rating band ${escapeHtml(ratingBand)}, playing as ${escapeHtml(color)}${openingNote}`,
       meta: totalsNote,
@@ -3284,6 +3281,7 @@ module.exports = {
   renderDisclosure,
   renderNewsletterSignup,
   renderPageHead,
+  renderBreadcrumb,
   wrapTable,
   NAV_ORDER,
   NAV_LABELS,

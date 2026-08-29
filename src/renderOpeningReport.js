@@ -24,7 +24,7 @@
  */
 
 const {
-  escapeHtml, formatPct, renderDocumentHead, renderHeader, renderFooter, renderPageHead,
+  escapeHtml, formatPct, renderDocumentHead, renderHeader, renderFooter, renderPageHead, renderBreadcrumb,
 } = require('./render');
 const { SITE_NAME, absoluteUrl, pageTitle } = require('./site');
 const { breadcrumbJsonLd } = require('./structuredData');
@@ -240,7 +240,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd, extraCss: OPENING_
   ${renderHeader(nav, 'player')}
   <main class="prose" id="main-content">
     ${renderPageHead({
-      eyebrow: 'Personal opening report',
+      breadcrumb: renderBreadcrumb(breadcrumbItems),
       title: 'Find your five biggest opening leaks',
       subtitle: 'Enter a Lichess username. We compare what you actually play against what your rating band actually plays, and rank the gaps by how many points per 100 games each one costs.',
     })}

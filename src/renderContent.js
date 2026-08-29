@@ -18,7 +18,7 @@
  * only what that same page already renders visibly, never anything extra.
  */
 
-const { escapeHtml, displayName, formatPct, renderDocumentHead, renderHeader, renderFooter, wrapTable, renderPageHead, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT } = require('./render');
+const { escapeHtml, displayName, formatPct, renderDocumentHead, renderHeader, renderFooter, wrapTable, renderPageHead, renderBreadcrumb, HEADER_BAND_OPTIONS, HEADER_BAND_DEFAULT } = require('./render');
 const { START_BOARD, applyUciMoves } = require('./chessPosition');
 const { SITE_NAME, SITE_AUTHOR, BUILD_DATE, absoluteUrl, pageTitle } = require('./site');
 const { breadcrumbJsonLd, articleJsonLd, faqPageJsonLd, datasetJsonLd } = require('./structuredData');
@@ -126,21 +126,6 @@ function renderBoard(board, opts = {}) {
   return `${spriteDefsHtml()}${renderBoardDiagram(board, opts)}`;
 }
 
-/**
- * @param {Array<{label:string, href?:string}>} items the last item should
- *   have no `href` (it's the current page).
- */
-function renderBreadcrumb(items) {
-  const parts = items
-    .map((item, i) => {
-      const isLast = i === items.length - 1;
-      return isLast || !item.href
-        ? `<li aria-current="page">${displayName(item.label)}</li>`
-        : `<li><a href="${escapeHtml(item.href)}">${displayName(item.label)}</a></li>`;
-    })
-    .join('<li class="breadcrumb-sep" aria-hidden="true">/</li>');
-  return `<nav class="breadcrumb" aria-label="Breadcrumb"><ol>${parts}</ol></nav>`;
-}
 
 /**
  * @param {Array<{label:string, href:string, note?:string}>} items
@@ -564,7 +549,6 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd:
   <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
-      eyebrow: 'Opening guide',
       title: `${displayName(model.name)} (${escapeHtml(model.eco)}): win rates at club level`,
       subtitle: `${escapeHtml(sanLine)}, playing as ${escapeHtml(model.side)}. ${totalGamesNote[0].toUpperCase()}${totalGamesNote.slice(1)}.`,
     })}

@@ -88,7 +88,6 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'website', jsonLd,
   <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
-      eyebrow: 'Drill',
       title: 'Opening drill',
       subtitle: 'Play the move your rating band actually plays. Seed a deck from your opening report, a saved repertoire, or any opening below, then drill it with spaced repetition so due cards come back when you actually need them.',
     })}
@@ -234,7 +233,6 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'website', jsonLd 
   <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
-      eyebrow: 'Drill',
       title: 'Drill reference: full opening lines by rating band',
       subtitle: 'Every line here is exactly what the opening drill grades you against, listed in full so you can look one up without spoiling a drill attempt in progress. Each move shows the score for the side to move and the sample size behind it.',
     })}

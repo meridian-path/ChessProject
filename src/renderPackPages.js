@@ -610,7 +610,6 @@ ${renderDocumentHead({ title: pageTitle(`${pack.title} repertoire pack`), descri
   <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
-      eyebrow: 'Repertoire pack',
       title: `${escapeHtml(pack.title)}: a finished repertoire, ${pack.lineCount.toLocaleString()} lines`,
       subtitle: `Every move picked by one rule, printed below, from Lichess games in your band. Sample size and score range next to each one. PGN, a printable study guide, and a drill file that loads into the trainer on this site.`,
     })}
@@ -691,7 +690,6 @@ ${renderDocumentHead({ title: pageTitle('Repertoire packs'), description, canoni
   <main id="main-content">
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
-      eyebrow: 'Direct sale',
       title: 'Repertoire packs',
       subtitle: 'A finished, pruned opening repertoire, built from real Lichess games in your band. The site&rsquo;s own leak report, drill engine, and repertoire builder stay free either way.',
     })}
