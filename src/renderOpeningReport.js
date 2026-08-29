@@ -263,7 +263,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd, extraCss: OPENING_
     <noscript>
       <p class="status-message status-message--error">This report needs JavaScript: it fetches your games directly from
         Lichess in your own browser and does the analysis there, so nothing about it can run without it. Nothing you
-        play is ever sent to ${escapeHtml(SITE_NAME)}'s servers, because this site has none.</p>
+        play is ever sent to ${escapeHtml(SITE_NAME)}&rsquo;s servers, because this site has none.</p>
     </noscript>
 
     <div id="report-status" role="status" aria-live="polite"></div>
@@ -273,23 +273,23 @@ ${renderDocumentHead({ title, description, canonical, jsonLd, extraCss: OPENING_
 
     <section class="data-handling">
       <h2>How this works</h2>
-      <p>Your games are fetched by your own browser, directly from Lichess's or Chess.com's public API (whichever
-        platform you pick above). Nothing is ever sent to ${escapeHtml(SITE_NAME)}'s servers, because this site has no
-        servers that could receive it. Your report is stored only in your browser's local storage, and only if you
-        choose to save it. A "leak" here means: at a position you've reached at least three times, the move you
+      <p>Your games are fetched by your own browser, directly from Lichess&rsquo;s or Chess.com&rsquo;s public API (whichever
+        platform you pick above). Nothing is ever sent to ${escapeHtml(SITE_NAME)}&rsquo;s servers, because this site has no
+        servers that could receive it. Your report is stored only in your browser&rsquo;s local storage, and only if you
+        choose to save it. A "leak" here means: at a position you&rsquo;ve reached at least three times, the move you
         usually play scores measurably worse, across hundreds of thousands of games at your rating band, than the
-        move your band's own data recommends. Your own games only tell us how often you reach a position and which
+        move your band&rsquo;s own data recommends. Your own games only tell us how often you reach a position and which
         move you pick. The band data, not your own small sample, tells us what that move actually scores. Example: a
         player who reaches the position after 1.e4 e5 2.Nf3 Nc6 and answers 3.Bc4 twenty-five times might be shown
         that 3.Bb5 scores several points per 100 games better among their rating band, worth roughly a full point of
         rating over a season of play at that frequency.</p>
       <p>We fetch up to 300 of your most recent rated blitz and rapid games and look only at the first 24 half-moves
-        of each, since we're identifying openings, not analysing whole games. On Lichess that's one streamed request
-        (about 15 seconds, per Lichess's own published rate limit for this endpoint); on Chess.com, which publishes
+        of each, since we&rsquo;re identifying openings, not analysing whole games. On Lichess that&rsquo;s one streamed request
+        (about 15 seconds, per Lichess&rsquo;s own published rate limit for this endpoint); on Chess.com, which publishes
         games in monthly archives rather than one combined feed, we walk backward from your most recent month, one
         request per month, stopping once we reach 300 games or 12 months back, whichever comes first. Coverage is
         bounded: our band dataset only reaches as deep as real games commonly go before branching out, so some of
-        your games will have no comparison available. That's shown honestly, not hidden.</p>
+        your games will have no comparison available. That&rsquo;s shown honestly, not hidden.</p>
       <p class="report-provenance">Rating history and recent games (below your report) are Lichess-only for now.</p>
     </section>
   </main>
