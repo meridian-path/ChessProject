@@ -114,9 +114,32 @@ function applyRoundResult(state, { clean }) {
   return { level, cleanStreak: nextStreak };
 }
 
+// UX audit finding: the drill session's post-attempt feedback message used
+// to auto-advance to the next card after a flat 1200ms regardless of
+// length -- fine for "e5 - correct.", too fast to actually read the longer
+// offmeta/unknown messages (two SAN moves plus a percentage). Scales with
+// the real rendered message length instead, so a short "correct" stays
+// snappy and a long explanation gets real time to read.
+const ADVANCE_BASE_MS = 600;
+const ADVANCE_MS_PER_CHAR = 15;
+const ADVANCE_MAX_MS = 2600;
+
+/**
+ * @param {string} feedbackText the exact text shown in the feedback panel
+ * @returns {number} milliseconds to wait before auto-advancing to the next card
+ */
+function advanceDelayMs(feedbackText) {
+  const length = typeof feedbackText === 'string' ? feedbackText.length : 0;
+  return Math.min(ADVANCE_MAX_MS, ADVANCE_BASE_MS + length * ADVANCE_MS_PER_CHAR);
+}
+
 module.exports = {
   normalizeMoveInput,
   gradeMove,
   pickReply,
   applyRoundResult,
+  advanceDelayMs,
+  ADVANCE_BASE_MS,
+  ADVANCE_MS_PER_CHAR,
+  ADVANCE_MAX_MS,
 };

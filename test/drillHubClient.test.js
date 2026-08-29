@@ -170,8 +170,11 @@ test('drill hub spoiler regression: leak-seeded and band-meta-seeded card answer
     const postRevealHtml1 = await page.evaluate(() => document.documentElement.outerHTML);
     assertSpoilerRevealed(postRevealHtml1, metaCard, 'card 1 (band-meta), after reveal');
 
-    // Advance to card 2 (gradeAndAdvance's own 1200ms window).
-    await page.waitForTimeout(1400);
+    // Advance to card 2 -- gradeAndAdvance()'s auto-advance delay now scales
+    // with the feedback message length (600ms base + 15ms/char, capped at
+    // 2600ms; see drill.client.js's advanceDelayMs()), so wait past the cap
+    // with margin rather than the old flat 1200ms.
+    await page.waitForTimeout(2900);
 
     // ---- CARD 2 ---------------------------------------------------------
     await page.waitForTimeout(400);
@@ -185,6 +188,52 @@ test('drill hub spoiler regression: leak-seeded and band-meta-seeded card answer
     await page.waitForTimeout(100);
     const postRevealHtml2 = await page.evaluate(() => document.documentElement.outerHTML);
     assertSpoilerRevealed(postRevealHtml2, leakCard, 'card 2 (leak), after reveal');
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});
+
+// UX audit finding: "0 cards due" read as "nothing to do", even though a
+// fresh (never-attempted) card still makes Start Session work -- the hub
+// now shows an explicit note when that's the case, and stays quiet
+// otherwise.
+test('drill hub "0 cards due" shows the fresh-cards note only when it is actually true (0 due, but fresh cards exist)', { timeout: 30000 }, async () => {
+  const metaTop = readRealTopMove(['e2e4']);
+  const freshCard = makeCard({ id: 'fresh-1', play: ['e2e4'], answerUci: metaTop.uci, answerSan: metaTop.san, side: 'black', source: 'band-meta' });
+
+  const server = await startServer();
+  const { port } = server.address();
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.goto(`http://127.0.0.1:${port}/drill.html`);
+
+    await page.evaluate(
+      ({ freshCard }) => {
+        window.localStorage.setItem('rb.drill.v2', JSON.stringify({ v: 2, cards: [freshCard], migratedV1: true }));
+      },
+      { freshCard }
+    );
+    await page.reload();
+
+    const note = page.locator('#drill-fresh-note');
+    assert.equal(await note.isHidden(), false, 'fresh-cards note should be visible when 0 due but a fresh card exists');
+    assert.match(await note.innerText(), /1 new card is ready to learn/);
+    assert.equal(await page.locator('#drill-due-count').innerText(), '0');
+
+    // Now make that same card genuinely due (dueAt in the past) -- the note
+    // must disappear, since "0 cards due" is no longer misleading.
+    const dueCard = { ...freshCard, sm2: { ...freshCard.sm2, dueAt: new Date(Date.now() - 86400000).toISOString() } };
+    await page.evaluate(
+      ({ dueCard }) => {
+        window.localStorage.setItem('rb.drill.v2', JSON.stringify({ v: 2, cards: [dueCard], migratedV1: true }));
+      },
+      { dueCard }
+    );
+    await page.reload();
+    assert.equal(await note.isHidden(), true, 'fresh-cards note must not show once the same card is genuinely due');
+    assert.equal(await page.locator('#drill-due-count').innerText(), '1');
   } finally {
     await browser.close();
     server.close();

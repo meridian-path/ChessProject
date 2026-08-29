@@ -102,6 +102,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'website', jsonLd,
 
       <div class="drill-verdict" id="drill-verdict">
         <p class="drill-verdict-count"><span class="n" id="drill-due-count">0</span> cards due</p>
+        <p class="drill-verdict-note" id="drill-fresh-note" hidden></p>
         <button type="button" class="drill-primary-action" id="drill-start-session" disabled>Start session</button>
       </div>
 

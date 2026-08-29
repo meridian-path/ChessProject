@@ -52,7 +52,7 @@
  */
 
 const { START_BOARD, applyUciMoves, boardFromFen, fenFromBoard } = require('../chessPosition');
-const { normalizeMoveInput, gradeMove } = require('../drillLogic');
+const { normalizeMoveInput, gradeMove, advanceDelayMs } = require('../drillLogic');
 const drillDeck = require('../drillDeck');
 const { parse: parseLeakReport } = require('../leakModel');
 const { gradeFromAttempt } = require('../scheduler');
@@ -81,6 +81,7 @@ const LEAK_REPORT_KEY = 'rb.leakReport.v1';
   // rendered markup exactly.
   // ---------------------------------------------------------------------
   const dueCountEl = document.getElementById('drill-due-count');
+  const freshNoteEl = document.getElementById('drill-fresh-note');
   const startSessionBtn = document.getElementById('drill-start-session');
   const sessionLengthGroup = document.getElementById('drill-session-length');
   const decksListEl = document.getElementById('drill-decks-list');
@@ -197,6 +198,20 @@ const LEAK_REPORT_KEY = 'rb.leakReport.v1';
     const { due, fresh } = drillDeck.cardsDue(deck, now);
     if (dueCountEl) dueCountEl.textContent = String(due.length);
     if (startSessionBtn) startSessionBtn.disabled = due.length + fresh.length === 0;
+
+    // UX audit finding: "0 cards due" read as "nothing to do", even though
+    // Start Session still pulls in fresh/never-studied cards for the 10/25
+    // -card session lengths (drillDeck.buildSessionQueue() concats due then
+    // fresh) -- only genuinely nothing to do when both are empty.
+    if (freshNoteEl) {
+      if (due.length === 0 && fresh.length > 0) {
+        freshNoteEl.textContent = `No reviews due, but ${fresh.length} new card${fresh.length === 1 ? '' : 's'} ${fresh.length === 1 ? 'is' : 'are'} ready to learn.`;
+        freshNoteEl.hidden = false;
+      } else {
+        freshNoteEl.textContent = '';
+        freshNoteEl.hidden = true;
+      }
+    }
 
     if (decksListEl) {
       const groups = drillDeck.decksByOpening(deck, now);
@@ -464,15 +479,22 @@ const LEAK_REPORT_KEY = 'rb.leakReport.v1';
 
     renderCandidateTable(pendingCandidates);
 
+    let feedbackVerdict;
+    let feedbackText;
     if (noAttemptMade) {
-      setFeedback('unknown', `The move is ${answer.san}${answer.playedPct != null ? ` - ${formatPct(answer.playedPct)}% of players at ${currentCard.band} play this here.` : '.'}`);
+      feedbackVerdict = 'unknown';
+      feedbackText = `The move is ${answer.san}${answer.playedPct != null ? ` - ${formatPct(answer.playedPct)}% of players at ${currentCard.band} play this here.` : '.'}`;
     } else if (verdict === 'correct') {
-      setFeedback('correct', `${answer.san} - correct.${answer.playedPct != null ? ` ${formatPct(answer.playedPct)}% of players at ${currentCard.band} play this here.` : ''}`);
+      feedbackVerdict = 'correct';
+      feedbackText = `${answer.san} - correct.${answer.playedPct != null ? ` ${formatPct(answer.playedPct)}% of players at ${currentCard.band} play this here.` : ''}`;
     } else if (verdict === 'offmeta') {
-      setFeedback('offmeta', `${played.san} - a real move, but not the band-typical one here. The band-typical move is ${answer.san}.`);
+      feedbackVerdict = 'offmeta';
+      feedbackText = `${played.san} - a real move, but not the band-typical one here. The band-typical move is ${answer.san}.`;
     } else {
-      setFeedback('unknown', `That is not a move players make in this position. The band-typical move is ${answer.san}.`);
+      feedbackVerdict = 'unknown';
+      feedbackText = `That is not a move players make in this position. The band-typical move is ${answer.san}.`;
     }
+    setFeedback(feedbackVerdict, feedbackText);
 
     const grade = gradeFromAttempt({
       noAttemptMade,
@@ -498,7 +520,7 @@ const LEAK_REPORT_KEY = 'rb.leakReport.v1';
       queue.splice(insertAt, 0, { card: currentCard, requeued: true });
     }
 
-    window.setTimeout(advance, 1200);
+    window.setTimeout(advance, advanceDelayMs(feedbackText));
   }
 
   // Board click/drag/keyboard/accessibility-form input all reach here via
