@@ -79,7 +79,7 @@ ${renderDocumentHead({ title, description, canonical })}
     <div class="repertoire-explorer-layout">
       <div class="repertoire-board-col">
         <p class="repertoire-intro">Most-played moves at each ply for players in this rating band, with win/draw/loss rates per move.
-           Your color's plies show the top choices actually played at this rating; the opponent's replies show
+           Your color&rsquo;s plies show the top choices actually played at this rating; the opponent&rsquo;s replies show
            only their single most common response, to keep the tree readable. Pick a different rating band or
            color above - the whole tree updates without leaving this page.</p>
         <!-- sr-only h2 (accessibility fix, same pattern src/buildStatic.js's

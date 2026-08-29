@@ -59,6 +59,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const MAX_SHARD_BYTES = 5 * 1024 * 1024; // 5 MB per aggregate shard file
 const MAX_DIST_DATA_BYTES = 100 * 1024 * 1024; // 100 MB total for dist/data (stays well under the GitHub Pages 1 GB limit)
@@ -396,9 +397,13 @@ function hygieneOffenses(text) {
 // false-positive on that legitimate, pervasive practice across most of
 // src/. A real internal ID, unlike a series label, has no legitimate
 // reason to ever appear in source outside this checker's own header/tests.
+// Flexible-length prefix, not a fixed {8}-{6} shape: the real id format's
+// prefix is a base36-encoded timestamp that drifts longer over time (see
+// TheOrchestra's docs/HYGIENE_CHECK_TEMPLATE.md) -- a fixed-length pattern
+// silently stops matching once the prefix grows past 8 characters.
 const SOURCE_HYGIENE_ID_PATTERNS = [
-  /\btask-[a-z0-9]{8}-[a-f0-9]{6}\b/i,
-  /\bdecision-[a-z0-9]{8}-[a-f0-9]{6}\b/i,
+  /\btask-[0-9a-z]+-[0-9a-f]{4,}\b/i,
+  /\bdecision-[0-9a-z]+-[0-9a-f]{4,}\b/i,
 ];
 
 // Denylist, not allowlist -- see TheOrchestra's docs/HYGIENE_CHECK_TEMPLATE.md
@@ -448,9 +453,30 @@ function listSourceHygieneFiles(dir) {
   return out;
 }
 
+// Filters a directory-walk candidate list down to files git actually
+// tracks -- an untracked local note file (a session's own gitignored
+// working doc, e.g. TESTING.md/SEO_*.md/visual-qa-output/, genuinely full
+// of real ids by design) will never reach the public repo, so scanning it
+// is not just wasted work, it actively produces a false failure on
+// legitimate local content. See TheOrchestra's docs/HYGIENE_CHECK_TEMPLATE.md.
+// Returns null (meaning "don't filter, scan everything found") when `root`
+// is not itself a git working tree -- this checker's own fixture tests pass
+// a plain fs.mkdtempSync() tmp dir as `root`, never a real repo, and must
+// keep scanning every file they write exactly as before.
+function gitTrackedFiles(root) {
+  try {
+    const out = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    return new Set(out.split('\n').filter(Boolean).map((f) => path.resolve(root, f)));
+  } catch {
+    return null;
+  }
+}
+
 function checkPublicHygieneSource(repoRoot) {
   const problems = [];
+  const tracked = gitTrackedFiles(repoRoot);
   for (const file of listSourceHygieneFiles(repoRoot)) {
+    if (tracked && !tracked.has(path.resolve(file))) continue;
     const relFile = path.relative(repoRoot, file).split(path.sep).join('/');
     if (SOURCE_HYGIENE_EXCLUDE_FILES.includes(relFile)) continue;
     const text = fs.readFileSync(file, 'utf8');
@@ -757,6 +783,7 @@ module.exports = {
   SOURCE_HYGIENE_EXCLUDE_FILES,
   sourceIdOffenses,
   listSourceHygieneFiles,
+  gitTrackedFiles,
   checkPublicHygieneSource,
   loadAggregateShards,
   runAll,
