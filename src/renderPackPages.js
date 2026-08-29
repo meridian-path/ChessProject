@@ -582,7 +582,7 @@ function renderPackDetailPage({ pack, otherPacks = [], nav, legalLinks }) {
     : '';
 
   const sidebarHtml = `<aside class="pack-detail-sidebar">
-      <figure class="pack-sidebar-board" aria-label="Board after this pack's first move">
+      <figure class="pack-sidebar-board" aria-label="Board after this pack&rsquo;s first move">
         ${spriteDefsHtml()}
         ${renderBoardDiagram(board, { flip: pack.color === 'black', label: `Position after ${pack.title}'s first move, ${pack.firstMoveSan}` })}
       </figure>
@@ -658,7 +658,7 @@ function renderPacksIndexPage({ packs, nav, legalLinks }) {
   const [feature, ...rest] = packs;
   const featureBoard = boardFromFen(feature.rootFen);
   const featureHtml = `<div class="pack-feature">
-      <figure class="pack-feature-board" aria-label="Board after this pack's first move">
+      <figure class="pack-feature-board" aria-label="Board after this pack&rsquo;s first move">
         ${spriteDefsHtml()}
         ${renderBoardDiagram(featureBoard, { flip: feature.color === 'black', label: `Position after ${feature.title}'s first move, ${feature.firstMoveSan}` })}
       </figure>

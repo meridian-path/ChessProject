@@ -94,7 +94,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'website', jsonLd,
     })}
 
     <noscript>
-      <p class="empty-note">This drill needs JavaScript: your deck is saved only in your own browser, so there is nothing to fetch or personalize without it. Every opening's full lines are still readable, no script required, at <a href="drill-reference.html">the drill reference page</a>.</p>
+      <p class="empty-note">This drill needs JavaScript: your deck is saved only in your own browser, so there is nothing to fetch or personalize without it. Every opening&rsquo;s full lines are still readable, no script required, at <a href="drill-reference.html">the drill reference page</a>.</p>
     </noscript>
 
     <section id="drill-hub" aria-labelledby="drill-hub-heading">
@@ -129,7 +129,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'website', jsonLd,
 
       <div class="drill-seed-card">
         <h3>Add cards from band data</h3>
-        <p>Pick an opening. We will find where your rating band's own most-played lines branch and add a card at each one.</p>
+        <p>Pick an opening. We will find where your rating band&rsquo;s own most-played lines branch and add a card at each one.</p>
         <form class="drill-seed-form" id="drill-seed-form">
           <label>Opening
             <select id="drill-seed-opening">${openingOptions}</select>

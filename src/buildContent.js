@@ -550,7 +550,7 @@ function buildFaqEntries(entries, { manifest = null } = {}) {
     },
     {
       question: 'How often is the data updated?',
-      answerHtml: `<p>Whenever this site is rebuilt from live Lichess data - there is no live/real-time updating between rebuilds. This build's data was retrieved ${escapeHtml(BUILD_DATE)}.</p>`,
+      answerHtml: `<p>Whenever this site is rebuilt from live Lichess data - there is no live/real-time updating between rebuilds. This build&rsquo;s data was retrieved ${escapeHtml(BUILD_DATE)}.</p>`,
     },
     {
       question: 'How is this site funded?',

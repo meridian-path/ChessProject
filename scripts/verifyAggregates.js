@@ -413,13 +413,14 @@ const SOURCE_HYGIENE_DENY_DIRS = new Set([
   'node_modules', 'dist', 'build', 'out', '.git', 'vendor', '.next', '.cache', 'coverage',
 ]);
 
-// This checker's own test file deliberately contains id-shaped fixture
-// strings (a fake "task-XXXXXXXX-XXXXXX"-shaped id, spelled out with X's in
-// THIS comment specifically so it does not itself match the pattern above)
-// to test hygieneOffenses()/checkPublicHygiene() themselves -- excluded
-// explicitly by path, not by accident, so a real leak anywhere else under
-// test/ still fails the gate.
-const SOURCE_HYGIENE_EXCLUDE_FILES = ['test/verifyAggregates.test.js'];
+// This checker's own test file, plus the pr-metadata-id-leak-guard hook's
+// own test file, deliberately contain id-shaped fixture strings (a fake
+// "task-XXXXXXXX-XXXXXX"-shaped id, spelled out with X's in THIS comment
+// specifically so it does not itself match the pattern above) to test
+// hygieneOffenses()/checkPublicHygiene()/the guard's own leak-matching logic
+// -- excluded explicitly by path, not by accident, so a real leak anywhere
+// else under test/ still fails the gate.
+const SOURCE_HYGIENE_EXCLUDE_FILES = ['test/verifyAggregates.test.js', 'test/prMetadataIdLeakGuard.test.js'];
 
 function sourceIdOffenses(text) {
   const found = new Set();
