@@ -3160,7 +3160,7 @@ ${renderDocumentHead({ title, description, canonical })}
       meta: totalsNote,
     })}
     <p class="repertoire-intro">Most-played moves at each ply for players in this rating band, with win/draw/loss rates per move.
-       Your color's plies show the top choices actually played at this rating; the opponent's replies show
+       Your color&rsquo;s plies show the top choices actually played at this rating; the opponent&rsquo;s replies show
        only their single most common response, to keep the tree readable.</p>
     ${renderRepertoireTree(tree)}
   </main>

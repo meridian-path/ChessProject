@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { execFileSync } = require('child_process');
 
 const {
   validateCounts,
@@ -18,6 +19,8 @@ const {
   checkDistDataSize,
   hygieneOffenses,
   checkPublicHygiene,
+  sourceIdOffenses,
+  gitTrackedFiles,
   checkPublicHygieneSource,
   loadAggregateShards,
   runAll,
@@ -412,6 +415,54 @@ test('checkPublicHygieneSource against the REAL repo tree finds zero leaks (post
   const repoRoot = path.join(__dirname, '..');
   const problems = checkPublicHygieneSource(repoRoot);
   assert.deepEqual(problems, [], `expected zero real internal-id leaks in tracked source, found: ${JSON.stringify(problems)}`);
+});
+
+// External-eye audit instance 14, accepted item 1: checkPublicHygieneSource walked the raw
+// filesystem with no git-tracked filter, so a genuinely-gitignored local working file (this
+// checkout's own TESTING.md/SEO_*.md/visual-qa-output/) false-failed npm test the moment a
+// session had ever written one locally, even though a fresh clone never materializes it. Sets
+// up a REAL git repo (not the plain fs.mkdtempSync() dirs every other fixture test above uses)
+// specifically to exercise the filter against real `git ls-files` output, not just the
+// not-a-repo fallback path every fixture test above already covers implicitly.
+function mkTmpGitRepo(prefix) {
+  const dir = mkTmpDir(prefix);
+  execFileSync('git', ['init', '--quiet'], { cwd: dir });
+  execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir });
+  execFileSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
+  return dir;
+}
+
+test('checkPublicHygieneSource ignores an untracked (gitignored) local file that leaks an id, in a REAL git repo', () => {
+  const dir = mkTmpGitRepo('hygiene-source-gitrepo-');
+  writeFile(dir, 'src/clean.js', '// Repertoire Builder: real chess statistics.\nmodule.exports = {};\n');
+  execFileSync('git', ['add', '.'], { cwd: dir });
+  execFileSync('git', ['commit', '--quiet', '-m', 'init'], { cwd: dir });
+  // Written to disk AFTER the commit, so it is genuinely untracked -- same
+  // shape as a session's own local working note (TESTING.md/SEO_*.md).
+  writeFile(dir, 'TESTING.md', `Verified against ${FAKE_ID}.\n`);
+  assert.deepEqual(checkPublicHygieneSource(dir), []);
+});
+
+test('checkPublicHygieneSource still catches a leak in a file that IS tracked, in a REAL git repo', () => {
+  const dir = mkTmpGitRepo('hygiene-source-gitrepo-');
+  writeFile(dir, 'src/leaky.js', `// ${FAKE_ID}\nmodule.exports = {};\n`);
+  execFileSync('git', ['add', '.'], { cwd: dir });
+  execFileSync('git', ['commit', '--quiet', '-m', 'init'], { cwd: dir });
+  const problems = checkPublicHygieneSource(dir);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /src\/leaky\.js/);
+});
+
+// External-eye audit instance 14, accepted item 2: the id regex was a fixed {8}-{6} length,
+// which silently stops matching once the real base36-timestamp prefix drifts past 8 characters.
+test('sourceIdOffenses matches an id whose prefix is longer than the old fixed 8-character shape', () => {
+  const longPrefixId = 'task-abcdefghijk-123456';
+  assert.deepEqual(sourceIdOffenses(`// see ${longPrefixId}`), [longPrefixId]);
+});
+
+test('gitTrackedFiles returns null (meaning "scan everything") when root is not a git repo', () => {
+  const dir = mkTmpDir('hygiene-not-a-repo-');
+  assert.equal(gitTrackedFiles(dir), null);
 });
 
 // --- follow-on hygiene verification task: the REST of this asset's public
