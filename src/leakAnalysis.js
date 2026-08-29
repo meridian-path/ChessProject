@@ -67,6 +67,58 @@ const { posKeyFor } = require('./bandShards');
 const { parse: parseLeakReport, buildLeakReport, UCI_RE, VALID_BANDS, VALID_POOLS } = require('./leakModel');
 const { parsePgnSafe } = require('./pgnWrapper');
 
+// -- band-mismatch detection (site-audit item, 2026-08-29) -------------------
+//
+// The report has always compared the visitor's moves against whichever band
+// the header selector holds (default 1600-1800), with no check against the
+// visitor's own real rating -- a first-time visitor who never touches the
+// selector gets a report computed against the wrong population, with no
+// hint. These two pure functions turn a Lichess `/api/user/:name` profile's
+// `perfs` object into a real rating for the pool in play, and a band label
+// into a numeric range, so the caller (src/browser/openingReport.client.js)
+// can warn when they don't overlap. NO I/O, same convention as the rest of
+// this module -- the profile fetch itself lives in src/fetchLichess.js.
+
+// 'rapid_classical' is one data pool covering two separate Lichess perf
+// keys (see src/explorerSource.js's own header comment on why the dump
+// schema keeps them merged) -- prefer whichever of the two has more
+// recorded games, the more representative of the two for a player who has
+// played both, rather than an arbitrary fixed preference.
+const POOL_PERF_KEYS = { bullet: ['bullet'], blitz: ['blitz'], rapid_classical: ['rapid', 'classical'] };
+
+/**
+ * @param {object} perfs a Lichess `/api/user/:name` profile's own `perfs`
+ *   object (keyed by variant, each `{rating, games, ...}` or absent for a
+ *   variant the player has never played).
+ * @param {string} pool one of VALID_POOLS.
+ * @returns {number|null} the player's real rating for this pool, or null if
+ *   they have no recorded games in any perf key this pool covers.
+ */
+function inferRatingForPool(perfs, pool) {
+  const keys = POOL_PERF_KEYS[pool] || [];
+  let best = null;
+  for (const key of keys) {
+    const perf = perfs && perfs[key];
+    if (perf && typeof perf.rating === 'number' && (!best || (perf.games || 0) > (best.games || 0))) {
+      best = perf;
+    }
+  }
+  return best ? best.rating : null;
+}
+
+/**
+ * @param {string} band one of VALID_BANDS.
+ * @returns {[number, number]|null} `[min, max)` (max is Infinity for the
+ *   open-ended "2000+" band), or null for an unrecognized band string.
+ */
+function bandRangeFor(band) {
+  const plusMatch = /^(\d+)\+$/.exec(band);
+  if (plusMatch) return [Number(plusMatch[1]), Infinity];
+  const rangeMatch = /^(\d+)-(\d+)$/.exec(band);
+  if (rangeMatch) return [Number(rangeMatch[1]), Number(rangeMatch[2])];
+  return null;
+}
+
 // -- spec 3.2.1 / 3.7 constants ---------------------------------------------
 
 // Spec 3.7 altered #1: "cap ... each game's move string at 4 KB before it
@@ -89,6 +141,13 @@ const MIN_BAND_GAMES = 300;
 const MIN_COST_PER_100 = 0.5;
 // Spec 3.2.3: "take the top five, and never pad the list to five".
 const MAX_LEAKS_RETURNED = 5;
+// Site-audit item (2026-08-29): how often aggregateAndRank() below calls the
+// injected yieldFn to give a real macrotask boundary a chance to run (see
+// that function's own comment on why an already-warm lookupCache otherwise
+// never yields at all). Every 20 games is frequent enough to keep a tab
+// responsive without meaningfully slowing down a 300-game analysis (each
+// yield is one setTimeout(0) tick in the real browser caller).
+const YIELD_EVERY_GAMES = 20;
 // Spec 3.7 N1: Lichess game ids are exactly 8 chars in the ordinary web UI
 // but the API documents up to 12 for some internal cases -- kept generous
 // (matches leakModel.js's own validateLeak, which this module's output must
@@ -293,7 +352,7 @@ function bandBestMoveOf(moves) {
  *   gamesUsable:number, skippedCount:number} | {ok:false, reason:string,
  *   gamesFetched:number, gamesUsable:number}>}
  */
-async function aggregateAndRank({ usableGames, gamesFetched, skippedCount, username, band, pool, platform = 'lichess', lookupFn, identifyFn = async () => null, maxLeaks = MAX_LEAKS_RETURNED }) {
+async function aggregateAndRank({ usableGames, gamesFetched, skippedCount, username, band, pool, platform = 'lichess', lookupFn, identifyFn = async () => null, yieldFn = async () => {}, maxLeaks = MAX_LEAKS_RETURNED }) {
   const gamesUsable = usableGames.length;
   if (gamesUsable < MIN_GAMES_USABLE) {
     return { ok: false, reason: 'too-few-games', gamesFetched, gamesUsable };
@@ -303,7 +362,22 @@ async function aggregateAndRank({ usableGames, gamesFetched, skippedCount, usern
   const lookupCache = new Map(); // posKey -> bandResult (see header comment)
   let gamesInCoverage = 0;
 
-  for (const g of usableGames) {
+  // Site-audit item (2026-08-29, live-reproduced): once the first several
+  // shards are warm, lookupCache turns nearly every lookupFn() call below
+  // into an await on an ALREADY-RESOLVED promise -- and a chain of already-
+  // resolved awaits only ever schedules microtasks, which all drain before
+  // the event loop yields to rendering. A 240+-game, ~10-in-coverage-ply
+  // analysis can run start to finish inside one microtask flush, freezing
+  // the tab for its whole duration (reproduced directly: a CDP screenshot
+  // timed out mid-analysis). yieldFn (a real macrotask boundary in the
+  // browser -- see openingReport.client.js's own caller) breaks the chain
+  // every YIELD_EVERY_GAMES games so the tab can actually repaint/respond;
+  // it costs nothing extra when the default no-op is used (every existing
+  // test), so this is purely additive, never a behavior change for callers
+  // that don't pass one.
+  for (let i = 0; i < usableGames.length; i += 1) {
+    if (i > 0 && i % YIELD_EVERY_GAMES === 0) await yieldFn();
+    const g = usableGames[i];
     let contributed = false;
     for (const p of g.plies) {
       const { posKey, fen } = posKeyFor(p.play);
@@ -440,7 +514,7 @@ async function aggregateAndRank({ usableGames, gamesFetched, skippedCount, usern
  *   gamesUsable:number, skippedCount:number} | {ok:false, reason:string,
  *   gamesFetched:number, gamesUsable:number}>}
  */
-async function buildLeakAnalysis({ ndjsonLines, username, band, pool, lookupFn, identifyFn = async () => null, maxLeaks = MAX_LEAKS_RETURNED }) {
+async function buildLeakAnalysis({ ndjsonLines, username, band, pool, lookupFn, identifyFn = async () => null, yieldFn = async () => {}, maxLeaks = MAX_LEAKS_RETURNED }) {
   const gamesFetched = ndjsonLines.length;
   let skippedCount = 0;
   const usableGames = [];
@@ -453,7 +527,7 @@ async function buildLeakAnalysis({ ndjsonLines, username, band, pool, lookupFn, 
     usableGames.push(extracted);
   }
 
-  return aggregateAndRank({ usableGames, gamesFetched, skippedCount, username, band, pool, platform: 'lichess', lookupFn, identifyFn, maxLeaks });
+  return aggregateAndRank({ usableGames, gamesFetched, skippedCount, username, band, pool, platform: 'lichess', lookupFn, identifyFn, yieldFn, maxLeaks });
 }
 
 // -- Chess.com integration (site-audit item 3, 2026-08-26) -------------------
@@ -578,7 +652,7 @@ function extractUserPliesFromPgn(game, username) {
  *   gamesUsable:number, skippedCount:number} | {ok:false, reason:string,
  *   gamesFetched:number, gamesUsable:number}>}
  */
-async function buildLeakAnalysisFromChessCom({ games, username, band, pool, lookupFn, identifyFn = async () => null, maxLeaks = MAX_LEAKS_RETURNED }) {
+async function buildLeakAnalysisFromChessCom({ games, username, band, pool, lookupFn, identifyFn = async () => null, yieldFn = async () => {}, maxLeaks = MAX_LEAKS_RETURNED }) {
   const gamesFetched = games.length;
   let skippedCount = 0;
   const usableGames = [];
@@ -591,7 +665,7 @@ async function buildLeakAnalysisFromChessCom({ games, username, band, pool, look
     usableGames.push(extracted);
   }
 
-  return aggregateAndRank({ usableGames, gamesFetched, skippedCount, username, band, pool, platform: 'chesscom', lookupFn, identifyFn, maxLeaks });
+  return aggregateAndRank({ usableGames, gamesFetched, skippedCount, username, band, pool, platform: 'chesscom', lookupFn, identifyFn, yieldFn, maxLeaks });
 }
 
 // -- spec 3.7 N3: the shareable report fragment ------------------------------
@@ -682,4 +756,6 @@ module.exports = {
   buildLeakAnalysisFromChessCom,
   encodeShareFragment,
   decodeShareFragment,
+  inferRatingForPool,
+  bandRangeFor,
 };
