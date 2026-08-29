@@ -62,9 +62,12 @@ test('renderComparisonTable: returns "" (never throws) when either opening is mi
   assert.equal(renderComparisonTable(null, openingA, '1600-1800'), '');
 });
 
-test('renderComparisonTable: no wide-interval note under the 1.0pp threshold, present at/above it', () => {
-  const narrow = fakeOpening({ slug: 'a', name: 'A', side: 'white', bands: [{ ...BAND_1600, scoreForSideCI: 0.5 }] });
-  const wide = fakeOpening({ slug: 'b', name: 'B', side: 'black', bands: [{ ...BAND_1600, scoreForSideCI: 1.5 }] });
+test('renderComparisonTable: no wide-interval note under the 3.0pp threshold, present at/above it', () => {
+  // Site-audit fix (2026-08-29): threshold moved 1.0pp -> 3.0pp (see
+  // renderContent.js's own WIDE_INTERVAL_THRESHOLD_PP comment) -- 1.0pp was
+  // firing on rows the site's own homepage shows with no caveat at all.
+  const narrow = fakeOpening({ slug: 'a', name: 'A', side: 'white', bands: [{ ...BAND_1600, scoreForSideCI: 2.0 }] });
+  const wide = fakeOpening({ slug: 'b', name: 'B', side: 'black', bands: [{ ...BAND_1600, scoreForSideCI: 3.5 }] });
   const html = renderComparisonTable(narrow, wide, '1600-1800');
   const wideNoteCount = (html.match(/wide-interval-note/g) || []).length;
   assert.equal(wideNoteCount, 1);
