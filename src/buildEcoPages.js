@@ -125,12 +125,43 @@ function pickRelatedFamilies(familyEntry, t1List) {
 }
 
 /**
+ * The one variation name that accounts for a strict majority of a code+family's own
+ * lines, or null when no single variation dominates (several distinct variations split
+ * the lines roughly evenly, or most rows are bare family-root lines with no variation at
+ * all) -- never invents a name, only surfaces one the vendored data itself already backs
+ * with real majority support. Threshold verified against the audit's own worked examples:
+ * B90 Najdorf (12/15), B33 Lasker-Pelikan (10/11), B22 Alapin (9/15), B23 Closed (6/11),
+ * B70 Dragon (3/3) all clear >50%; B20's own plurality (Wing Gambit, 8/27) does not, and
+ * B20 genuinely has no one common name, so it correctly falls back to family-only.
+ */
+function dominantVariation(familyLines) {
+  const counts = new Map();
+  for (const line of familyLines) {
+    if (!line.variation) continue;
+    counts.set(line.variation, (counts.get(line.variation) || 0) + 1);
+  }
+  let best = null;
+  let bestCount = 0;
+  for (const [variation, count] of counts) {
+    if (count > bestCount) {
+      best = variation;
+      bestCount = count;
+    }
+  }
+  return bestCount > familyLines.length / 2 ? best : null;
+}
+
+/**
  * Groups one ECO volume's lines by exact code (not family -- a single code
  * can carry more than one distinct family, e.g. A00 alone covers 21
  * differently-named "uncommon openings" families), for the T2 volume index
  * table. Each row's `names` links to a family's T1 hub only when that
  * family actually has one (>= ecoFamilies.MIN_T1_LINES lines) -- otherwise
- * plain text, never a link to a page that doesn't exist.
+ * plain text, never a link to a page that doesn't exist. Each name also
+ * carries `variation`, the code's own dominant named variation within that
+ * family (see dominantVariation() above), so codes that share one family
+ * (e.g. 80 Sicilian codes in Volume B) still read as distinct rows instead
+ * of 80 repeats of "Sicilian Defense".
  *
  * @param {Array} lines buildEcoDataset().lines
  * @param {string} volume 'A'..'E'
@@ -151,7 +182,8 @@ function buildVolumeCodeRows(lines, volume, familyIndex) {
       const names = familyNames.map((name) => {
         const fe = familyByName.get(name);
         const href = fe && fe.lineCount >= 8 ? familyHubFilename(fe.slug) : null;
-        return { name, href };
+        const variation = dominantVariation(codeLines.filter((l) => l.family === name));
+        return { name, href, variation };
       });
       return { eco, names, lineCount: codeLines.length };
     });
@@ -237,5 +269,6 @@ module.exports = {
   findDrillCrossLink,
   pickRelatedFamilies,
   buildVolumeCodeRows,
+  dominantVariation,
   ECO_INDEX_PAGE_COUNT,
 };

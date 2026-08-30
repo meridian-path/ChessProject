@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const { buildEcoPages, findT0CrossLink, findDrillCrossLink, pickRelatedFamilies, buildVolumeCodeRows } = require('../src/buildEcoPages');
+const { buildEcoPages, findT0CrossLink, findDrillCrossLink, pickRelatedFamilies, buildVolumeCodeRows, dominantVariation } = require('../src/buildEcoPages');
 const { buildEcoDataset } = require('../src/ecoData');
 const { buildFamilyIndex, t1Families, familyHubFilename } = require('../src/ecoFamilies');
 const { ecoVolumeFilename, ecoIndexPageFilename, VOLUME_LABELS } = require('../src/renderEcoPages');
@@ -222,4 +222,73 @@ test('buildVolumeCodeRows: a code\'s family name links to its T1 hub only when t
   const sicilianEntry = b20.names.find((n) => n.name === 'Sicilian Defense');
   assert.ok(sicilianEntry);
   assert.equal(sicilianEntry.href, 'sicilian-defense-variations.html');
+});
+
+// ---------------------------------------------------------------------------
+// dominantVariation / per-code variation names (80-identical-Sicilian-rows fix)
+// ---------------------------------------------------------------------------
+
+test('dominantVariation: returns the variation used by a strict majority of the family\'s own lines', () => {
+  const lines = [
+    { variation: 'Najdorf Variation' },
+    { variation: 'Najdorf Variation' },
+    { variation: 'Najdorf Variation' },
+    { variation: 'Scheveningen Variation' },
+  ];
+  assert.equal(dominantVariation(lines), 'Najdorf Variation');
+});
+
+test('dominantVariation: returns null when the plurality falls short of a strict majority', () => {
+  // measured real B20 shape: "Wing Gambit" is the single most common variation but only
+  // 8 of 27 lines (~30%) -- B20 genuinely has no one common name, so this must stay honest
+  // rather than naming the code after its largest-but-still-minority bucket.
+  const lines = [
+    ...Array(8).fill({ variation: 'Wing Gambit' }),
+    ...Array(19).fill(0).map((_, i) => ({ variation: `Other Line ${i}` })),
+  ];
+  assert.equal(dominantVariation(lines), null);
+});
+
+test('dominantVariation: null/bare family-root lines never count toward any variation, only toward the denominator', () => {
+  const lines = [
+    { variation: null },
+    { variation: null },
+    { variation: 'Closed' },
+    { variation: 'Closed' },
+    { variation: 'Closed' },
+  ];
+  assert.equal(dominantVariation(lines), 'Closed'); // 3/5, a strict majority
+  assert.equal(dominantVariation([{ variation: null }, { variation: 'Closed' }]), null); // 1/2, not a majority
+});
+
+test('buildVolumeCodeRows: real data -- the 5 codes the audit cited by name all resolve to their well-known dominant variation', () => {
+  const { lines } = buildEcoDataset();
+  const familyIndex = buildFamilyIndex(lines);
+  const rowsB = buildVolumeCodeRows(lines, 'B', familyIndex);
+  const byEco = (eco) => rowsB.find((r) => r.eco === eco).names.find((n) => n.name === 'Sicilian Defense').variation;
+  assert.equal(byEco('B90'), 'Najdorf Variation');
+  assert.equal(byEco('B33'), 'Lasker-Pelikan Variation'); // the dataset's own name for the Sveshnikov complex
+  assert.equal(byEco('B22'), 'Alapin Variation');
+  assert.equal(byEco('B23'), 'Closed');
+  assert.equal(byEco('B70'), 'Dragon Variation');
+});
+
+test('buildVolumeCodeRows: real data -- B20 has no one dominant variation and stays family-only, honestly', () => {
+  const { lines } = buildEcoDataset();
+  const familyIndex = buildFamilyIndex(lines);
+  const rowsB = buildVolumeCodeRows(lines, 'B', familyIndex);
+  const b20Sicilian = rowsB.find((r) => r.eco === 'B20').names.find((n) => n.name === 'Sicilian Defense');
+  assert.equal(b20Sicilian.variation, null);
+});
+
+test('buildVolumeCodeRows: real data -- the 80 B20-B99 Sicilian rows are no longer all identical (audit\'s own headline finding)', () => {
+  const { lines } = buildEcoDataset();
+  const familyIndex = buildFamilyIndex(lines);
+  const rowsB = buildVolumeCodeRows(lines, 'B', familyIndex);
+  const sicilianRows = rowsB.filter((r) => r.eco >= 'B20' && r.eco <= 'B99' && r.names.some((n) => n.name === 'Sicilian Defense'));
+  assert.equal(sicilianRows.length, 80); // measured: B20-B99 inclusive
+  const distinctVariations = new Set(
+    sicilianRows.map((r) => r.names.find((n) => n.name === 'Sicilian Defense').variation).filter(Boolean),
+  );
+  assert.ok(distinctVariations.size >= 10, `expected many distinct dominant variations across 80 codes, got ${distinctVariations.size}`);
 });
