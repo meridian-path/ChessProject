@@ -340,6 +340,179 @@ test('drill session board: cm-chessboard\'s Accessibility move-piece form also g
   }
 });
 
+// Site-audit fix (item 1): a move submitted through the TEXT INPUT (not a
+// click/drag, which cm-chessboard already animates on its own -- see
+// boardWidgetDrill.js's own header comment) left the board showing the
+// pre-move position even though the feedback caption changed to "correct."
+// gradeAndAdvance() now explicitly repaints the board with the graded move
+// applied. Checked via the real rendered SVG piece groups (cm-chessboard
+// renders each piece as <g data-square="..">), not just that no error was
+// thrown.
+test('drill session board: typing a move into the text input actually moves the piece on the board, not just the caption', { timeout: 30000 }, async () => {
+  const top = readRealTopMove([]); // real crawled top reply from the start position, e.g. {uci:"e2e4", san:"e4"}
+  const from = top.uci.slice(0, 2);
+  const to = top.uci.slice(2, 4);
+  const card = makeCard({ id: 'board-text-1', play: [], answerUci: top.uci, answerSan: top.san, side: 'white', source: 'band-meta' });
+
+  const server = await startServer();
+  const { port } = server.address();
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.goto(`http://127.0.0.1:${port}/drill.html`);
+    await page.evaluate(
+      (c) => window.localStorage.setItem('rb.drill.v2', JSON.stringify({ v: 2, cards: [c], migratedV1: true })),
+      card
+    );
+    await page.reload();
+
+    await page.locator('#drill-start-session').click();
+    await page.locator('#drill-session').waitFor({ state: 'visible' });
+    await page.locator('#drill-board svg.cm-chessboard').waitFor({ state: 'visible' });
+    await page.waitForTimeout(400);
+
+    // Pre-move: a real piece sits on the answer's own FROM square.
+    await page.locator(`#drill-board g[data-square="${from}"]`).waitFor({ state: 'visible' });
+
+    await page.locator('#drill-move-text').fill(top.san);
+    await page.locator('#drill-move-form button[type="submit"]').click();
+
+    await page.locator('#drill-feedback:not(:empty)').waitFor({ state: 'visible', timeout: 5000 });
+    assert.match(await page.locator('#drill-feedback').getAttribute('class'), /drill-feedback--correct/);
+
+    // The board itself must now show the move, not just the caption: the
+    // FROM square is empty and the TO square carries the moved piece.
+    await page.locator(`#drill-board g[data-square="${to}"]`).waitFor({ state: 'visible', timeout: 2000 });
+    assert.equal(await page.locator(`#drill-board g[data-square="${from}"]`).count(), 0, 'the piece must have left its origin square on the real rendered board');
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});
+
+// Site-audit fix (item 3): the drill board used to always mount at White's
+// own orientation regardless of which side a card actually drills -- a
+// Black-to-play card drilled from White's own seat reads backwards (the
+// homepage hero board already gets this right, per the same audit).
+test('drill session board: orients to the card\'s own side to move, not always White', { timeout: 30000 }, async () => {
+  const top = readRealTopMove(['e2e4']); // real Black reply after 1.e4
+  const card = makeCard({ id: 'orientation-black-1', play: ['e2e4'], answerUci: top.uci, answerSan: top.san, side: 'black', source: 'band-meta' });
+
+  const server = await startServer();
+  const { port } = server.address();
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.goto(`http://127.0.0.1:${port}/drill.html`);
+    await page.evaluate(
+      (c) => window.localStorage.setItem('rb.drill.v2', JSON.stringify({ v: 2, cards: [c], migratedV1: true })),
+      card
+    );
+    await page.reload();
+
+    await page.locator('#drill-start-session').click();
+    await page.locator('#drill-session').waitFor({ state: 'visible' });
+    await page.locator('#drill-board svg.cm-chessboard').waitFor({ state: 'visible' });
+
+    // cm-chessboard renders the orientation via its coordinate labels --
+    // rank "8" sits at the visual bottom (not top) when flipped to Black.
+    // Reading the real rendered coordinate text is a stronger check than
+    // querying the board's own internal state, since it's what a visitor
+    // actually sees.
+    const coordTexts = await page.locator('#drill-board .coordinates .coordinate').allTextContents();
+    const rank8Index = coordTexts.indexOf('8');
+    const rank1Index = coordTexts.indexOf('1');
+    assert.ok(rank8Index !== -1 && rank1Index !== -1, 'expected both rank 1 and rank 8 coordinate labels to be present');
+    // DOM order for cm-chessboard's coordinate labels follows rendering
+    // (top-to-bottom); White orientation renders rank 8 before rank 1,
+    // Black orientation renders rank 1 before rank 8.
+    assert.ok(rank1Index < rank8Index, 'a Black-to-play card should orient the board with rank 1 above rank 8 (flipped)');
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});
+
+// Site-audit fix (item 2): the move-input placeholder said "e.g. Bc4 or
+// f1c4" (a White move) even on a Black-to-play card.
+test('drill session board: the move-input placeholder matches the card\'s own side to move', { timeout: 30000 }, async () => {
+  const top = readRealTopMove(['e2e4']);
+  const card = makeCard({ id: 'placeholder-black-1', play: ['e2e4'], answerUci: top.uci, answerSan: top.san, side: 'black', source: 'band-meta' });
+
+  const server = await startServer();
+  const { port } = server.address();
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.goto(`http://127.0.0.1:${port}/drill.html`);
+    await page.evaluate(
+      (c) => window.localStorage.setItem('rb.drill.v2', JSON.stringify({ v: 2, cards: [c], migratedV1: true })),
+      card
+    );
+    await page.reload();
+
+    await page.locator('#drill-start-session').click();
+    await page.locator('#drill-session').waitFor({ state: 'visible' });
+
+    const placeholder = await page.locator('#drill-move-text').getAttribute('placeholder');
+    assert.doesNotMatch(placeholder, /Bc4|f1c4/, 'a Black-to-play card must not show a White-move example');
+    assert.match(placeholder, /Bc5|f8c5/, 'expected the Black-side example move');
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});
+
+// Site-audit fix (item 4): a zero-leak report rendered an enabled-looking
+// "Add 0 leak cards to your deck" button -- an affordance that can add
+// nothing should never look pressable. The sentence alone now carries the
+// zero-leak state.
+test('drill hub "seed from report" panel: a zero-leak report shows no button, only the sentence', { timeout: 30000 }, async () => {
+  const zeroLeakReport = {
+    format: 'leak-report/1',
+    generated: new Date().toISOString(),
+    band: '1600-1800',
+    pool: 'blitz',
+    username: 'clubplayer',
+    gamesFetched: 25,
+    gamesUsable: 25,
+    gamesInCoverage: 0,
+    leaks: [],
+  };
+
+  const server = await startServer();
+  const { port } = server.address();
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.goto(`http://127.0.0.1:${port}/drill.html`);
+    await page.evaluate(
+      (report) => window.localStorage.setItem('rb.leakReport.v1', JSON.stringify(report)),
+      zeroLeakReport
+    );
+    await page.reload();
+
+    const seedSection = page.locator('#drill-seed-from-report');
+    await seedSection.waitFor({ state: 'visible' });
+    assert.match(await seedSection.innerText(), /Your report found 0 leaks/);
+    assert.equal(await page.locator('#drill-seed-report-btn').count(), 0, 'a zero-leak report must render no seed button at all');
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});
+
+// Site-audit fix (item 7c): thinned the drill subtitle's doubled-up
+// "actually" ("...actually plays... you actually need them.") down to the
+// one that earns its keep.
+test('renderDrillHubPage subtitle keeps one "actually", not the doubled-up pair', () => {
+  const html = renderDrillHubPage({ nav: NAV, legalLinks: LEGAL_LINKS });
+  const subtitleMatch = html.match(/<p class="subtitle">([\s\S]*?)<\/p>/);
+  assert.ok(subtitleMatch, 'expected the page-head subtitle paragraph');
+  const occurrences = (subtitleMatch[1].match(/actually/g) || []).length;
+  assert.equal(occurrences, 1);
+});
+
 async function assert_notDisabled(locator) {
   const disabled = await locator.isDisabled();
   assert.equal(disabled, false, 'Start session button should be enabled with fresh cards in the deck');

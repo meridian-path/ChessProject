@@ -158,6 +158,19 @@ test('designTokens: --radius-lg was removed (max 3 radii) and nothing still refe
   assert.doesNotMatch(SITE_CSS, /--radius-lg/);
 });
 
+// Site-audit fix (item 6): --chart-band used to be a theme-invariant
+// --color-ink-1 in DESIGN_TOKENS -- one ramp step off the light theme's own
+// --color-bg (ink-0), indistinguishable there (the homepage data-strip
+// bars' unfilled "track" visibly lost its loss-segment in light mode; dark
+// mode never showed it, ink-1 sits near-white against ink-9). Moved to
+// THEME_ROLES, aliased to the already contrast-guaranteed
+// --color-border-strong role in both themes.
+test('designTokens: --chart-band is a per-theme role (not a fixed DESIGN_TOKENS value), aliased to --color-border-strong', () => {
+  assert.equal(DESIGN_TOKENS['--chart-band'], undefined, '--chart-band must live in THEME_ROLES now, not as a fixed ramp value');
+  assert.equal(THEME_ROLES.light['--chart-band'], 'var(--color-border-strong)');
+  assert.equal(THEME_ROLES.dark['--chart-band'], 'var(--color-border-strong)');
+});
+
 test('designTokens: --shadow-focus was retired in favor of the focus-ring tokens', () => {
   assert.equal(DESIGN_TOKENS['--shadow-focus'], undefined);
   assert.doesNotMatch(SITE_CSS, /--shadow-focus/);

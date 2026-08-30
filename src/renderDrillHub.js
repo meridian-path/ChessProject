@@ -89,7 +89,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'website', jsonLd,
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
       title: 'Opening drill',
-      subtitle: 'Play the move your rating band actually plays. Seed a deck from your opening report, a saved repertoire, or any opening below, then drill it with spaced repetition so due cards come back when you actually need them.',
+      subtitle: 'Play the move your rating band actually plays. Seed a deck from your opening report, a saved repertoire, or any opening below, then drill it with spaced repetition so due cards come back when you need them.',
     })}
 
     <noscript>

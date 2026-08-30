@@ -442,12 +442,27 @@ function renderMistakesSection(model) {
   return `<ul class="callout-list">${items}</ul>`;
 }
 
+/**
+ * The Lichess Masters DB's own `name` field is inconsistently formatted
+ * across games -- the SAME player appears as "Carlsen, Magnus" in one row
+ * and "Carlsen, M." in another (a real, live-observed inconsistency, not a
+ * hypothetical). Rather than guess a missing first name from an initial
+ * (which would occasionally be wrong for a less-famous player), this keeps
+ * only the one thing every variant already agrees on: the surname before
+ * the first comma. A name with no comma at all (already just a surname, or
+ * a single-word handle) passes through unchanged.
+ */
+function normalizeMasterName(name) {
+  const commaIndex = name.indexOf(',');
+  return commaIndex === -1 ? name : name.slice(0, commaIndex).trim();
+}
+
 function renderGameRows(games, { asMaster = false } = {}) {
   if (!games || games.length === 0) return null;
   return games
     .map((g) => {
-      const white = g.white ? `${escapeHtml(g.white.name)} (${g.white.rating ?? '?'})` : 'White';
-      const black = g.black ? `${escapeHtml(g.black.name)} (${g.black.rating ?? '?'})` : 'Black';
+      const white = g.white ? `${escapeHtml(asMaster ? normalizeMasterName(g.white.name) : g.white.name)} (${g.white.rating ?? '?'})` : 'White';
+      const black = g.black ? `${escapeHtml(asMaster ? normalizeMasterName(g.black.name) : g.black.name)} (${g.black.rating ?? '?'})` : 'Black';
       const result = g.winner === 'white' ? '1-0' : g.winner === 'black' ? '0-1' : '½-½';
       const link = g.id ? `https://lichess.org/${escapeHtml(g.id)}` : null;
       const dateNote = g.year ? `${g.year}` : '';
@@ -462,8 +477,8 @@ function renderGameRows(games, { asMaster = false } = {}) {
     .join('');
 }
 
-function renderGamesTable(games, caption) {
-  const rows = renderGameRows(games);
+function renderGamesTable(games, caption, { asMaster = false } = {}) {
+  const rows = renderGameRows(games, { asMaster });
   if (!rows) return '<p class="empty-note">No games available for this section yet.</p>';
   return wrapTable(`
     <table>
@@ -562,6 +577,24 @@ function renderOpeningPage({ model, openingConfig, nav, related = [], repertoire
   const relatedSection = renderRelated(related, 'Related openings');
   const relatedHtml = relatedSection ? `\n\n    ${relatedSection}` : '';
 
+  // Site-audit fix: "Recent club games in this line" shipped as a
+  // permanently-empty section on every page this build's own data pipeline
+  // runs on -- model.recentGames flows through the aggregate-shaped
+  // fetchMoves() (src/explorerSource.js), whose own doc comment discloses
+  // that the dump aggregate stores position/move counts only, never
+  // individual game records, so recentGames is always [] there (unlike
+  // model.masterGames, a genuinely separate always-live masters-DB call
+  // that does carry real per-game data). Hide the whole section rather
+  // than show an empty table with a permanent "no games yet" note -- it
+  // graduates back automatically the moment a live-Explorer-API build (no
+  // aggregates on disk) or a future per-game aggregate ever populates it,
+  // no further code change needed here.
+  const recentGamesHtml = model.recentGames.length > 0
+    ? `\n\n    <h2>Recent club games in this line</h2>
+    <p>Recent rated games at ${escapeHtml(model.defaultBand)}: not model games, just what actually happens at that rating.</p>
+    ${renderGamesTable(model.recentGames, 'Recent games in this line')}`
+    : '';
+
   return `<!DOCTYPE html>
 <html lang="en">
 ${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd: breadcrumbJsonLd(breadcrumbItems) })}
@@ -599,11 +632,7 @@ ${renderDocumentHead({ title, description, canonical, ogType: 'article', jsonLd:
 
     <h2>Model games</h2>
     <p>Real games from the Lichess masters database.</p>
-    ${renderGamesTable(model.masterGames, 'Master games in this line')}
-
-    <h2>Recent club games in this line</h2>
-    <p>Recent rated games at ${escapeHtml(model.defaultBand)}: not model games, just what actually happens at that rating.</p>
-    ${renderGamesTable(model.recentGames, 'Recent games in this line')}
+    ${renderGamesTable(model.masterGames, 'Master games in this line', { asMaster: true })}${recentGamesHtml}
 
     <h2>Build a repertoire from here</h2>
     <p>See the full move tree for players in your rating band:

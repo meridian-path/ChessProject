@@ -309,7 +309,12 @@ const DESIGN_TOKENS = {
   '--chart-h-inline': '96px',
   '--chart-h-hero': '220px',
   '--chart-grid': 'var(--color-ink-2)',
-  '--chart-band': 'var(--color-ink-1)',
+  // --chart-band moved to THEME_ROLES below (site-audit fix): it is a
+  // theme-invariant ink-1 here, one ramp step off the light theme's own
+  // --color-bg (ink-0) -- indistinguishable in light mode, which is exactly
+  // why the homepage data-strip bars' unfilled "track" (data-strip-bar-track,
+  // this token's one real consumer) visibly lost its loss-segment there.
+  // Dark mode never showed the bug (ink-1 sits near-white against ink-9).
   '--chart-mark': 'var(--color-accent-5)',
   '--chart-mark-muted': 'var(--color-ink-3)',
   '--chart-domain-lo': '45',
@@ -378,6 +383,12 @@ const THEME_ROLES = {
     '--color-muted': 'var(--color-ink-6)', // 6.47:1 on bg
     '--color-border': 'var(--color-ink-2)', // hairline, decorative
     '--color-border-strong': 'var(--color-ink-4)', // 3.47:1 on bg -- WCAG 1.4.11
+    // Site-audit fix: was a theme-invariant --color-ink-1 in DESIGN_TOKENS,
+    // one ramp step off this theme's own --color-bg (ink-0) -- indistinguishable
+    // in light mode. --color-border-strong already carries a real, guaranteed
+    // >=3:1-on-bg contrast for exactly this "visible non-text UI boundary"
+    // role (WCAG 1.4.11), same reasoning as every other track/border use of it.
+    '--chart-band': 'var(--color-border-strong)',
     '--color-accent': 'var(--color-accent-5)',
     '--color-accent-dark': 'var(--color-accent-6)', // 6.47:1 on bg -- links
     '--color-accent-contrast': 'var(--color-ink-0)', // 6.47:1 on an accent-6 fill
@@ -420,6 +431,7 @@ const THEME_ROLES = {
     '--color-muted': 'var(--color-ink-3)', // 6.47 on bg / 4.74 on surface
     '--color-border': 'var(--color-ink-6)',
     '--color-border-strong': 'var(--color-ink-4)', // 4.74 on bg / 3.47 on surface
+    '--chart-band': 'var(--color-border-strong)',
     '--color-accent': 'var(--color-accent-4)',
     // "accent-dark" now means link/emphasis accent -- the name reads
     // backwards in the dark role map (it's lighter than --color-accent
@@ -1686,6 +1698,18 @@ ${designTokensCss(THEME_ROLES.dark)}
   .cm-chessboard-widget:focus-within { outline: var(--border-control) solid var(--color-focus); outline-offset: var(--focus-ring-offset); border-radius: var(--radius-sm); }
   .cm-chessboard .keyboard-focus-indicator .keyboard-focus { fill: none; stroke: var(--color-focus); stroke-width: 3px; pointer-events: none; }
   .cm-chessboard .keyboard-focus-indicator .keyboard-from-square { fill: var(--color-hover); stroke: var(--color-focus); stroke-width: 2px; pointer-events: none; }
+  /* Site-audit fix: a plain mouse click/drag move gives the SVG real DOM
+     focus as a side effect (tabindex="0" above), which fires the extension's
+     own "focus" listener and draws this indicator at its still-default a1
+     square (untouched by a click/drag move -- only arrow-key navigation
+     ever updates it) rather than wherever the piece actually landed. Rather
+     than patch the vendored library's internal focus-tracking state, hide
+     the indicator group unless the SVG's own focus is keyboard-triggered
+     (:focus-visible is false for a mouse-caused focus in every browser this
+     site supports) -- real keyboard users still get the full indicator,
+     unchanged, for the whole time they keep focus. */
+  .cm-chessboard .keyboard-focus-indicator { visibility: hidden; }
+  .cm-chessboard:focus-visible .keyboard-focus-indicator { visibility: visible; }
   .cm-chessboard-accessibility.visually-hidden {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;

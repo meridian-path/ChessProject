@@ -262,7 +262,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd, extraCss: OPENING_
     ${renderPageHead({
       breadcrumb: renderBreadcrumb(breadcrumbItems),
       title: 'Find your five biggest opening leaks',
-      subtitle: 'Enter a Lichess or Chess.com username. We compare what you actually play against what your rating band actually plays, and rank the gaps by how many points per 100 games each one costs.',
+      subtitle: 'Enter a Lichess or Chess.com username. We compare what you play against what your rating band actually plays, and rank the gaps by how many points per 100 games each one costs.',
     })}
 
     <form class="lookup-form" id="report-form">
