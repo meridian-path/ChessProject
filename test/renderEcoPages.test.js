@@ -220,6 +220,20 @@ test('renderEcoVolumeIndexPage: an unlinked code name renders as plain text, nev
   assert.match(html, /Some Obscure Line/);
 });
 
+// 80-identical-Sicilian-rows fix: a row's variation renders alongside its family name.
+test('renderEcoVolumeIndexPage: a name with a dominant variation renders "Family: Variation", linked when the family has one', () => {
+  const codeRows = [{ eco: 'B90', names: [{ name: 'Sicilian Defense', href: 'sicilian-defense-variations.html', variation: 'Najdorf Variation' }], lineCount: 15 }];
+  const html = renderEcoVolumeIndexPage({ volume: 'B', codeRows, nav: NAV });
+  assert.match(html, /<a href="sicilian-defense-variations\.html">Sicilian Defense: Najdorf Variation<\/a>/);
+});
+
+test('renderEcoVolumeIndexPage: a name with no dominant variation renders the family name alone, exactly as before', () => {
+  const codeRows = [{ eco: 'B20', names: [{ name: 'Sicilian Defense', href: 'sicilian-defense-variations.html', variation: null }], lineCount: 27 }];
+  const html = renderEcoVolumeIndexPage({ volume: 'B', codeRows, nav: NAV });
+  assert.match(html, /<a href="sicilian-defense-variations\.html">Sicilian Defense<\/a>/);
+  assert.ok(!html.includes('Sicilian Defense:'));
+});
+
 // AdSense content-depth fix, part 2: every ECO volume page gets its own
 // differentiating strategy paragraph under "What sets this volume apart".
 test('renderEcoVolumeIndexPage: renders the strategy paragraph under a "What sets this volume apart" heading', () => {

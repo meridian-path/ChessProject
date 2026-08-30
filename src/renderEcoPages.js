@@ -324,7 +324,10 @@ function renderEcoVolumeIndexPage({ volume, codeRows, nav, strategy = '' }) {
   const rows = codeRows
     .map((r) => {
       const names = r.names
-        .map((n) => (n.href ? `<span><a href="${escapeHtml(n.href)}">${displayName(n.name)}</a></span>` : `<span>${displayName(n.name)}</span>`))
+        .map((n) => {
+          const label = n.variation ? `${displayName(n.name)}: ${displayName(n.variation)}` : displayName(n.name);
+          return n.href ? `<span><a href="${escapeHtml(n.href)}">${label}</a></span>` : `<span>${label}</span>`;
+        })
         .join('');
       return `<tr><td><span class="eco-chip">${escapeHtml(r.eco)}</span></td><td class="eco-names">${names}</td><td class="num">${r.lineCount}</td></tr>`;
     })
