@@ -61,6 +61,17 @@ function createPage(band) {
     related: [],
   };
 
+  // Site-audit fix ("index reads templated"): see bestOpeningsByRatingBand.js's
+  // own describeResult() comment for the full reasoning -- same fix, this
+  // factory's own worst-scoring mistake in place of a top-ranked opening.
+  function describeResult(ctx) {
+    const { entries, aggregateMistakesAcrossOpenings, formatPct } = ctx;
+    const worst = aggregateMistakesAcrossOpenings(entries, band)[0];
+    if (!worst) return meta.description;
+    const rich = `At ${band}, ${worst.san} in the ${worst.name} is played ${formatPct(worst.playedPct)}% of the time but scores only ${formatPct(worst.score)}% - the single worst-scoring common move this build tracks at this band.`;
+    return rich.length <= 160 ? rich : meta.description;
+  }
+
   function render(ctx) {
     const { entries, aggregateMistakesAcrossOpenings, escapeHtml, displayName, formatPct } = ctx;
     const all = aggregateMistakesAcrossOpenings(entries, band);
@@ -92,7 +103,7 @@ function createPage(band) {
     `;
   }
 
-  return { meta, render };
+  return { meta, render, describeResult };
 }
 
 function createOpeningMistakesByBandPages() {

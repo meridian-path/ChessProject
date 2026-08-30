@@ -820,7 +820,7 @@ ${renderDocumentHead({ title, description, canonical, jsonLd: breadcrumbJsonLd(b
  * @param {object} opts.nav nav object for renderHeader (STATIC_NAV plus `guides`/`faq`)
  * @param {Array<{label,href,note}>} [opts.related]
  */
-function renderArticlePage({ meta, bodyHtml, nav, related = [] }) {
+function renderArticlePage({ meta, bodyHtml, nav, related = [], hasBoard = false }) {
   const title = pageTitle(meta.title);
   const canonical = absoluteUrl(`${meta.slug}.html`);
   const breadcrumbItems = [{ label: 'Home', href: nav.home }, { label: 'Guides', href: nav.guides }, { label: meta.title, href: `${meta.slug}.html` }];
@@ -859,7 +859,7 @@ ${renderDocumentHead({ title, description: meta.description, canonical, ogType: 
       ${bodyHtml.trim()}
     </article>${relatedHtml}
   </main>
-  ${renderFooter(`Aggregate data from the <a href="https://lichess.org/api#tag/Opening-Explorer" rel="noopener noreferrer">Lichess Opening Explorer</a>, retrieved ${BUILD_DATE}. This article is written to reflect that data, not as a substitute for a coach&rsquo;s judgment about your own games.`, CONTENT_LEGAL_LINKS)}
+  ${renderFooter(`Aggregate data from the <a href="https://lichess.org/api#tag/Opening-Explorer" rel="noopener noreferrer">Lichess Opening Explorer</a>, retrieved ${BUILD_DATE}. This article is written to reflect that data, not as a substitute for a coach&rsquo;s judgment about your own games.${hasBoard ? ` ${pieceAttributionHtml()}` : ''}`, CONTENT_LEGAL_LINKS)}
 </div>
 </body>
 </html>

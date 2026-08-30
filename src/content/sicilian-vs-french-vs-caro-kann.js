@@ -5,7 +5,7 @@ const SLUG = 'sicilian-vs-french-vs-caro-kann';
 const meta = {
   slug: SLUG,
   title: 'Sicilian vs. French vs. Caro-Kann, Compared',
-  description: 'Head-to-head win rates for the three most common replies to 1.e4 c-pawn/e-pawn alternatives, across all four rating bands this site tracks.',
+  description: 'Head-to-head win rates for the Sicilian, French, and Caro-Kann against 1.e4, across all four rating bands this site tracks.',
   targetQuery: 'sicilian vs french vs caro-kann',
   related: ['sicilian-defense', 'french-defense', 'caro-kann-defense'],
 };

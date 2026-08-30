@@ -66,6 +66,93 @@ test('buildContentPages writes one page per configured opening plus the openings
   })
 );
 
+// Site-audit fix ("garbled description on the index"): the old wording
+// ("replies to 1.e4 c-pawn/e-pawn alternatives") was word salad.
+test('sicilian-vs-french-vs-caro-kann has a grammatical, non-garbled meta description', () =>
+  withTempDist(async (outDir) => {
+    const { fetchImpl } = makeSmartExplorerFetch();
+    const { written } = await buildContentPages({ fetchImpl, outDir });
+    const page = written.find((p) => p.file === 'sicilian-vs-french-vs-caro-kann.html');
+    assert.ok(page, 'expected the comparison guide to exist');
+    assert.doesNotMatch(page.description, /c-pawn\/e-pawn alternatives/);
+    assert.match(page.description, /Sicilian, French, and Caro-Kann/);
+  })
+);
+
+// Site-audit fix ("index reads templated"): 12 of the 24 guide index cards
+// used to be the identical sentence with only the band/side swapped. Each
+// of the 8 best-openings-by-band pages must now name a real, data-driven
+// fact (the actual top opening for that specific band/side), not just
+// interpolate band/side into an otherwise-fixed template. This fixture's
+// own smart-explorer data always has a real top opening per band/side, so
+// this integration test can assert the rich path fires for real, end to
+// end; the sibling mistakes-by-band factory's own describeResult() has the
+// identical fallback shape but is exercised directly (see
+// test/bestOpeningsByRatingBand.test.js) since this fixture's data never
+// happens to produce a qualifying "common mistake" at any band, which is
+// itself the fallback's own correct, honest behavior, not a bug.
+test('the 8 best-openings-by-band guides each carry a real, distinct top-opening fact in their own description, not just a band/side swap', () =>
+  withTempDist(async (outDir) => {
+    const { fetchImpl } = makeSmartExplorerFetch();
+    const { written } = await buildContentPages({ fetchImpl, outDir });
+
+    const bestOpeningsPages = written.filter((p) => /^best-(white|black)-openings-/.test(p.file));
+    assert.equal(bestOpeningsPages.length, 8);
+    for (const page of bestOpeningsPages) {
+      assert.doesNotMatch(
+        page.description,
+        /^The (white|black)-side openings this site tracks, ranked by measured score at .+, with the sample size for every number shown\.$/,
+        `${page.file}'s description must not be the old fixed template verbatim`
+      );
+      assert.match(page.description, /leads (White|Black)&#39;s tracked openings at .+, scoring [\d.]+%/, `${page.file} should name a real top opening and score`);
+    }
+    // All 8 must be genuinely distinct from each other (not just distinct
+    // from the old template) -- assertPageMetadata's own global uniqueness
+    // check already enforces this build-wide; re-asserted here scoped to
+    // just this one page family so a future regression fails close to its
+    // real cause.
+    assert.equal(new Set(bestOpeningsPages.map((p) => p.description)).size, 8);
+  })
+);
+
+// Site-audit fix ("articles that admit they can't deliver their headline" +
+// "zero board diagrams in a chess article"): the London System guide now
+// renders a real board diagram of its own defining position, and the
+// mistake section either shows a real flagged mistake or -- when there is
+// none -- honestly retitles itself and shows the top-scoring reply on a
+// real board instead of shipping the bare generator empty-state sentence
+// under a heading that promised a mistake.
+test('how-to-beat-the-london-system renders a real board diagram and never ships the bare empty-state sentence under "A mistake the data flags"', () =>
+  withTempDist(async (outDir) => {
+    const { fetchImpl } = makeSmartExplorerFetch();
+    const { written } = await buildContentPages({ fetchImpl, outDir });
+    const page = written.find((p) => p.file === 'how-to-beat-the-london-system.html');
+    assert.ok(page, 'expected the London System guide to exist');
+
+    // A real rendered board (boardSvg.js's own .board wrapper), not zero
+    // diagrams -- at least the defining-position figure at the top.
+    assert.match(page.html, /<div class="board" role="img"/);
+
+    // Piece attribution required whenever a page actually has a board
+    // (renderContent.js's renderArticlePage hasBoard param).
+    assert.match(page.html, /Cburnett chess set/);
+
+    // Whichever branch this fixture's own data lands in: either a real
+    // mistake list renders under the original heading, or the section is
+    // honestly retitled and shows a second real board (the top-scoring
+    // reply) plus real prose -- never the bare generator empty-state
+    // sentence under a heading that promises a mistake.
+    if (page.html.includes('<h2>A mistake the data flags</h2>')) {
+      assert.match(page.html, /<h2>A mistake the data flags<\/h2>\s*<p>[^<]*<\/p>\s*<ul>/, 'a real mistake list must back this heading, not an empty-state note');
+    } else {
+      assert.match(page.html, /<h2>The best plan instead<\/h2>/);
+      const boardCount = (page.html.match(/<div class="board" role="img"/g) || []).length;
+      assert.equal(boardCount, 2, 'expected the London setup board plus the top-scoring-reply board');
+      assert.match(page.html, /highest-scoring reply on this exact table/);
+    }
+  })
+);
+
 test('buildContentPages never writes the Lichess API token into any generated content page', () =>
   withTempDist(async (outDir) => {
     const previousToken = process.env.LICHESS_API_TOKEN;
