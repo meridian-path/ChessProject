@@ -855,7 +855,7 @@ function indexPage(contentEntries = [], drillFile = null, heroDemo = null, heroD
 
   const pageHeadHtml = renderPageHead({
     title: 'The chess opening meta, by rating band',
-    subtitle: 'Which openings players at your rating actually play, and how often those picks actually win. Every number on this site comes straight from real Lichess games.',
+    subtitle: 'Which openings players at your rating actually play, and how often those picks win. Every number on this site comes straight from real Lichess games.',
   });
   // Board Visibility spec section 2.3's placement: directly under the h1/
   // subtitle, above "Start with your rating band" -- text in the left

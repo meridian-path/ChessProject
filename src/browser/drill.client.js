@@ -57,6 +57,7 @@ const drillDeck = require('../drillDeck');
 const { parse: parseLeakReport } = require('../leakModel');
 const { gradeFromAttempt } = require('../scheduler');
 const { mountDrillBoard } = require('../boardWidgetDrill');
+const { COLOR } = require('../boardWidget');
 const bandData = require('./bandData.client');
 const bandState = require('./bandState.client');
 
@@ -255,7 +256,15 @@ const LEAK_REPORT_KEY = 'rb.leakReport.v1';
       seedFromReportEl.innerHTML = '<h3>Drill your leaks</h3><p class="empty-note">Your saved opening report could not be read. Generate a fresh one from <a href="opening-report.html">the opening report page</a>.</p>';
       return;
     }
-    seedFromReportEl.innerHTML = `<h3>Drill your leaks</h3><p>Your report found ${parsed.report.leaks.length} leak${parsed.report.leaks.length === 1 ? '' : 's'} in the ${escapeHtml(parsed.report.band)} band.</p><button type="button" id="drill-seed-report-btn">Add ${parsed.report.leaks.length} leak card${parsed.report.leaks.length === 1 ? '' : 's'} to your deck</button>`;
+    const leakCount = parsed.report.leaks.length;
+    // A zero-leak report is real, good news, not an error state -- but a
+    // button that can add zero cards is an affordance that can do nothing,
+    // which should never look pressable (reference-library entry 19's
+    // annotated-empty-state pattern). The sentence alone carries the state.
+    const buttonHtml = leakCount > 0
+      ? `<button type="button" id="drill-seed-report-btn">Add ${leakCount} leak card${leakCount === 1 ? '' : 's'} to your deck</button>`
+      : '';
+    seedFromReportEl.innerHTML = `<h3>Drill your leaks</h3><p>Your report found ${leakCount} leak${leakCount === 1 ? '' : 's'} in the ${escapeHtml(parsed.report.band)} band.</p>${buttonHtml}`;
     const btn = document.getElementById('drill-seed-report-btn');
     if (btn) {
       btn.addEventListener('click', function () {
@@ -420,16 +429,29 @@ const LEAK_REPORT_KEY = 'rb.leakReport.v1';
     return `${card.side === 'white' ? 'White' : 'Black'} to play. Type a move, or tap a piece then a destination square.`;
   }
 
+  // A White-side example (Bc4/f1c4) reads as the wrong side's move when the
+  // card actually prompts Black to play -- match the input's own example to
+  // whichever side is actually on move this card, using a real, well-known
+  // move for each (Italian Game Bc4/Bc5 mirror each other exactly).
+  function movePlaceholderFor(card) {
+    return card.side === 'white' ? 'e.g. Bc4 or f1c4' : 'e.g. Bc5 or f8c5';
+  }
+
   async function loadCard(entry) {
     currentEntry = entry;
     currentCard = entry.card;
     attemptedThisCard = false;
     correctOnFirstAttempt = false;
     cardStartTime = Date.now();
+    // Orient the board to whichever side this card actually drills, same
+    // lichess convention the homepage hero board already follows -- a
+    // Black-to-play card drilled from White's own seat reads backwards.
+    if (boardHandle) boardHandle.board.setOrientation(currentCard.side === 'black' ? COLOR.black : COLOR.white);
     paintBoard(boardForCard(currentCard));
     resetCandidateTable();
     setFeedback('', '');
     announce(sideAnnounceText(currentCard));
+    if (moveInput) moveInput.placeholder = movePlaceholderFor(currentCard);
     pendingCandidates = await loadCandidatesForCard(currentCard);
   }
 
@@ -478,6 +500,20 @@ const LEAK_REPORT_KEY = 'rb.leakReport.v1';
     }
 
     renderCandidateTable(pendingCandidates);
+
+    // The board must show whichever move the feedback text just described --
+    // a real move landed on the board within 100ms of the caption changing,
+    // same rule this file already follows for the other feedback state
+    // changes, not the pre-move position sitting still while only the text
+    // updates. `answer`/`played` are candidate objects straight out of
+    // `pendingCandidates` (real, known moves for this exact position), so
+    // applying just that one move on top of the card's own pre-move board
+    // is always legal -- never the case for "unknown" (no real move
+    // recognized), where there is nothing legitimate to paint.
+    const moveToShowUci = noAttemptMade ? answer.uci : (played ? played.uci : null);
+    if (moveToShowUci) {
+      paintBoard(applyUciMoves(boardForCard(currentCard), [moveToShowUci]));
+    }
 
     let feedbackVerdict;
     let feedbackText;

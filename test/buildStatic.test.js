@@ -395,6 +395,18 @@ test('indexPage footer never mentions TESTING.md or other internal build artifac
   assert.doesNotMatch(html, /TESTING\.md/);
 });
 
+// Site-audit fix (item 7c): thinned a doubled-up "actually" in the homepage
+// h1 subtitle ("...actually play, and how often those picks actually
+// win.") down to the one that earns its keep -- not a full purge (this
+// site's own voice keeps the word elsewhere), just the redundant repeat.
+test('indexPage subtitle keeps one "actually" (real emphasis), not the doubled-up pair', () => {
+  const html = indexPage([]);
+  const subtitleMatch = html.match(/<p class="subtitle">([\s\S]*?)<\/p>/);
+  assert.ok(subtitleMatch, 'expected the page-head subtitle paragraph');
+  const occurrences = (subtitleMatch[1].match(/actually/g) || []).length;
+  assert.equal(occurrences, 1);
+});
+
 test('assertFilenamesUnique throws on a duplicate filename and passes for a unique list', () => {
   assert.throws(() => assertFilenamesUnique(['a.html', 'b.html', 'a.html']), /Duplicate output filename/);
   assert.doesNotThrow(() => assertFilenamesUnique(['a.html', 'b.html', 'c.html']));

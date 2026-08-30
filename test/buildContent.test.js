@@ -233,10 +233,85 @@ test('buildOpeningModel + renderOpeningPage handle a realistic full-shape fixtur
     related: [],
     repertoireLinks: { white: 'repertoire-1600-1800-white.html', black: 'repertoire-1600-1800-black.html' },
   });
-  assert.match(html, /Caruana, Fabiano/);
+  // Site-audit fix: the Model games table now normalizes a masters-DB name
+  // to its surname only (see renderContent.js's normalizeMasterName) -- the
+  // masters API itself renders the SAME player as "Caruana, Fabiano" in one
+  // game and "Caruana, F." in another, so the full "Caruana, Fabiano" no
+  // longer reaches the page, only "Caruana" does (still, verifiably, real).
+  assert.match(html, /Caruana \(/);
+  assert.doesNotMatch(html, /Caruana, Fabiano/);
   assert.match(html, /Italian Game: Giuoco Piano/);
+  // Site-audit fix (item 7b): with real recentGames present, the "Recent
+  // club games" section must still render exactly as before.
+  assert.match(html, /<h2>Recent club games in this line<\/h2>/);
   const h1Matches = html.match(/<h1[ >]/g) || [];
   assert.equal(h1Matches.length, 1);
+});
+
+// Site-audit fix (item 7b): "Recent club games in this line" shipped as a
+// permanently-empty section on every build running on aggregate data --
+// model.recentGames is always [] there (src/explorerSource.js's own doc
+// comment: the dump aggregate has no per-game records). The whole section
+// (heading, intro paragraph, table) must disappear rather than show an
+// empty table with a permanent "no games yet" note.
+test('renderOpeningPage hides the entire "Recent club games" section when recentGames is empty, rather than showing an empty table', () => {
+  const openingConfig = OPENINGS.find((o) => o.slug === 'italian-game');
+  const noRecentGamesFixture = { ...italianFixture, recentGames: [] };
+  const model = buildOpeningModel({
+    openingConfig,
+    bandResponses: { '1600-1800': noRecentGamesFixture },
+    mastersResponse: mastersItalianFixture,
+    defaultBand: '1600-1800',
+    minGamesForPct: 1000,
+  });
+  assert.equal(model.recentGames.length, 0);
+
+  const html = renderOpeningPage({
+    model,
+    openingConfig,
+    nav: { repertoire: 'index.html', openings: 'openings.html', player: 'player.html' },
+    related: [],
+    repertoireLinks: { white: 'repertoire-1600-1800-white.html', black: 'repertoire-1600-1800-black.html' },
+  });
+  assert.doesNotMatch(html, /Recent club games in this line/);
+  assert.doesNotMatch(html, /No games available for this section yet/, 'must hide the section entirely, not show it with an empty-state note');
+  // The Model games section (a genuinely separate, always-live masters-DB
+  // call) is unaffected by the aggregate path's own recentGames gap.
+  assert.match(html, /<h2>Model games<\/h2>/);
+});
+
+// Site-audit fix (item 7a): the masters DB's own `name` field is
+// inconsistently formatted across games for the SAME player (e.g.
+// "Carlsen, Magnus" in one game, "Carlsen, M." in another) -- both must
+// normalize to the same surname-only label.
+test('renderOpeningPage normalizes inconsistent masters-DB name formats to the same surname', () => {
+  const openingConfig = OPENINGS.find((o) => o.slug === 'italian-game');
+  const mixedFormatMasters = {
+    ...mastersItalianFixture,
+    topGames: [
+      { uci: 'f8c5', id: 'game1', winner: 'black', white: { name: 'Caruana, Fabiano', rating: 2835 }, black: { name: 'Carlsen, Magnus', rating: 2863 }, year: 2020, month: '2020-06' },
+      { uci: 'f8c5', id: 'game2', winner: 'white', white: { name: 'Nakamura, Hikaru', rating: 2780 }, black: { name: 'Carlsen, M.', rating: 2856 }, year: 2019, month: '2019-03' },
+    ],
+  };
+  const model = buildOpeningModel({
+    openingConfig,
+    bandResponses: { '1600-1800': italianFixture },
+    mastersResponse: mixedFormatMasters,
+    defaultBand: '1600-1800',
+    minGamesForPct: 1000,
+  });
+  const html = renderOpeningPage({
+    model,
+    openingConfig,
+    nav: { repertoire: 'index.html', openings: 'openings.html', player: 'player.html' },
+    related: [],
+    repertoireLinks: { white: 'repertoire-1600-1800-white.html', black: 'repertoire-1600-1800-black.html' },
+  });
+  const carlsenOccurrences = html.match(/Carlsen[^<]*\(/g) || [];
+  assert.equal(carlsenOccurrences.length, 2, 'expected both Carlsen rows');
+  assert.ok(carlsenOccurrences.every((s) => s === 'Carlsen (' || s.startsWith('Carlsen (')), `both rows must normalize to the same "Carlsen (" label, got: ${carlsenOccurrences.join(', ')}`);
+  assert.doesNotMatch(html, /Carlsen, M\./);
+  assert.doesNotMatch(html, /Carlsen, Magnus/);
 });
 
 // AdSense low-value-content fix, part 1: every
