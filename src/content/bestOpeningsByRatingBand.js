@@ -52,6 +52,29 @@ function createPage(side, band) {
     related: [],
   };
 
+  // Site-audit fix ("index reads templated"): the static meta.description
+  // above is identical in shape across all 8 of these pages, differing only
+  // by side/band -- exactly the "identical card grids" tell at the copy
+  // level, both on this page's own <meta> tag and the guides index card.
+  // Recomputes the SAME ranking render() uses (cheap -- ctx.entries is
+  // already-fetched, in-memory data, no new Explorer call) to name the
+  // actual #1 opening and its real score, one concrete fact templating
+  // alone can't fake. Falls back to the generic sentence if a band
+  // genuinely has no ranked entries yet, or if the specific opening's name
+  // pushes the sentence over the 160-char meta-description cap.
+  function describeResult(ctx) {
+    const { entries, rankOpeningsByScore, formatPct } = ctx;
+    const { ranked } = rankSide(entries, side, band, rankOpeningsByScore);
+    const top = ranked[0];
+    if (!top) return meta.description;
+    const score = formatPct(top.scoreForSideBalanced != null ? top.scoreForSideBalanced : top.scoreForSide);
+    // Plain text, not displayName() -- meta.description is escaped exactly
+    // once downstream (renderDocumentHead / renderGuidesHub's card markup),
+    // same contract every other guide's static description string follows.
+    const rich = `${top.name} leads ${label}'s tracked openings at ${band}, scoring ${score}% - full ranking and sample size for every number shown.`;
+    return rich.length <= 160 ? rich : meta.description;
+  }
+
   function render(ctx) {
     const { entries, rankOpeningsByScore, escapeHtml, displayName, formatPct, formatGamesAbbrev, wrapTable } = ctx;
 
@@ -119,7 +142,7 @@ function createPage(side, band) {
     `;
   }
 
-  return { meta, render };
+  return { meta, render, describeResult };
 }
 
 function createBestOpeningsByRatingBandPages() {

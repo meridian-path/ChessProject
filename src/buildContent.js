@@ -15,6 +15,8 @@ const fs = require('fs');
 const path = require('path');
 
 const { OPENINGS, assertOpeningsWellFormed } = require('./openings');
+const { START_BOARD, applyUciMoves } = require('./chessPosition');
+const { spriteDefsHtml, renderBoardDiagram } = require('./boardSvg');
 const { RATING_BANDS, DEFAULT_SPEEDS } = require('./processRepertoire');
 const { fetchExplorerMoves } = require('./fetchOpeningExplorer');
 const { fetchMoves, AGGREGATES_DIR, aggregatesAvailable, actualPoolSpeeds, poolDisclosure } = require('./explorerSource');
@@ -34,6 +36,7 @@ const {
   renderArticlePage,
   renderGuidesHub,
   renderFaqPage,
+  renderBoard,
   formatSanLine,
   formatGamesAbbrev,
   lichessAnalysisUrl,
@@ -456,6 +459,21 @@ function buildGuidePages(entries, { nav, outDir, aggregatesDir = AGGREGATES_DIR 
     wrapTable,
     poolSpeeds,
     poolDisclosure,
+    // Site-audit fix ("zero board diagrams in a chess article"): the same
+    // board-building primitives renderOpeningPage's own "The position"
+    // figure already uses (see this file's buildOpeningModel call site),
+    // so a guide can show a real, rendered position instead of prose-only
+    // move lists. A guide using these must also set meta.hasBoard:true so
+    // renderArticlePage's footer carries the required piece attribution.
+    // renderBoard is the single-board convenience wrapper (own doc comment:
+    // "a page with more than one board must call spriteDefsHtml() itself,
+    // once"); spriteDefsHtml/renderBoardDiagram are the two pieces a guide
+    // with MORE than one board diagram needs instead.
+    renderBoard,
+    spriteDefsHtml,
+    renderBoardDiagram,
+    START_BOARD,
+    applyUciMoves,
   };
 
   const written = [];
@@ -466,12 +484,22 @@ function buildGuidePages(entries, { nav, outDir, aggregatesDir = AGGREGATES_DIR 
       .filter(Boolean)
       .map((e) => ({ label: e.model.name, href: `${e.openingConfig.slug}.html` }));
     const bodyHtml = guide.render(ctx);
-    const meta = { ...guide.meta, datePublished: BUILD_DATE };
-    const html = renderArticlePage({ meta, bodyHtml, nav, related });
+    // Site-audit fix ("index reads templated"): a guide module MAY export
+    // describeResult(ctx) to compute its real description from this
+    // build's own data (a concrete top-opening/worst-mistake fact) instead
+    // of the static meta.description every guide still carries as its
+    // fallback -- see bestOpeningsByRatingBand.js/mostCommonOpeningMistakesByBand.js's
+    // own describeResult() for the two factories this actually applies to.
+    // Every hand-authored guide's own description was already distinct
+    // (the audit's own finding was scoped to just the 12 factory-generated
+    // pages), so this is additive and changes nothing for them.
+    const description = typeof guide.describeResult === 'function' ? guide.describeResult(ctx) : guide.meta.description;
+    const meta = { ...guide.meta, description, datePublished: BUILD_DATE };
+    const html = renderArticlePage({ meta, bodyHtml, nav, related, hasBoard: guide.meta.hasBoard === true });
     const file = `${guide.meta.slug}.html`;
     fs.writeFileSync(path.join(outDir, file), html, 'utf8');
     written.push({ file, html, slug: guide.meta.slug, title: extractTitle(html), description: extractDescription(html) });
-    summaries.push({ slug: guide.meta.slug, title: guide.meta.title, description: guide.meta.description });
+    summaries.push({ slug: guide.meta.slug, title: guide.meta.title, description });
   }
   return { written, summaries };
 }
