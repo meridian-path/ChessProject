@@ -1273,7 +1273,20 @@ ${designTokensCss(THEME_ROLES.dark)}
     height: 320px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
-    background: var(--color-bg);
+    background: var(--color-surface);
+  }
+  /* Loading-state only -- dropped automatically once loadEmbed() below
+     replaces this element with a plain <iframe class="newsletter-embed">,
+     which never carries this second class, so none of this leaks into the
+     real widget's own box (no inset padding around the loaded content). */
+  .newsletter-embed--loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-muted);
+    font-size: var(--text-xs);
+    text-align: center;
+    padding: var(--space-4);
   }
 
   .support-links {
@@ -2801,8 +2814,8 @@ function renderNewsletterSignup() {
   }
   return `<div class="newsletter-signup">
     <h2 class="newsletter-heading">Get new openings and guides by email</h2>
-    <p class="newsletter-description">One email when a new opening page or guide ships. No spam, unsubscribe anytime.</p>
-    <div class="newsletter-embed" data-newsletter-slot data-newsletter-src="${escapeHtml(NEWSLETTER_FORM_ACTION)}" data-newsletter-title="Email signup for Repertoire Builder updates"></div>
+    <p class="newsletter-description">One email when a new opening page or guide ships. No spam, unsubscribe anytime. Sent through our newsletter, published on Substack as &ldquo;I like to Build&rdquo; alongside filetools and Solo Queue Practice.</p>
+    <div class="newsletter-embed newsletter-embed--loading" data-newsletter-slot data-newsletter-src="${escapeHtml(NEWSLETTER_FORM_ACTION)}" data-newsletter-title="Email signup for Repertoire Builder updates">Loading sign-up form&hellip;</div>
     <noscript><p class="newsletter-description"><a href="${escapeHtml(SUBSTACK_PUBLICATION_URL)}" target="_blank" rel="noopener noreferrer">Subscribe on Substack</a></p></noscript>
     <script>(function(){var slots=document.querySelectorAll('[data-newsletter-slot]');if(!slots.length)return;function loadEmbed(slot){var src=slot.getAttribute('data-newsletter-src');var title=slot.getAttribute('data-newsletter-title')||'Email signup form';if(!src||!/^https:\\/\\//.test(src))return;var iframe=document.createElement('iframe');iframe.src=src;iframe.width='480';iframe.height='320';iframe.loading='lazy';iframe.title=title;iframe.className='newsletter-embed';iframe.setAttribute('frameborder','0');iframe.setAttribute('scrolling','no');slot.replaceWith(iframe);}if(!('IntersectionObserver' in window)){slots.forEach(loadEmbed);return;}var observer=new IntersectionObserver(function(entries){entries.forEach(function(entry){if(entry.isIntersecting){observer.unobserve(entry.target);loadEmbed(entry.target);}});},{rootMargin:'200px 0px'});slots.forEach(function(slot){observer.observe(slot);});})();</script>
   </div>`;

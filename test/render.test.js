@@ -186,6 +186,30 @@ test('renderNewsletterSignup only assigns the iframe src client-side when it sta
   assert.match(html, /if\(!src\|\|!\/\^https:\\\/\\\/\/\.test\(src\)\)return;/, 'the client-side loader must scheme-check data-newsletter-src before assigning it to iframe.src');
 });
 
+// Footer email signup polish: the Substack iframe carries the foreign
+// publication name "I like to Build" and cannot be restyled from outside
+// (cross-origin), and it painted an empty box during the load gap before
+// this fix -- see docs/design/REFERENCE_LIBRARY.md-cited audit. Fix is a
+// site-voiced lead-in naming the publication, plus real loading-state text
+// so the reserved slot never reads as a blank rectangle before the widget
+// arrives.
+
+test('renderNewsletterSignup names the real Substack publication in the lead-in copy, so "I like to Build" is not unexplained once the widget loads', () => {
+  const html = renderNewsletterSignup();
+  assert.match(html, /&ldquo;I like to Build&rdquo;/);
+});
+
+test('renderNewsletterSignup renders real loading-state text in the reserved slot -- never an empty box during the load gap', () => {
+  const html = renderNewsletterSignup();
+  assert.match(html, /<div class="newsletter-embed newsletter-embed--loading"[^>]*>Loading sign-up form&hellip;<\/div>/);
+});
+
+test('renderNewsletterSignup: the client-side swap assigns the iframe only the base "newsletter-embed" class, dropping the loading-state class', () => {
+  const html = renderNewsletterSignup();
+  assert.match(html, /iframe\.className='newsletter-embed';/);
+  assert.doesNotMatch(html, /iframe\.className='newsletter-embed newsletter-embed--loading'/);
+});
+
 // Donation identity consolidation: the footer used to link two donation
 // platforms under two different handles (Ko-fi "flavaa", Buy Me a Coffee
 // "dylanger254") -- a trust seam. Ko-fi is now the only linked donation
