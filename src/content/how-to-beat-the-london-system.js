@@ -76,7 +76,7 @@ function render(ctx) {
       ${renderBoardDiagram(applyUciMoves(londonBoard, [topScoring.uci]), { label: `Position after 1.d4 d5 2.Bf4 ${topScoring.san}` })}
       <figcaption>Position after ${escapeHtml(topScoring.san)}.</figcaption>
     </figure>
-    <p><strong>${escapeHtml(topScoring.san)}</strong> is Black&rsquo;s highest-scoring reply on this exact table, at ${formatPct(topScoring.blackScore)}% from ${topScoring.games.toLocaleString()} games (played ${formatPct(topScoring.playedPct)}% of the time - not the most popular choice, the best-performing one). That gap between popularity and result is the real, checkable version of &ldquo;how to beat the London&rdquo; this data can actually support: not a trap, a better statistical starting point.</p>`
+    <p><strong>${escapeHtml(topScoring.san)}</strong> is Black&rsquo;s highest-scoring reply on this exact table, at ${formatPct(topScoring.blackScore)}% from ${topScoring.games.toLocaleString()} games (played ${formatPct(topScoring.playedPct)}% of the time - not the most popular choice, the best-performing one). That gap between popularity and result is the real, checkable answer this data can offer to &ldquo;how to beat the London.&rdquo;</p>`
       : '<p class="empty-note">Not enough reply data was available in this build to identify a top-scoring line.</p>';
 
   return `
